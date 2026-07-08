@@ -1,0 +1,26 @@
+name: pbh_oficial
+description: "PBH Oficial — app de desenvolvimento pessoal masculino, disciplina e evolução contínua."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.2.1
+  # Fonte usada: Manrope (grotesca geométrica, moderna, mesmo espírito
+  # tipográfico do design de referência — hierarquia forte, tracking largo
+  # nos títulos, ótima legibilidade em dark mode).
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
