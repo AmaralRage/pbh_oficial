@@ -7,6 +7,8 @@ import '../widgets/stat_card.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  static final _streakStartDate = DateTime(2020, 2, 23);
+
   static const _achievements = [
     (icon: Icons.emoji_events, label: '30 Dias', unlocked: true),
     (icon: Icons.local_fire_department, label: 'Sequência\n20+', unlocked: true),
@@ -18,6 +20,8 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final streakDays = DateTime.now().difference(_streakStartDate).inDays;
+
     return SafeArea(
       bottom: false,
       child: ListView(
@@ -97,15 +101,15 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const AnimatedEntry(
+          AnimatedEntry(
             delayMs: 140,
             child: Row(
               children: [
-                StatCard(icon: Icons.local_fire_department, value: '23', label: 'Dias de\nsequência'),
-                SizedBox(width: 12),
-                StatCard(icon: Icons.flag, value: '4', label: 'Desafios\nconcluídos'),
-                SizedBox(width: 12),
-                StatCard(icon: Icons.emoji_events, value: '12', label: 'Conquistas'),
+                StatCard(icon: Icons.local_fire_department, value: '$streakDays', label: 'Dias de\nsequência'),
+                const SizedBox(width: 12),
+                const StatCard(icon: Icons.flag, value: '28', label: 'Desafios\nconcluídos'),
+                const SizedBox(width: 12),
+                const StatCard(icon: Icons.emoji_events, value: '46', label: 'Conquistas'),
               ],
             ),
           ),

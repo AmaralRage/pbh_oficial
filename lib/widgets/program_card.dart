@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/feedback/tap_feedback.dart';
 import '../models/program_model.dart';
 
 /// Card horizontal de programa — usado na Home ("Conteúdo recomendado")
@@ -16,7 +17,10 @@ class ProgramCard extends StatelessWidget {
     final hasProgress = program.progress > 0;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        lightTapFeedback();
+        onTap();
+      },
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(

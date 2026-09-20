@@ -6,6 +6,8 @@ class CommunityPostModel {
   final int likes;
   final int comments;
   final String? achievementTag;
+  final String? avatarAsset;
+  final bool isJapanese;
 
   const CommunityPostModel({
     required this.authorName,
@@ -15,6 +17,8 @@ class CommunityPostModel {
     required this.likes,
     required this.comments,
     this.achievementTag,
+    this.avatarAsset,
+    this.isJapanese = false,
   });
 }
 
@@ -28,6 +32,7 @@ const List<CommunityPostModel> mockPosts = [
     likes: 187,
     comments: 29,
     achievementTag: 'Jornada transformadora',
+    avatarAsset: 'assets/images/samuel.png',
   ),
   CommunityPostModel(
     authorName: 'Wellerson Ramos',
@@ -37,34 +42,39 @@ const List<CommunityPostModel> mockPosts = [
         'Depois de participar do projeto, parei de esperar motivação para agir. Os pequenos compromissos diários mudaram minha saúde, minha família e a maneira como enxergo meu futuro.',
     likes: 163,
     comments: 24,
+    avatarAsset: 'assets/images/wellerson.png',
   ),
   CommunityPostModel(
-    authorName: 'André Monteiro',
-    authorInitials: 'AM',
+    authorName: 'Chad',
+    authorInitials: 'CH',
     timeAgo: '1h',
     content:
         'A comunidade me mostrou que evolução não precisa ser solitária. Hoje tenho constância, apoio e orgulho da pessoa que estou construindo todos os dias.',
     likes: 121,
     comments: 18,
+    avatarAsset: 'assets/images/chad.png',
   ),
   CommunityPostModel(
-    authorName: 'Marcus V.',
-    authorInitials: 'MV',
+    authorName: 'Kanye West',
+    authorInitials: 'KW',
     timeAgo: '2h',
     content:
         'Dia 30 de disciplina concluído. Não foi sobre motivação, foi sobre decidir uma vez e não negociar todos os dias depois disso.',
     likes: 214,
     comments: 38,
     achievementTag: '30 Dias de Disciplina',
+    avatarAsset: 'assets/images/kanye.png',
   ),
   CommunityPostModel(
-    authorName: 'Rafael T.',
-    authorInitials: 'RT',
-    timeAgo: '5h',
+    authorName: 'Miyazaki',
+    authorInitials: 'MI',
+    timeAgo: '1時間前',
     content:
-        'Comecei o Despertar 5h essa semana. Os três primeiros dias foram os mais difíceis da minha rotina em meses. Hoje já é automático.',
+        'このプロジェクトに参加してから、毎日の小さな習慣が自分を変える力になると実感しました。規律を守ることで、心も生活も以前より強くなりました。',
     likes: 132,
     comments: 21,
+    avatarAsset: 'assets/images/miyazaki.png',
+    isJapanese: true,
   ),
   CommunityPostModel(
     authorName: 'Diego M.',

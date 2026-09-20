@@ -22,29 +22,17 @@ class CommunityPostCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
-                  color: AppColors.orangeDim,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  post.authorInitials,
-                  style: AppTextStyles.chip.copyWith(
-                    color: AppColors.orange,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
+              _PostAvatar(post: post),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(post.authorName, style: AppTextStyles.titleMedium.copyWith(fontSize: 14)),
-                    Text('há ${post.timeAgo}', style: AppTextStyles.statLabel),
+                    Text(
+                      post.isJapanese ? post.timeAgo : 'há ${post.timeAgo}',
+                      style: AppTextStyles.statLabel,
+                    ),
                   ],
                 ),
               ),
@@ -85,6 +73,38 @@ class CommunityPostCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PostAvatar extends StatelessWidget {
+  final CommunityPostModel post;
+
+  const _PostAvatar({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(color: AppColors.orangeDim, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: Text(
+        post.authorInitials,
+        style: AppTextStyles.chip.copyWith(color: AppColors.orange, fontWeight: FontWeight.w800),
+      ),
+    );
+
+    if (post.avatarAsset == null) return fallback;
+
+    return ClipOval(
+      child: Image.asset(
+        post.avatarAsset!,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
       ),
     );
   }

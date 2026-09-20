@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/feedback/tap_feedback.dart';
 import '../models/habit_model.dart';
 
 class HabitItemCard extends StatelessWidget {
@@ -41,7 +42,10 @@ class HabitItemCard extends StatelessWidget {
             ),
           ),
           GestureDetector(
-            onTap: () => onToggle(!habit.completed),
+            onTap: () {
+              lightTapFeedback();
+              onToggle(!habit.completed);
+            },
             child: Container(
               width: 26,
               height: 26,

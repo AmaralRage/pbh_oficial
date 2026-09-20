@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/feedback/tap_feedback.dart';
 
 class FilterChipRow extends StatelessWidget {
   final List<String> options;
@@ -25,7 +26,10 @@ class FilterChipRow extends StatelessWidget {
         itemBuilder: (context, index) {
           final isSelected = index == selectedIndex;
           return GestureDetector(
-            onTap: () => onSelected(index),
+            onTap: () {
+              lightTapFeedback();
+              onSelected(index);
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.symmetric(horizontal: 18),

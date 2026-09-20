@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/feedback/tap_feedback.dart';
 import '../models/challenge_model.dart';
 
 class FeaturedChallengeCard extends StatelessWidget {
@@ -18,7 +19,10 @@ class FeaturedChallengeCard extends StatelessWidget {
     final progressPercent = (challenge.progress * 100).round();
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        lightTapFeedback();
+        onTap();
+      },
       child: Container(
         width: double.infinity,
         height: 150,

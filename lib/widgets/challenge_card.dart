@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/feedback/tap_feedback.dart';
 import '../models/challenge_model.dart';
 
 class ChallengeCard extends StatelessWidget {
@@ -16,7 +17,10 @@ class ChallengeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        lightTapFeedback();
+        onTap();
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

@@ -20,6 +20,10 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final completedWeekDays = Set<int>.from(
+      List<int>.generate(today.weekday - 1, (index) => index),
+    );
     final activeChallenge = mockChallenges.firstWhere(
       (c) => c.status == ChallengeStatus.active,
       orElse: () => mockChallenges.first,
@@ -42,9 +46,9 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const AnimatedEntry(
+          AnimatedEntry(
             delayMs: 110,
-            child: WeekdaySelector(todayIndex: 4, completedIndexes: {0, 1, 2, 3}),
+            child: WeekdaySelector(date: today, completedIndexes: completedWeekDays),
           ),
           const SizedBox(height: 28),
           AnimatedEntry(

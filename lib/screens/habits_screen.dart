@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/feedback/tap_feedback.dart';
 import '../models/habit_model.dart';
 import '../widgets/animated_entry.dart';
 import '../widgets/habit_item_card.dart';
@@ -17,17 +18,9 @@ class HabitsScreen extends StatefulWidget {
 
 class _HabitsScreenState extends State<HabitsScreen> {
   late List<HabitModel> _habits;
-  int _selectedDay = 3;
+  late int _selectedDay;
 
-  static const _weekDays = [
-    {'label': 'Seg', 'num': '10'},
-    {'label': 'Ter', 'num': '11'},
-    {'label': 'Qua', 'num': '12'},
-    {'label': 'Qui', 'num': '13'},
-    {'label': 'Sex', 'num': '14'},
-    {'label': 'Sáb', 'num': '15'},
-    {'label': 'Dom', 'num': '16'},
-  ];
+  static const _weekDayLabels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
   static const _streakBars = [0.42, 0.55, 0.34, 0.95, 0.72, 0.88, 0.54];
   static const _streakLabels = ['S', 'D', 'S', 'T', 'Q', 'Q', 'S'];
@@ -36,9 +29,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
   void initState() {
     super.initState();
     _habits = List.of(mockHabits);
+    _selectedDay = DateTime.now().weekday - 1;
   }
 
   int get _completedCount => _habits.where((h) => h.completed).length;
+
+  List<DateTime> get _currentWeek {
+    final today = DateTime.now();
+    final monday = DateTime(today.year, today.month, today.day).subtract(Duration(days: today.weekday - 1));
+    return List<DateTime>.generate(7, (index) => monday.add(Duration(days: index)));
+  }
 
   void _handleBottomTap(int index) {
     if (widget.onNavigate != null) {
@@ -139,41 +139,51 @@ class _HabitsScreenState extends State<HabitsScreen> {
   }
 
   Widget _DayStrip() {
+    final week = _currentWeek;
     return SizedBox(
-      height: 58,
+      height: 68,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(_weekDays.length, (index) {
+        children: List.generate(week.length, (index) {
           final isSelected = index == _selectedDay;
-          final day = _weekDays[index];
-          return GestureDetector(
-            onTap: () => setState(() => _selectedDay = index),
-            child: Column(
-              children: [
-                Text(day['label']!, style: AppTextStyles.statLabel.copyWith(fontSize: 10)),
-                const SizedBox(height: 7),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  width: isSelected ? 42 : 34,
-                  height: isSelected ? 42 : 34,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSelected ? AppColors.orangeDim : AppColors.backgroundElevated,
-                    border: Border.all(
-                      color: isSelected ? AppColors.orange : AppColors.borderSubtle,
-                      width: isSelected ? 2 : 1,
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                lightTapFeedback();
+                setState(() => _selectedDay = index);
+              },
+              child: Column(
+                children: [
+                  Text(
+                    _weekDayLabels[index],
+                    style: AppTextStyles.statLabel.copyWith(
+                      fontSize: 10,
+                      color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
                     ),
                   ),
-                  child: Text(
-                    day['num']!,
-                    style: AppTextStyles.titleMedium.copyWith(
-                      fontSize: 14,
-                      color: isSelected ? AppColors.orange : AppColors.textPrimary,
+                  const SizedBox(height: 7),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: isSelected ? 42 : 34,
+                    height: isSelected ? 42 : 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected ? AppColors.orangeDim : AppColors.backgroundElevated,
+                      border: Border.all(
+                        color: isSelected ? AppColors.orange : AppColors.borderSubtle,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Text(
+                      '${week[index].day}',
+                      style: AppTextStyles.titleMedium.copyWith(
+                        fontSize: 14,
+                        color: isSelected ? AppColors.orange : AppColors.textPrimary,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         }),

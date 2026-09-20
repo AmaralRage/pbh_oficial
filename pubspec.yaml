@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.6
   google_fonts: ^6.2.1
+  url_launcher: ^6.3.1
   # Fonte usada: Manrope (grotesca geométrica, moderna, mesmo espírito
   # tipográfico do design de referência — hierarquia forte, tracking largo
   # nos títulos, ótima legibilidade em dark mode).

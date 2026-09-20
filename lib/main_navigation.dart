@@ -5,6 +5,8 @@ import 'screens/community_screen.dart';
 import 'screens/content_screen.dart';
 import 'screens/habits_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/launch_screen.dart';
+import 'screens/music_screen.dart';
 import 'screens/profile_screen.dart';
 import 'core/navigation/app_transitions.dart';
 import 'widgets/pbh_app_drawer.dart';
@@ -23,7 +25,7 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  static const _sectionNames = ['Início', 'Desafios', 'Conteúdo', 'Comunidade', 'Perfil'];
+  static const _sectionNames = ['Início', 'Desafios', 'Conteúdo', 'Música', 'Comunidade', 'Perfil'];
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _currentIndex;
   int _previousIndex = 0;
@@ -50,12 +52,20 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
+  void _returnToLaunch() {
+    Navigator.of(context).pushAndRemoveUntil(
+      fadeSlideRoute(const LaunchScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screens = [
       HomeScreen(onNavigate: _goTo),
       const ChallengesScreen(),
       const ContentScreen(),
+      const MusicScreen(),
       const CommunityScreen(),
       const ProfileScreen(),
     ];
@@ -75,6 +85,7 @@ class _MainNavigationState extends State<MainNavigation> {
             PbhAppHeader(
               currentSection: _sectionNames[_currentIndex],
               onMenuPressed: _openMenu,
+              onLogoPressed: _returnToLaunch,
             ),
             Expanded(
               child: AnimatedSwitcher(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/feedback/tap_feedback.dart';
 import 'pbh_logo.dart';
 
 /// Menu principal aberto pelo icone de tres tracos da tela inicial.
@@ -21,8 +22,9 @@ class PbhAppDrawer extends StatelessWidget {
     _DrawerItemData(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Início', index: 0),
     _DrawerItemData(icon: Icons.emoji_events_outlined, activeIcon: Icons.emoji_events, label: 'Desafios', index: 1),
     _DrawerItemData(icon: Icons.play_circle_outline, activeIcon: Icons.play_circle_fill, label: 'Conteúdo', index: 2),
-    _DrawerItemData(icon: Icons.groups_outlined, activeIcon: Icons.groups, label: 'Comunidade', index: 3),
-    _DrawerItemData(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Perfil', index: 4),
+    _DrawerItemData(icon: Icons.music_note_outlined, activeIcon: Icons.music_note, label: 'Música', index: 3),
+    _DrawerItemData(icon: Icons.groups_outlined, activeIcon: Icons.groups, label: 'Comunidade', index: 4),
+    _DrawerItemData(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Perfil', index: 5),
   ];
 
   void _selectTab(BuildContext context, int index) {
@@ -61,33 +63,39 @@ class PbhAppDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text('NAVEGAÇÃO', style: AppTextStyles.eyebrow),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text('NAVEGAÇÃO', style: AppTextStyles.eyebrow),
+                  ),
+                  const SizedBox(height: 10),
+                  ..._mainItems.map((item) => _DrawerNavigationItem(
+                        icon: currentIndex == item.index ? item.activeIcon : item.icon,
+                        label: item.label,
+                        selected: currentIndex == item.index,
+                        onTap: () => _selectTab(context, item.index),
+                      )),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(24, 22, 24, 16),
+                    child: Divider(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text('SUA JORNADA', style: AppTextStyles.eyebrow),
+                  ),
+                  const SizedBox(height: 10),
+                  _DrawerNavigationItem(
+                    icon: Icons.checklist_outlined,
+                    label: 'Rotina de hábitos',
+                    selected: false,
+                    onTap: () => _openHabits(context),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 10),
-            ..._mainItems.map((item) => _DrawerNavigationItem(
-                  icon: currentIndex == item.index ? item.activeIcon : item.icon,
-                  label: item.label,
-                  selected: currentIndex == item.index,
-                  onTap: () => _selectTab(context, item.index),
-                )),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(24, 22, 24, 16),
-              child: Divider(),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text('SUA JORNADA', style: AppTextStyles.eyebrow),
-            ),
-            const SizedBox(height: 10),
-            _DrawerNavigationItem(
-              icon: Icons.checklist_outlined,
-              label: 'Rotina de hábitos',
-              selected: false,
-              onTap: () => _openHabits(context),
-            ),
-            const Spacer(),
             Container(
               margin: const EdgeInsets.all(20),
               padding: const EdgeInsets.all(16),
@@ -140,7 +148,11 @@ class _DrawerNavigationItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
+          enableFeedback: false,
+          onTap: () {
+            lightTapFeedback();
+            onTap();
+          },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(

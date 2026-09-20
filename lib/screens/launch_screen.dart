@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/navigation/app_transitions.dart';
+import '../core/feedback/tap_feedback.dart';
 import '../main_navigation.dart';
 import '../widgets/official_hero_background.dart';
 import '../widgets/pbh_logo.dart';
@@ -87,7 +88,10 @@ class _LaunchScreenState extends State<LaunchScreen> {
                 children: List.generate(4, (index) {
                   final active = index == _page;
                   return GestureDetector(
-                    onTap: () => setState(() => _page = index),
+                    onTap: () {
+                      lightTapFeedback();
+                      setState(() => _page = index);
+                    },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       margin: const EdgeInsets.symmetric(horizontal: 5),

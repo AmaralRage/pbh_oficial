@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/feedback/tap_feedback.dart';
 
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -22,7 +23,12 @@ class SectionHeader extends StatelessWidget {
         Text(title, style: AppTextStyles.titleMedium),
         if (actionLabel != null)
           GestureDetector(
-            onTap: onActionTap,
+            onTap: onActionTap == null
+                ? null
+                : () {
+                    lightTapFeedback();
+                    onActionTap!();
+                  },
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
