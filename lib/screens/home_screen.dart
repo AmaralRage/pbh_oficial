@@ -6,7 +6,6 @@ import '../models/challenge_model.dart';
 import '../models/program_model.dart';
 import '../widgets/animated_entry.dart';
 import '../widgets/featured_challenge_card.dart';
-import '../widgets/pbh_logo.dart';
 import '../widgets/program_card.dart';
 import '../widgets/section_header.dart';
 import '../widgets/stat_card.dart';
@@ -31,39 +30,6 @@ class HomeScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Menu em construção.')),
-                ),
-              ),
-              const PbhLogo(compact: true),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none, color: AppColors.textPrimary),
-                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Você está em dia por aqui.')),
-                    ),
-                  ),
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
           AnimatedEntry(
             delayMs: 60,
             child: Column(

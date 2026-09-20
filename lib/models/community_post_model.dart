@@ -20,6 +20,34 @@ class CommunityPostModel {
 
 const List<CommunityPostModel> mockPosts = [
   CommunityPostModel(
+    authorName: 'Samuel Robson Fiales',
+    authorInitials: 'SR',
+    timeAgo: '18min',
+    content:
+        'Entrei buscando disciplina e encontrei uma nova forma de conduzir minha vida. A rotina me devolveu presença em casa, foco no trabalho e confiança para cumprir o que prometo.',
+    likes: 187,
+    comments: 29,
+    achievementTag: 'Jornada transformadora',
+  ),
+  CommunityPostModel(
+    authorName: 'Wellerson Ramos',
+    authorInitials: 'WR',
+    timeAgo: '42min',
+    content:
+        'Depois de participar do projeto, parei de esperar motivação para agir. Os pequenos compromissos diários mudaram minha saúde, minha família e a maneira como enxergo meu futuro.',
+    likes: 163,
+    comments: 24,
+  ),
+  CommunityPostModel(
+    authorName: 'André Monteiro',
+    authorInitials: 'AM',
+    timeAgo: '1h',
+    content:
+        'A comunidade me mostrou que evolução não precisa ser solitária. Hoje tenho constância, apoio e orgulho da pessoa que estou construindo todos os dias.',
+    likes: 121,
+    comments: 18,
+  ),
+  CommunityPostModel(
     authorName: 'Marcus V.',
     authorInitials: 'MV',
     timeAgo: '2h',
