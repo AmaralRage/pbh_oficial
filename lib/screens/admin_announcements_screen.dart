@@ -651,7 +651,11 @@ class _PhoneNotificationPreview extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(width * .12),
         child: Stack(fit: StackFit.expand, children: [
-          const _PhoneWallpaper(),
+          Image.asset(
+            'assets/images/background.png',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => const _PhoneWallpaper(),
+          ),
           Padding(
             padding: EdgeInsets.fromLTRB(width * .075, height * .045, width * .075, height * .045),
             child: Column(children: [
