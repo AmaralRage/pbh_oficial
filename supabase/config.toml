@@ -1,0 +1,2 @@
+[functions.send-announcement]
+verify_jwt = true

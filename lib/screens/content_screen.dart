@@ -16,19 +16,33 @@ class ContentScreen extends StatefulWidget {
 
 class _ContentScreenState extends State<ContentScreen> {
   int _filterIndex = 0;
-  static const _filters = ['Todos', 'Em andamento', 'Iniciante', 'Avançado'];
+  bool _searchOpen = false;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+  static const _filters = ['Todos', 'Iniciante', 'Intermediário', 'Avançado'];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   List<ProgramModel> get _filtered {
-    switch (_filterIndex) {
-      case 1:
-        return mockPrograms.where((p) => p.progress > 0).toList();
-      case 2:
-        return mockPrograms.where((p) => p.level == ContentLevel.iniciante).toList();
-      case 3:
-        return mockPrograms.where((p) => p.level == ContentLevel.avancado).toList();
-      default:
-        return mockPrograms;
-    }
+    final level = switch (_filterIndex) {
+      1 => ContentLevel.iniciante,
+      2 => ContentLevel.intermediario,
+      3 => ContentLevel.avancado,
+      _ => null,
+    };
+    final query = _searchQuery.trim().toLowerCase();
+    return programCatalog.where((program) {
+      final matchesLevel = level == null || program.level == level;
+      final matchesSearch = query.isEmpty ||
+          program.title.toLowerCase().contains(query) ||
+          program.tagline.toLowerCase().contains(query) ||
+          program.description.toLowerCase().contains(query);
+      return matchesLevel && matchesSearch;
+    }).toList();
   }
 
   @override
@@ -45,12 +59,45 @@ class _ContentScreenState extends State<ContentScreen> {
             children: [
               Text('Conteúdo', style: AppTextStyles.headline),
               IconButton(
-                icon: const Icon(Icons.search, color: AppColors.textPrimary),
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Busca de programas em construção.')),
-                ),
+                tooltip: _searchOpen ? 'Fechar busca' : 'Buscar programas',
+                icon: Icon(_searchOpen ? Icons.close : Icons.search, color: AppColors.textPrimary),
+                onPressed: () => setState(() {
+                  _searchOpen = !_searchOpen;
+                  if (!_searchOpen) {
+                    _searchQuery = '';
+                    _searchController.clear();
+                  }
+                }),
               ),
             ],
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            child: _searchOpen
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      onChanged: (value) => setState(() => _searchQuery = value),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por nome ou tema',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Limpar busca',
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
           const SizedBox(height: 6),
           Text('Programas para sua evolução contínua.', style: AppTextStyles.bodySmall),
@@ -63,9 +110,20 @@ class _ContentScreenState extends State<ContentScreen> {
           ),
           const SizedBox(height: 20),
 
-          Text('${list.length} programas disponíveis', style: AppTextStyles.bodySmall),
+          Text('${list.length} programas encontrados', style: AppTextStyles.bodySmall),
           const SizedBox(height: 14),
 
+          if (list.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text(
+                  'Nenhum programa encontrado. Tente outro termo ou filtro.',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySmall,
+                ),
+              ),
+            ),
           ...list.map(
             (p) => Padding(
               padding: const EdgeInsets.only(bottom: 12),

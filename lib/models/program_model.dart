@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 enum ContentLevel { iniciante, intermediario, avancado }
 
 class ProgramModel {
+  final String id;
   final String title;
   final String tagline;
   final String description;
@@ -11,9 +12,9 @@ class ProgramModel {
   final ContentLevel level;
   final IconData icon;
   final List<String> outcomes;
-  final double progress; // 0.0 se não iniciado
 
   const ProgramModel({
+    required this.id,
     required this.title,
     required this.tagline,
     required this.description,
@@ -22,7 +23,6 @@ class ProgramModel {
     required this.level,
     required this.icon,
     required this.outcomes,
-    this.progress = 0.0,
   });
 
   String get levelLabel {
@@ -37,8 +37,9 @@ class ProgramModel {
   }
 }
 
-final List<ProgramModel> mockPrograms = [
+final List<ProgramModel> programCatalog = [
   const ProgramModel(
+    id: 'fundamentos_homem_valor',
     title: 'Fundamentos do Homem de Valor',
     tagline: 'Construa sua base: mente, corpo, caráter e propósito.',
     description:
@@ -47,7 +48,6 @@ final List<ProgramModel> mockPrograms = [
     weeks: 6,
     level: ContentLevel.intermediario,
     icon: Icons.terrain_outlined,
-    progress: 0.4,
     outcomes: [
       'Clareza de propósito',
       'Autocontrole emocional',
@@ -56,6 +56,7 @@ final List<ProgramModel> mockPrograms = [
     ],
   ),
   const ProgramModel(
+    id: 'lideranca_silenciosa',
     title: 'Liderança Silenciosa',
     tagline: 'Influencie pelo exemplo, não pela imposição.',
     description:
@@ -71,6 +72,7 @@ final List<ProgramModel> mockPrograms = [
     ],
   ),
   const ProgramModel(
+    id: 'estoicismo_pratico',
     title: 'Estoicismo Prático',
     tagline: 'Filosofia antiga para problemas modernos.',
     description:
@@ -86,6 +88,7 @@ final List<ProgramModel> mockPrograms = [
     ],
   ),
   const ProgramModel(
+    id: 'corpo_combate',
     title: 'Corpo de Combate',
     tagline: 'Força física como base da disciplina mental.',
     description:

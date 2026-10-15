@@ -6,7 +6,7 @@ import '../models/habit_model.dart';
 
 class HabitItemCard extends StatelessWidget {
   final HabitModel habit;
-  final ValueChanged<bool> onToggle;
+  final ValueChanged<bool>? onToggle;
 
   const HabitItemCard({super.key, required this.habit, required this.onToggle});
 
@@ -42,9 +42,9 @@ class HabitItemCard extends StatelessWidget {
             ),
           ),
           GestureDetector(
-            onTap: () {
+            onTap: onToggle == null ? null : () {
               lightTapFeedback();
-              onToggle(!habit.completed);
+              onToggle?.call(!habit.completed);
             },
             child: Container(
               width: 26,

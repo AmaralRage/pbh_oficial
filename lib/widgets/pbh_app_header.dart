@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
@@ -7,18 +9,24 @@ import 'pbh_logo.dart';
 import 'pbh_notifications_sheet.dart';
 
 /// Cabeçalho permanente das seções principais do aplicativo.
-/// O indicador abaixo da marca mostra a área selecionada sem substituir a
-/// identidade visual fixa do topo.
 class PbhAppHeader extends StatelessWidget {
   final String currentSection;
   final VoidCallback onMenuPressed;
   final VoidCallback onLogoPressed;
+  final int unreadNotifications;
+  final int notificationPulseKey;
+  final VoidCallback onNotificationsChanged;
+  final bool showNotifications;
 
   const PbhAppHeader({
     super.key,
     required this.currentSection,
     required this.onMenuPressed,
     required this.onLogoPressed,
+    this.unreadNotifications = 0,
+    this.notificationPulseKey = 0,
+    required this.onNotificationsChanged,
+    this.showNotifications = true,
   });
 
   @override
@@ -55,30 +63,27 @@ class PbhAppHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      tooltip: 'Notificações',
-                      icon: const Icon(Icons.notifications_none, color: AppColors.textPrimary),
-                      onPressed: () => showModalBottomSheet<void>(
+                if (showNotifications)
+                  IconButton(
+                    tooltip: 'Notificações',
+                    icon: _AnimatedNotificationBell(
+                      pulseKey: notificationPulseKey,
+                      unreadCount: unreadNotifications,
+                    ),
+                    onPressed: () async {
+                      await showModalBottomSheet<void>(
                         context: context,
                         backgroundColor: Colors.transparent,
                         isScrollControlled: true,
-                        builder: (_) => const PbhNotificationsSheet(),
-                      ),
-                    ),
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
-                      ),
-                    ),
-                  ],
-                ),
+                        builder: (_) => PbhNotificationsSheet(
+                          onChanged: onNotificationsChanged,
+                        ),
+                      );
+                      onNotificationsChanged();
+                    },
+                  )
+                else
+                  const SizedBox(width: 48),
               ],
             ),
           ),
@@ -95,13 +100,93 @@ class PbhAppHeader extends StatelessWidget {
                   decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 7),
-                Text(
-                  currentSection.toUpperCase(),
-                  style: AppTextStyles.eyebrow.copyWith(fontSize: 10),
-                ),
+                Text(currentSection.toUpperCase(), style: AppTextStyles.eyebrow.copyWith(fontSize: 10)),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnimatedNotificationBell extends StatefulWidget {
+  const _AnimatedNotificationBell({required this.pulseKey, required this.unreadCount});
+
+  final int pulseKey;
+  final int unreadCount;
+
+  @override
+  State<_AnimatedNotificationBell> createState() => _AnimatedNotificationBellState();
+}
+
+class _AnimatedNotificationBellState extends State<_AnimatedNotificationBell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 760),
+  );
+
+  @override
+  void didUpdateWidget(covariant _AnimatedNotificationBell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.pulseKey != oldWidget.pulseKey) _controller.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Center(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                final shake = math.sin(_controller.value * math.pi * 8) *
+                    (1 - _controller.value) * .22;
+                final scale = 1 + math.sin(_controller.value * math.pi) * .22;
+                return Transform.rotate(
+                  angle: shake,
+                  child: Transform.scale(scale: scale, child: child),
+                );
+              },
+              child: Icon(
+                widget.unreadCount > 0
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_none,
+                color: AppColors.textPrimary,
+                size: 23,
+              ),
+            ),
+          ),
+          if (widget.unreadCount > 0)
+            Positioned(
+              right: -5,
+              top: -4,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.orange,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.background, width: 1.5),
+                ),
+                child: Text(
+                  widget.unreadCount > 9 ? '9+' : '${widget.unreadCount}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 9, height: 1.4, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
         ],
       ),
     );

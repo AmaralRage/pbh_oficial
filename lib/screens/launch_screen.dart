@@ -3,7 +3,8 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/navigation/app_transitions.dart';
 import '../core/feedback/tap_feedback.dart';
-import '../main_navigation.dart';
+import '../core/config/supabase_config.dart';
+import 'auth_gate.dart';
 import '../widgets/official_hero_background.dart';
 import '../widgets/pbh_logo.dart';
 
@@ -19,7 +20,9 @@ class _LaunchScreenState extends State<LaunchScreen> {
 
   void _start() {
     Navigator.of(context).pushReplacement(
-      fadeSlideRoute(const MainNavigation()),
+      fadeSlideRoute(
+        AuthGate(supabaseConfigured: SupabaseConfig.isConfigured),
+      ),
     );
   }
 

@@ -6,11 +6,13 @@ import '../core/feedback/tap_feedback.dart';
 class PbhBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final bool isAdmin;
 
   const PbhBottomNav({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.isAdmin = false,
   });
 
   static const _items = [
@@ -24,6 +26,15 @@ class PbhBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final items = [
+      ..._items,
+      if (isAdmin)
+        const _NavItemData(
+          icon: Icons.campaign_outlined,
+          activeIcon: Icons.campaign_rounded,
+          label: 'Admin',
+        ),
+    ];
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.background,
@@ -35,8 +46,8 @@ class PbhBottomNav extends StatelessWidget {
           height: 62,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_items.length, (index) {
-              final item = _items[index];
+            children: List.generate(items.length, (index) {
+              final item = items[index];
               final isActive = index == currentIndex;
               return Expanded(
                 child: _NavButton(

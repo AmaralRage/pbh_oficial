@@ -52,10 +52,6 @@ class ChallengeCard extends StatelessWidget {
                     children: [
                       _Tag(label: challenge.levelLabel),
                       _Tag(label: '${challenge.totalDays} dias'),
-                      _Tag(
-                        label: '${_formatCount(challenge.participants)} participantes',
-                        icon: Icons.groups_outlined,
-                      ),
                     ],
                   ),
                 ],
@@ -69,12 +65,6 @@ class ChallengeCard extends StatelessWidget {
     );
   }
 
-  String _formatCount(int value) {
-    if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}k';
-    }
-    return '$value';
-  }
 }
 
 class _IconBadge extends StatelessWidget {

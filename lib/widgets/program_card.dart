@@ -14,8 +14,6 @@ class ProgramCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasProgress = program.progress > 0;
-
     return GestureDetector(
       onTap: () {
         lightTapFeedback();
@@ -63,18 +61,6 @@ class ProgramCard extends StatelessWidget {
                       _MiniTag(icon: Icons.calendar_today_outlined, label: '${program.weeks} semanas'),
                     ],
                   ),
-                  if (hasProgress) ...[
-                    const SizedBox(height: 14),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(100),
-                      child: LinearProgressIndicator(
-                        value: program.progress,
-                        minHeight: 6,
-                        backgroundColor: AppColors.backgroundElevated,
-                        valueColor: const AlwaysStoppedAnimation(AppColors.orange),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

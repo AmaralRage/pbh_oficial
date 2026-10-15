@@ -10,12 +10,16 @@ class PbhAppDrawer extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onNavigate;
   final VoidCallback onOpenHabits;
+  final VoidCallback onAccountAction;
+  final bool isAuthenticated;
 
   const PbhAppDrawer({
     super.key,
     required this.currentIndex,
     required this.onNavigate,
     required this.onOpenHabits,
+    required this.onAccountAction,
+    this.isAuthenticated = true,
   });
 
   static const _mainItems = <_DrawerItemData>[
@@ -35,6 +39,11 @@ class PbhAppDrawer extends StatelessWidget {
   void _openHabits(BuildContext context) {
     Navigator.of(context).pop();
     onOpenHabits();
+  }
+
+  void _accountAction(BuildContext context) {
+    Navigator.of(context).pop();
+    onAccountAction();
   }
 
   @override
@@ -112,6 +121,15 @@ class PbhAppDrawer extends StatelessWidget {
                     child: Text('23 dias de consistência', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary)),
                   ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: _DrawerNavigationItem(
+                icon: isAuthenticated ? Icons.logout_rounded : Icons.login_rounded,
+                label: isAuthenticated ? 'Sair da conta' : 'Entrar ou criar conta',
+                selected: false,
+                onTap: () => _accountAction(context),
               ),
             ),
           ],

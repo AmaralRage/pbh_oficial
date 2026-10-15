@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/program_model.dart';
@@ -16,12 +18,39 @@ class ProgramDetailScreen extends StatefulWidget {
 
 class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   bool _saved = false;
-  late bool _started;
+  bool _started = false;
+  late final SharedPreferencesAsync _storage;
+  String get _startedKey => 'pbh.program.${widget.program.id}.started';
+  String get _savedKey => 'pbh.program.${widget.program.id}.saved';
 
   @override
   void initState() {
     super.initState();
-    _started = widget.program.progress > 0;
+    _storage = SharedPreferencesAsync();
+    _loadProgramState();
+  }
+
+  Future<void> _loadProgramState() async {
+    final values = await Future.wait([
+      _storage.getBool(_startedKey),
+      _storage.getBool(_savedKey),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _started = values[0] ?? false;
+      _saved = values[1] ?? false;
+    });
+  }
+
+  Future<void> _toggleSaved() async {
+    final value = !_saved;
+    setState(() => _saved = value);
+    await _storage.setBool(_savedKey, value);
+  }
+
+  Future<void> _startProgram() async {
+    await _storage.setBool(_startedKey, true);
+    if (mounted) setState(() => _started = true);
   }
 
   @override
@@ -38,13 +67,13 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         actions: [
           IconButton(
             icon: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
-            onPressed: () => setState(() => _saved = !_saved),
+            tooltip: _saved ? 'Remover dos salvos' : 'Salvar programa',
+            onPressed: _toggleSaved,
           ),
           IconButton(
             icon: const Icon(Icons.ios_share),
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Link do programa pronto para compartilhar.')),
-            ),
+            tooltip: 'Compartilhar programa',
+            onPressed: () => Share.share('${program.title}\n${program.tagline}'),
           ),
           const SizedBox(width: 8),
         ],
@@ -147,18 +176,13 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               child: Column(
                 children: [
                   ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() => _started = true);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Programa iniciado.')),
-                      );
-                    },
+                    onPressed: _startProgram,
                     icon: const Icon(Icons.play_arrow, size: 20),
                     label: Text(_started ? 'Continuar programa' : 'Iniciar programa'),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
-                    onPressed: () => setState(() => _saved = !_saved),
+                    onPressed: _toggleSaved,
                     icon: Icon(_saved ? Icons.bookmark : Icons.bookmark_border, size: 18),
                     label: Text(_saved ? 'Salvo para depois' : 'Salvar para depois'),
                   ),

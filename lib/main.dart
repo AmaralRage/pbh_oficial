@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
-import 'screens/launch_screen.dart';
+import 'screens/auth_gate.dart';
 
-void main() {
-  runApp(const PbhOficialApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (SupabaseConfig.isConfigured) {
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.publishableKey,
+    );
+  }
+  runApp(PbhOficialApp(supabaseConfigured: SupabaseConfig.isConfigured));
 }
 
 class PbhOficialApp extends StatelessWidget {
-  const PbhOficialApp({super.key});
+  final bool supabaseConfigured;
+
+  const PbhOficialApp({super.key, required this.supabaseConfigured});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +26,7 @@ class PbhOficialApp extends StatelessWidget {
       title: 'PBH Oficial',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      home: const LaunchScreen(),
+      home: AuthGate(supabaseConfigured: supabaseConfigured),
     );
   }
 }

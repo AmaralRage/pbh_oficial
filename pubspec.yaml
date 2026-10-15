@@ -12,6 +12,10 @@ dependencies:
   cupertino_icons: ^1.0.6
   google_fonts: ^6.2.1
   url_launcher: ^6.3.1
+  share_plus: ^9.0.0
+  supabase_flutter: ^2.14.2
+  audioplayers: ^6.8.1
+  shared_preferences: ^2.3.1
   # Fonte usada: Manrope (grotesca geométrica, moderna, mesmo espírito
   # tipográfico do design de referência — hierarquia forte, tracking largo
   # nos títulos, ótima legibilidade em dark mode).
