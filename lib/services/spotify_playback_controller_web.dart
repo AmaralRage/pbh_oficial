@@ -53,9 +53,22 @@ class SpotifyPlaybackController extends ChangeNotifier {
   Duration position = Duration.zero;
   Duration duration = Duration.zero;
   String? lyrics;
+  List<LyricLine> lyricLines = const [];
+  bool lyricsAreSynced = false;
   bool lyricsLoading = false;
   String? lyricsError;
   String? _lyricsTrackUri;
+
+  int get activeLyricIndex {
+    if (!lyricsAreSynced) return -1;
+    var activeIndex = -1;
+    for (var index = 0; index < lyricLines.length; index++) {
+      final timestamp = lyricLines[index].timestamp;
+      if (timestamp != null && timestamp <= position) activeIndex = index;
+      if (timestamp != null && timestamp > position) break;
+    }
+    return activeIndex;
+  }
 
   Map<String, dynamic> _detail(html.Event event) {
     final detail = (event as html.CustomEvent).detail;
@@ -85,6 +98,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
       track = nextTrack;
       _lyricsTrackUri = null;
       lyrics = null;
+      lyricLines = const [];
+      lyricsAreSynced = false;
       lyricsError = null;
       lyricsLoading = false;
     }
@@ -100,6 +115,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
     if (selectedTrack == null || selectedTrack.uri.isEmpty) {
       _lyricsTrackUri = null;
       lyrics = null;
+      lyricLines = const [];
+      lyricsAreSynced = false;
       lyricsError = null;
       lyricsLoading = false;
       return;
@@ -107,17 +124,24 @@ class SpotifyPlaybackController extends ChangeNotifier {
     if (_lyricsTrackUri == selectedTrack.uri && (lyrics != null || lyricsLoading || lyricsError != null)) return;
     _lyricsTrackUri = selectedTrack.uri;
     lyrics = null;
+    lyricLines = const [];
+    lyricsAreSynced = false;
     lyricsError = null;
     lyricsLoading = true;
     notifyListeners();
     try {
       final result = await LyricsService.instance.lyricsFor(selectedTrack, duration);
       if (track?.uri != selectedTrack.uri) return;
-      lyrics = result;
+      lyrics = result?.plainText;
+      lyricLines = result?.lines ?? const [];
+      lyricsAreSynced = result?.isSynced ?? false;
       if (result == null) lyricsError = 'A letra desta faixa não está disponível.';
     } on LyricsUnavailableException catch (exception) {
       if (track?.uri != selectedTrack.uri) return;
       lyricsError = exception.message;
+      lyrics = null;
+      lyricLines = const [];
+      lyricsAreSynced = false;
     } finally {
       if (track?.uri == selectedTrack.uri) {
         lyricsLoading = false;
@@ -130,6 +154,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
     if (track == null || lyricsLoading) return;
     _lyricsTrackUri = null;
     lyrics = null;
+    lyricLines = const [];
+    lyricsAreSynced = false;
     lyricsError = null;
     await _loadLyricsForCurrentTrack();
   }
@@ -224,6 +250,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
     repeatMode = 0;
     track = null;
     lyrics = null;
+    lyricLines = const [];
+    lyricsAreSynced = false;
     lyricsError = null;
     lyricsLoading = false;
     _lyricsTrackUri = null;

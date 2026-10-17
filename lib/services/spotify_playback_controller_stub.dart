@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/spotify_track.dart';
+import 'lyrics_service.dart';
 
 class SpotifyPlaybackController extends ChangeNotifier {
   SpotifyPlaybackController._();
@@ -20,6 +21,9 @@ class SpotifyPlaybackController extends ChangeNotifier {
   Duration get position => Duration.zero;
   Duration get duration => Duration.zero;
   String? get lyrics => null;
+  List<LyricLine> get lyricLines => const [];
+  bool get lyricsAreSynced => false;
+  int get activeLyricIndex => -1;
   bool get lyricsLoading => false;
   String? get lyricsError => null;
 

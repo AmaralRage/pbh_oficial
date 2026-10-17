@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
@@ -82,12 +83,12 @@ class _TrackView extends StatelessWidget {
               children: [
                 if (track.imageUrl.isNotEmpty)
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 700),
+                    duration: const Duration(milliseconds: 900),
                     child: ImageFiltered(
                       key: ValueKey('background-${track.imageUrl}'),
                       imageFilter: ui.ImageFilter.blur(sigmaX: 72, sigmaY: 72),
                       child: Opacity(
-                        opacity: .34,
+                        opacity: .4,
                         child: Image.network(track.imageUrl, fit: BoxFit.cover),
                       ),
                     ),
@@ -98,9 +99,9 @@ class _TrackView extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color(0x5C080808),
-                        Color(0xC9080808),
-                        Color(0xF2080808),
+                        Color(0x48080808),
+                        Color(0xB8080808),
+                        Color(0xE6080808),
                       ],
                       stops: [0, .48, 1],
                     ),
@@ -312,94 +313,186 @@ class _PauseBar extends StatelessWidget {
       );
 }
 
-class _LyricsPanel extends StatelessWidget {
+class _LyricsPanel extends StatefulWidget {
   const _LyricsPanel({required this.player});
   final SpotifyPlaybackController player;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.borderSubtle),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.lyrics_outlined, color: AppColors.orange, size: 19),
-                const SizedBox(width: 8),
-                Text('LETRA', style: AppTextStyles.eyebrow.copyWith(color: AppColors.orange)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (player.lyricsLoading)
-              const Center(child: Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(color: AppColors.orange, strokeWidth: 2)))
-            else if (player.lyrics != null)
-              SizedBox(
-                height: 220,
-                child: Scrollbar(
-                  child: SingleChildScrollView(
-                    primary: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: player.lyrics!.split('\n').map((line) {
-                        if (line.trim() == '♪') {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            child: Icon(Icons.music_note_rounded, color: AppColors.orange, size: 20),
-                          );
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Text(line, style: AppTextStyles.body.copyWith(height: 1.5, fontSize: 15)),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-              )
-            else if (player.lyricsError == 'A letra desta faixa não está disponível.')
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.music_note_rounded, color: AppColors.orange, size: 28),
-                      SizedBox(height: 8),
-                      Text('Sem letra disponível para esta faixa.', textAlign: TextAlign.center),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    player.lyricsError ?? 'As letras desta faixa serão buscadas automaticamente.',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  if (player.lyricsError != null) ...[
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: player.retryLyrics,
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text('Tentar carregar novamente'),
-                    ),
-                  ],
-                ],
-              ),
-            const SizedBox(height: 12),
-            Text('Fonte das letras: LRCLIB', style: AppTextStyles.statLabel),
-          ],
-        ),
-      );
+  State<_LyricsPanel> createState() => _LyricsPanelState();
 }
 
+class _LyricsPanelState extends State<_LyricsPanel> {
+  final ScrollController _scrollController = ScrollController();
+  List<GlobalKey> _lineKeys = [];
+  int _lastAutoScrolledIndex = -1;
+  String _linesSignature = '';
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = widget.player;
+    final lines = player.lyricLines;
+    if (lines.length != _lineKeys.length) {
+      _lineKeys = List.generate(lines.length, (_) => GlobalKey());
+    }
+
+    final signature = lines.map((line) => '${line.timestamp?.inMilliseconds}:${line.text}').join('|');
+    if (_linesSignature != signature) {
+      _linesSignature = signature;
+      _lastAutoScrolledIndex = -1;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _scrollController.hasClients) _scrollController.jumpTo(0);
+      });
+    }
+
+    final activeIndex = player.activeLyricIndex;
+    if (activeIndex >= 0 && activeIndex != _lastAutoScrolledIndex && activeIndex < _lineKeys.length) {
+      _lastAutoScrolledIndex = activeIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final lineContext = _lineKeys[activeIndex].currentContext;
+        if (mounted && lineContext != null) {
+          final renderObject = lineContext.findRenderObject();
+          if (renderObject != null && _scrollController.hasClients) {
+            final viewport = RenderAbstractViewport.of(renderObject);
+            final position = _scrollController.position;
+            final target = viewport.getOffsetToReveal(renderObject, .45).offset;
+            _scrollController.animateTo(
+              target.clamp(position.minScrollExtent, position.maxScrollExtent).toDouble(),
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        }
+      });
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.lyrics_outlined, color: AppColors.orange, size: 19),
+              const SizedBox(width: 8),
+              Text('LETRA', style: AppTextStyles.eyebrow.copyWith(color: AppColors.orange)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (player.lyricsLoading)
+            const Center(child: Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(color: AppColors.orange, strokeWidth: 2)))
+          else if (player.lyrics != null)
+            SizedBox(
+              height: 220,
+              child: Scrollbar(
+                controller: _scrollController,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  child: Column(
+                    children: List.generate(lines.length, (index) {
+                    final line = lines[index];
+                    final isActive = player.lyricsAreSynced && index == activeIndex;
+                    final isPast = player.lyricsAreSynced && activeIndex > index;
+                    if (line.text == '\u266a') {
+                      return Padding(
+                        key: _lineKeys[index],
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: isActive ? AppColors.orangeDim : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.music_note_rounded,
+                            color: isActive ? AppColors.orange : AppColors.textTertiary,
+                            size: isActive ? 24 : 20,
+                          ),
+                        ),
+                      );
+                    }
+                    return Padding(
+                      key: _lineKeys[index],
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: isActive ? AppColors.orangeDim : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 220),
+                          style: AppTextStyles.body.copyWith(
+                            color: isActive
+                                ? AppColors.textPrimary
+                                : isPast
+                                    ? AppColors.textSecondary.withOpacity(.62)
+                                    : AppColors.textSecondary,
+                            fontWeight: isActive ? FontWeight.w700 : FontWeight.normal,
+                            height: 1.5,
+                            fontSize: isActive ? 16 : 15,
+                          ),
+                          child: Text(line.text),
+                        ),
+                      ),
+                    );
+                    }),
+                  ),
+                ),
+              ),
+            )
+          else if (player.lyricsError == 'A letra desta faixa não está disponível.')
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.music_note_rounded, color: AppColors.orange, size: 28),
+                    SizedBox(height: 8),
+                    Text('Sem letra disponível para esta faixa.', textAlign: TextAlign.center),
+                  ],
+                ),
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  player.lyricsError ?? 'As letras desta faixa serão buscadas automaticamente.',
+                  style: AppTextStyles.bodySmall,
+                ),
+                if (player.lyricsError != null) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: player.retryLyrics,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Tentar carregar novamente'),
+                  ),
+                ],
+              ],
+            ),
+          const SizedBox(height: 12),
+          Text('Fonte das letras: LRCLIB', style: AppTextStyles.statLabel),
+        ],
+      ),
+    );
+  }
+}
 class _NoTrackState extends StatelessWidget {
   const _NoTrackState({required this.isReady, required this.error, required this.onPlay});
   final bool isReady;
