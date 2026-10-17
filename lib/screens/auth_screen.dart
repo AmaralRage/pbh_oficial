@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/auth_service.dart';
+import '../widgets/official_hero_background.dart';
 import '../widgets/pbh_logo.dart';
 
 class SupabaseSetupScreen extends StatelessWidget {
@@ -124,90 +125,138 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          const Positioned(right: -90, top: -110, child: _GlowCircle()),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (widget.onClose != null)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: widget.onClose,
-                            icon: const Icon(Icons.arrow_back_rounded),
-                            label: const Text('Voltar para explorar'),
-                          ),
+      body: OfficialHeroBackground(
+        animate: true,
+        darken: .12,
+        child: Stack(
+          children: [
+            const Positioned(right: -90, top: -110, child: _GlowCircle()),
+            SafeArea(
+              child: Stack(
+                children: [
+                  if (widget.onClose != null)
+                    Positioned(
+                      top: 4,
+                      left: 12,
+                      child: TextButton.icon(
+                        onPressed: widget.onClose,
+                        icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                        label: const Text('Voltar para explorar'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         ),
-                      if (widget.onClose != null) const SizedBox(height: 22),
-                      const Center(child: PbhLogo()),
-                      const SizedBox(height: 36),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (child, animation) => FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, .08), end: Offset.zero).animate(animation), child: child),
-                        ),
+                      ),
+                    ),
+                  Center(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        widget.onClose == null ? 32 : 66,
+                        24,
+                        28,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
                         child: Column(
-                          key: ValueKey(_creatingAccount),
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(_creatingAccount ? 'Comece sua jornada' : 'Bem-vindo de volta', style: AppTextStyles.displayLarge),
-                            const SizedBox(height: 10),
-                            Text(_creatingAccount ? 'Crie sua conta e construa uma rotina com propósito.' : 'Entre na sua conta para continuar sua jornada.', style: AppTextStyles.body),
+                            const Center(child: PbhLogo()),
+                            const SizedBox(height: 26),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              transitionBuilder: (child, animation) => FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(begin: const Offset(0, .08), end: Offset.zero).animate(animation),
+                                  child: child,
+                                ),
+                              ),
+                              child: Column(
+                                key: ValueKey(_creatingAccount),
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _creatingAccount ? 'Comece sua jornada' : 'Bem-vindo de volta',
+                                    style: AppTextStyles.headline.copyWith(fontSize: 27),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _creatingAccount
+                                        ? 'Crie sua conta e construa uma rotina com propósito.'
+                                        : 'Entre na sua conta para continuar sua jornada.',
+                                    style: AppTextStyles.body,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Container(
+                              padding: const EdgeInsets.all(22),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface.withOpacity(.96),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: AppColors.borderSubtle),
+                                boxShadow: [
+                                  BoxShadow(color: AppColors.orange.withOpacity(.10), blurRadius: 36, spreadRadius: 2),
+                                ],
+                              ),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  children: [
+                                    _AuthField(controller: _emailController, label: 'E-mail', hint: 'voce@exemplo.com', icon: Icons.alternate_email, keyboardType: TextInputType.emailAddress, validator: (value) => value == null || !value.trim().contains('@') ? 'Informe um e-mail válido.' : null),
+                                    const SizedBox(height: 14),
+                                    _AuthField(controller: _passwordController, label: 'Senha', hint: 'Mínimo de 6 caracteres', icon: Icons.lock_outline, obscureText: _obscurePassword, suffix: IconButton(tooltip: _obscurePassword ? 'Mostrar senha' : 'Ocultar senha', onPressed: () => setState(() => _obscurePassword = !_obscurePassword), icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppColors.textTertiary)), validator: (value) => value == null || value.length < 6 ? 'A senha deve ter ao menos 6 caracteres.' : null),
+                                    if (!_creatingAccount)
+                                      Align(alignment: Alignment.centerRight, child: TextButton(onPressed: _loading ? null : _forgotPassword, child: const Text('Esqueci minha senha'))),
+                                    if (_error != null) ...[
+                                      const SizedBox(height: 8),
+                                      Text(_error!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.orange), textAlign: TextAlign.center),
+                                    ],
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        onPressed: _loading ? null : _submit,
+                                        child: AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 180),
+                                          child: _loading
+                                              ? const SizedBox(key: ValueKey('loading'), width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                              : Text(_creatingAccount ? 'Criar conta' : 'Entrar', key: const ValueKey('label')),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextButton(
+                              onPressed: _loading ? null : () => setState(() {
+                                _creatingAccount = !_creatingAccount;
+                                _error = null;
+                              }),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 180),
+                                child: Text(
+                                  _creatingAccount ? 'Já tem uma conta? Entrar' : 'Ainda não tem conta? Criar agora',
+                                  key: ValueKey(_creatingAccount),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 28),
-                      Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppColors.borderSubtle), boxShadow: [BoxShadow(color: AppColors.orange.withOpacity(.08), blurRadius: 36, spreadRadius: 2)]),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            children: [
-                              _AuthField(controller: _emailController, label: 'E-mail', hint: 'voce@exemplo.com', icon: Icons.alternate_email, keyboardType: TextInputType.emailAddress, validator: (value) => value == null || !value.trim().contains('@') ? 'Informe um e-mail válido.' : null),
-                              const SizedBox(height: 14),
-                              _AuthField(controller: _passwordController, label: 'Senha', hint: 'Mínimo de 6 caracteres', icon: Icons.lock_outline, obscureText: _obscurePassword, suffix: IconButton(tooltip: _obscurePassword ? 'Mostrar senha' : 'Ocultar senha', onPressed: () => setState(() => _obscurePassword = !_obscurePassword), icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppColors.textTertiary)), validator: (value) => value == null || value.length < 6 ? 'A senha deve ter ao menos 6 caracteres.' : null),
-                              if (!_creatingAccount)
-                                Align(alignment: Alignment.centerRight, child: TextButton(onPressed: _loading ? null : _forgotPassword, child: const Text('Esqueci minha senha'))),
-                              if (_error != null) ...[
-                                const SizedBox(height: 8),
-                                Text(_error!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.orange)),
-                              ],
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: _loading ? null : _submit,
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 180),
-                                  child: _loading ? const SizedBox(key: ValueKey('loading'), width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : Text(_creatingAccount ? 'Criar conta' : 'Entrar', key: const ValueKey('label')),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      TextButton(
-                        onPressed: _loading ? null : () => setState(() {
-                          _creatingAccount = !_creatingAccount;
-                          _error = null;
-                        }),
-                        child: AnimatedSwitcher(duration: const Duration(milliseconds: 180), child: Text(_creatingAccount ? 'Já tem uma conta? Entrar' : 'Ainda não tem conta? Criar agora', key: ValueKey(_creatingAccount))),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

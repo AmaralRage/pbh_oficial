@@ -49,6 +49,7 @@ class _LaunchScreenState extends State<LaunchScreen> with SingleTickerProviderSt
         body: OfficialHeroBackground(
           imageAlignment: Alignment.center,
           darken: .1,
+          animate: true,
           padding: const EdgeInsets.fromLTRB(28, 48, 28, 24),
           child: SafeArea(
             child: Column(

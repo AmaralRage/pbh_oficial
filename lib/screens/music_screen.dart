@@ -5,17 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/config/spotify_playlist.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../widgets/spotify_playlist_player.dart';
 
-class MusicScreen extends StatefulWidget {
+class MusicScreen extends StatelessWidget {
   const MusicScreen({super.key});
-
-  @override
-  State<MusicScreen> createState() => _MusicScreenState();
-}
-
-class _MusicScreenState extends State<MusicScreen> {
-  static const _moments = ['Treino', 'Foco', 'Manhã', 'Reflexão'];
-  int _selectedMoment = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -27,11 +20,7 @@ class _MusicScreenState extends State<MusicScreen> {
           Text('Música', style: AppTextStyles.headline),
           const SizedBox(height: 6),
           Text('Uma trilha para fortalecer foco, propósito e disciplina.', style: AppTextStyles.bodySmall),
-          const SizedBox(height: 16),
-          Text('Qual é o seu momento?', style: AppTextStyles.titleMedium),
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: List.generate(_moments.length, (index) => ChoiceChip(label: Text(_moments[index]), selected: _selectedMoment == index, onSelected: (_) => setState(() => _selectedMoment = index)))),
-          const SizedBox(height: 26),
+          const SizedBox(height: 18),
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
@@ -85,17 +74,19 @@ class _MusicScreenState extends State<MusicScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Uma trilha para o seu momento de ${_moments[_selectedMoment].toLowerCase()}.',
+                          'Ouça as faixas da playlist oficial sem sair do PBH.',
                           style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withOpacity(.88)),
                         ),
                         const SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () => _handleSpotifyTap(context),
+                            onPressed: hasOfficialSpotifyPlaylist
+                                ? () => _openSpotifyPlayer(context)
+                                : null,
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF121212)),
                             icon: const Icon(Icons.play_circle_fill),
-                            label: Text(hasOfficialSpotifyPlaylist ? 'Ouvir no Spotify' : 'Playlist em preparação'),
+                            label: Text(hasOfficialSpotifyPlaylist ? 'Abrir player' : 'Playlist em preparação'),
                           ),
                         ),
                       ],
@@ -124,22 +115,66 @@ class _MusicScreenState extends State<MusicScreen> {
     );
   }
 
-  void _handleSpotifyTap(BuildContext context) {
-    if (!hasOfficialSpotifyPlaylist) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Envie o link da playlist oficial para conectá-la ao Spotify.')),
-      );
-      return;
-    }
-
-    final playlistUri = Uri.parse(officialSpotifyPlaylistUrl);
-    launchUrl(playlistUri, mode: LaunchMode.externalApplication).then((opened) {
-      if (!opened && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível abrir a playlist no Spotify.')),
-        );
-      }
-    });
+  void _openSpotifyPlayer(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.graphic_eq, color: AppColors.orange),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('Playlist oficial', style: AppTextStyles.titleMedium),
+                ),
+                IconButton(
+                  tooltip: 'Fechar player',
+                  onPressed: () => Navigator.pop(sheetContext),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Toque em ▶ no player para começar. O Spotify pode oferecer apenas uma prévia dependendo do navegador e da sessão.',
+              style: AppTextStyles.statLabel,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const SpotifyPlaylistPlayer(),
+            TextButton.icon(
+              onPressed: () => launchUrl(
+                Uri.parse(officialSpotifyPlaylistUrl),
+                mode: LaunchMode.externalApplication,
+              ),
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text('Abrir no aplicativo Spotify'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
