@@ -207,7 +207,42 @@ class _LyricsPanel extends StatelessWidget {
             if (player.lyricsLoading)
               const Center(child: Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(color: AppColors.orange, strokeWidth: 2)))
             else if (player.lyrics != null)
-              Text(player.lyrics!, style: AppTextStyles.body.copyWith(height: 1.65, fontSize: 16))
+              SizedBox(
+                height: 220,
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    primary: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: player.lyrics!.split('\n').map((line) {
+                        if (line.trim() == '♪') {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Icon(Icons.music_note_rounded, color: AppColors.orange, size: 20),
+                          );
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Text(line, style: AppTextStyles.body.copyWith(height: 1.5, fontSize: 15)),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              )
+            else if (player.lyricsError == 'A letra desta faixa não está disponível.')
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.music_note_rounded, color: AppColors.orange, size: 28),
+                      SizedBox(height: 8),
+                      Text('Sem letra disponível para esta faixa.', textAlign: TextAlign.center),
+                    ],
+                  ),
+                ),
+              )
             else
               Text(
                 player.lyricsError ?? 'As letras desta faixa serão buscadas automaticamente.',

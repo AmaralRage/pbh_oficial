@@ -1,4 +1,16 @@
 (function () {
+  const callbackParams = new URLSearchParams(window.location.search);
+  if (window.opener && !window.opener.closed && (callbackParams.has('code') || callbackParams.has('error'))) {
+    window.opener.postMessage({
+      type: 'pbh-spotify-oauth-callback',
+      code: callbackParams.get('code'),
+      state: callbackParams.get('state'),
+      error: callbackParams.get('error'),
+    }, window.location.origin);
+    window.close();
+    return;
+  }
+
   const apiBase = 'https://api.spotify.com/v1';
   const tokenUrl = 'https://accounts.spotify.com/api/token';
   const scopes = [
@@ -13,6 +25,8 @@
   let player = null;
   let deviceId = null;
   let playbackPoll = null;
+  let authPopup = null;
+  let authPopupMonitor = null;
   let sdkReadyResolve;
   const sdkReady = new Promise((resolve) => { sdkReadyResolve = resolve; });
 
@@ -55,6 +69,53 @@
   let tokenExpiresAt = 0;
   let refreshToken = null;
 
+  function stopAuthPopupMonitor() {
+    if (authPopupMonitor) window.clearInterval(authPopupMonitor);
+    authPopupMonitor = null;
+  }
+
+  async function completeAuthorization(code, returnedState) {
+    const verifier = sessionStorage.getItem('pbh.spotify.verifier');
+    const expectedState = sessionStorage.getItem('pbh.spotify.state');
+    if (!verifier || !expectedState || expectedState !== returnedState) {
+      throw new Error('N\u00e3o foi poss\u00edvel validar o retorno do Spotify. Tente conectar novamente.');
+    }
+
+    const data = await tokenRequest({
+      client_id: clientId,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri(),
+      code_verifier: verifier,
+    });
+    sessionStorage.removeItem('pbh.spotify.verifier');
+    sessionStorage.removeItem('pbh.spotify.state');
+    token = data.access_token;
+    tokenExpiresAt = Date.now() + data.expires_in * 1000;
+    refreshToken = data.refresh_token;
+    if (refreshToken) sessionStorage.setItem('pbh.spotify.refresh', refreshToken);
+    emit('auth', { authenticated: true });
+    await createPlayer();
+  }
+
+  window.addEventListener('message', async (event) => {
+    if (event.origin !== window.location.origin || event.source !== authPopup) return;
+    const data = event.data;
+    if (!data || data.type !== 'pbh-spotify-oauth-callback') return;
+
+    authPopup = null;
+    stopAuthPopupMonitor();
+    try {
+      if (data.error) throw new Error('A conex\u00e3o com o Spotify foi cancelada.');
+      if (!data.code) throw new Error('O Spotify n\u00e3o retornou o c\u00f3digo de acesso. Tente novamente.');
+      await completeAuthorization(data.code, data.state);
+    } catch (error) {
+      sessionStorage.removeItem('pbh.spotify.verifier');
+      sessionStorage.removeItem('pbh.spotify.state');
+      emit('error', { message: error.message || 'N\u00e3o foi poss\u00edvel conectar ao Spotify.' });
+    }
+  });
+
   async function getToken(forceRefresh = false) {
     if (!forceRefresh && token && Date.now() < tokenExpiresAt - 60000) return token;
     if (!refreshToken) throw new Error('Conecte sua conta Spotify para continuar.');
@@ -76,33 +137,14 @@
     const code = params.get('code');
     if (params.has('error')) {
       history.replaceState({}, document.title, redirectUri());
-      emit('error', { message: 'A conexão com o Spotify foi cancelada.' });
+      emit('error', { message: 'A conex\u00e3o com o Spotify foi cancelada.' });
       return false;
     }
     if (!code) return false;
 
-    const verifier = sessionStorage.getItem('pbh.spotify.verifier');
-    const expectedState = sessionStorage.getItem('pbh.spotify.state');
     const returnedState = params.get('state');
     history.replaceState({}, document.title, redirectUri());
-    if (!verifier || !expectedState || expectedState !== returnedState) {
-      throw new Error('Não foi possível validar o retorno do Spotify. Tente conectar novamente.');
-    }
-
-    const data = await tokenRequest({
-      client_id: clientId,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri(),
-      code_verifier: verifier,
-    });
-    sessionStorage.removeItem('pbh.spotify.verifier');
-    sessionStorage.removeItem('pbh.spotify.state');
-    token = data.access_token;
-    tokenExpiresAt = Date.now() + data.expires_in * 1000;
-    refreshToken = data.refresh_token;
-    if (refreshToken) sessionStorage.setItem('pbh.spotify.refresh', refreshToken);
-    emit('auth', { authenticated: true });
+    await completeAuthorization(code, returnedState);
     return true;
   }
 
@@ -195,22 +237,41 @@
   };
 
   window.pbhSpotifyLogin = async () => {
-    if (!clientId) throw new Error('O Spotify ainda não foi configurado para este app.');
-    const verifier = randomString(64);
-    const challenge = base64Url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
-    const state = randomString(24);
-    sessionStorage.setItem('pbh.spotify.verifier', verifier);
-    sessionStorage.setItem('pbh.spotify.state', state);
-    const query = new URLSearchParams({
-      client_id: clientId,
-      response_type: 'code',
-      redirect_uri: redirectUri(),
-      code_challenge_method: 'S256',
-      code_challenge: challenge,
-      state,
-      scope: scopes,
-    });
-    window.location.assign(`https://accounts.spotify.com/authorize?${query}`);
+    if (!clientId) throw new Error('O Spotify ainda n\u00e3o foi configurado para este app.');
+    const popup = window.open('about:blank', 'pbhSpotifyAuth', 'popup,width=520,height=720');
+    if (!popup) throw new Error('Permita pop-ups neste site para conectar ao Spotify.');
+    authPopup = popup;
+
+    try {
+      const verifier = randomString(64);
+      const challenge = base64Url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+      const state = randomString(24);
+      sessionStorage.setItem('pbh.spotify.verifier', verifier);
+      sessionStorage.setItem('pbh.spotify.state', state);
+      const query = new URLSearchParams({
+        client_id: clientId,
+        response_type: 'code',
+        redirect_uri: redirectUri(),
+        code_challenge_method: 'S256',
+        code_challenge: challenge,
+        state,
+        scope: scopes,
+      });
+      popup.location.href = 'https://accounts.spotify.com/authorize?' + query;
+      stopAuthPopupMonitor();
+      authPopupMonitor = window.setInterval(() => {
+        if (authPopup !== popup || !popup.closed) return;
+        authPopup = null;
+        stopAuthPopupMonitor();
+        sessionStorage.removeItem('pbh.spotify.verifier');
+        sessionStorage.removeItem('pbh.spotify.state');
+        emit('error', { message: 'A janela de conex\u00e3o do Spotify foi fechada antes de concluir o acesso.' });
+      }, 700);
+    } catch (error) {
+      popup.close();
+      authPopup = null;
+      throw error;
+    }
   };
 
   window.pbhSpotifyStartPlaylist = async (playlistId) => {

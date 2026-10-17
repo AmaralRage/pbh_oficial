@@ -64,15 +64,22 @@ class LyricsService {
         _cache[track.uri] = null;
         return null;
       }
-      var text = (data['plainLyrics'] as String?)?.trim() ?? '';
-      if (text.isEmpty) {
-        // Display timed lyrics as readable text without highlighting against playback.
-        final synced = (data['syncedLyrics'] as String?) ?? '';
+      final synced = (data['syncedLyrics'] as String?)?.trim() ?? '';
+      var text = '';
+      if (synced.isNotEmpty) {
+        // Keep timestamp-only lines as musical markers for instrumental breaks.
         text = synced
             .split('\n')
-            .map((line) => line.replaceFirst(RegExp(r'^\s*\[[0-9:.]+\]\s*'), '').trim())
-            .where((line) => line.isNotEmpty && !line.startsWith('['))
+            .map((line) {
+              final hasTimestamp = RegExp(r'^\s*\[[0-9:.]+\]').hasMatch(line);
+              final lyric = line.replaceFirst(RegExp(r'^\s*\[[0-9:.]+\]\s*'), '').trim();
+              if (lyric.isNotEmpty && !lyric.startsWith('[')) return lyric;
+              return hasTimestamp ? '♪' : '';
+            })
+            .where((line) => line.isNotEmpty)
             .join('\n');
+      } else {
+        text = (data['plainLyrics'] as String?)?.trim() ?? '';
       }
       final result = text.isEmpty ? null : text;
       _cache[track.uri] = result;
