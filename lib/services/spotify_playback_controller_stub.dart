@@ -34,11 +34,14 @@ class SpotifyPlaybackController extends ChangeNotifier {
   Future<void> nextTrack() async {}
   Future<void> previousTrack() async {}
   Future<void> seek(Duration position) async {}
+  Future<List<SpotifyTrack>> searchTracks(String query) async => const [];
+  Future<void> playTrack(SpotifyTrack track) async {}
   Future<void> setShuffle(bool enabled) async {}
   Future<void> setRepeatMode(int mode) async {}
   void open() {}
   void minimize() {}
   void expand() {}
   void openCurrentTrack() {}
+  void openTrack(SpotifyTrack track) {}
   void disconnect() {}
 }

@@ -4,6 +4,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/spotify_playback_controller.dart';
 import 'spotify_player_screen.dart';
+import 'spotify_track_search_screen.dart';
 
 class MusicScreen extends StatelessWidget {
   const MusicScreen({super.key});
@@ -18,7 +19,18 @@ class MusicScreen extends StatelessWidget {
         builder: (context, _) => ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
           children: [
-            Text('Música', style: AppTextStyles.headline),
+            Row(
+              children: [
+                Expanded(child: Text('Música', style: AppTextStyles.headline)),
+                IconButton(
+                  tooltip: 'Buscar músicas',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const SpotifyTrackSearchScreen()),
+                  ),
+                  icon: const Icon(Icons.queue_music_rounded, color: AppColors.orange, size: 27),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
             Text('Uma trilha para fortalecer foco, propósito e disciplina.', style: AppTextStyles.bodySmall),
             const SizedBox(height: 20),

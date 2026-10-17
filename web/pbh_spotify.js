@@ -287,6 +287,30 @@
     emit('playing_context', { playlistId });
   };
 
+  window.pbhSpotifySearchTracks = async (query) => {
+    const params = new URLSearchParams({ q: query, type: 'track', limit: '30', market: 'BR' });
+    const response = await spotifyFetch(`/search?${params.toString()}`);
+    const payload = await response.json();
+    const tracks = (payload.tracks && payload.tracks.items) || [];
+    return JSON.stringify(tracks.filter((track) => track && track.uri && track.is_playable !== false).map((track) => ({
+      uri: track.uri,
+      name: track.name || '',
+      artists: (track.artists || []).map((artist) => artist.name).join(', '),
+      album: (track.album && track.album.name) || '',
+      imageUrl: (track.album && track.album.images && track.album.images[0] && track.album.images[0].url) || '',
+      spotifyUrl: (track.external_urls && track.external_urls.spotify) || '',
+    })));
+  };
+
+  window.pbhSpotifyPlayTrack = async (uri) => {
+    if (!deviceId) throw new Error('O player Spotify ainda está conectando.');
+    if (player) player.activateElement();
+    await spotifyFetch(`/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ uris: [uri] }),
+    });
+  };
+
   window.pbhSpotifyToggle = () => player && player.togglePlay();
   window.pbhSpotifyNext = () => player && player.nextTrack();
   window.pbhSpotifyPrevious = () => player && player.previousTrack();

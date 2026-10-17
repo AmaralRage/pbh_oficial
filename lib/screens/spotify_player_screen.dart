@@ -88,7 +88,7 @@ class _TrackView extends StatelessWidget {
                       key: ValueKey('background-${track.imageUrl}'),
                       imageFilter: ui.ImageFilter.blur(sigmaX: 72, sigmaY: 72),
                       child: Opacity(
-                        opacity: .4,
+                        opacity: .46,
                         child: Image.network(track.imageUrl, fit: BoxFit.cover),
                       ),
                     ),

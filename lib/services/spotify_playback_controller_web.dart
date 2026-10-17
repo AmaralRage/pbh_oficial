@@ -83,6 +83,43 @@ class SpotifyPlaybackController extends ChangeNotifier {
     }
   }
 
+  Future<dynamic> _invokeValue(String method, [List<dynamic> arguments = const []]) async {
+    final result = js.callMethod<dynamic>(html.window, method, arguments);
+    if (result != null && js.hasProperty(result, 'then')) {
+      return js.promiseToFuture<dynamic>(result);
+    }
+    return result;
+  }
+
+  Future<List<SpotifyTrack>> searchTracks(String query) async {
+    if (!isAuthenticated) throw StateError('Conecte o Spotify para buscar músicas.');
+    final result = await _invokeValue('pbhSpotifySearchTracks', [query]);
+    final decoded = jsonDecode(result.toString()) as List<dynamic>;
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map(SpotifyTrack.fromMap)
+        .toList(growable: false);
+  }
+
+  Future<void> playTrack(SpotifyTrack selectedTrack) async {
+    if (!isAuthenticated) throw StateError('Conecte o Spotify antes de tocar uma música.');
+    if (!isReady) throw StateError('O player Spotify ainda está conectando.');
+    error = null;
+    isBusy = true;
+    notifyListeners();
+    try {
+      await _invoke('pbhSpotifyPlayTrack', [selectedTrack.uri]);
+      opened = true;
+      expanded = true;
+    } catch (exception) {
+      error = exception.toString().replaceFirst('Exception: ', '');
+      rethrow;
+    } finally {
+      isBusy = false;
+      notifyListeners();
+    }
+  }
+
   void _onPlaybackState(html.Event event) {
     final data = _detail(event);
     isPlaying = data['isPlaying'] == true;
@@ -239,6 +276,10 @@ class SpotifyPlaybackController extends ChangeNotifier {
 
   void openCurrentTrack() {
     if (track != null) _invoke('pbhSpotifyOpenTrack', [track!.uri]);
+  }
+
+  void openTrack(SpotifyTrack selectedTrack) {
+    if (selectedTrack.uri.isNotEmpty) _invoke('pbhSpotifyOpenTrack', [selectedTrack.uri]);
   }
 
   void disconnect() {
