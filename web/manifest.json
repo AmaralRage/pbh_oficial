@@ -4,7 +4,7 @@
     "start_url": ".",
     "display": "standalone",
     "background_color": "#000000",
-    "theme_color": "#000000",
+    "theme_color": "#0B0B0B",
     "description": "Menos desculpas, mais evolução. Desafios, hábitos e comunidade para o homem que quer ir além.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
