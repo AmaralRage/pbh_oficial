@@ -30,7 +30,7 @@
   function randomString(length) {
     const bytes = new Uint8Array(length);
     crypto.getRandomValues(bytes);
-    return Array.from(bytes, (byte) => String.fromCharCode(byte)).join('');
+    return base64Url(bytes);
   }
 
   function base64Url(bytes) {
@@ -196,9 +196,9 @@
 
   window.pbhSpotifyLogin = async () => {
     if (!clientId) throw new Error('O Spotify ainda não foi configurado para este app.');
-    const verifier = base64Url(new TextEncoder().encode(randomString(64)));
+    const verifier = randomString(64);
     const challenge = base64Url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
-    const state = base64Url(new TextEncoder().encode(randomString(24)));
+    const state = randomString(24);
     sessionStorage.setItem('pbh.spotify.verifier', verifier);
     sessionStorage.setItem('pbh.spotify.state', state);
     const query = new URLSearchParams({
