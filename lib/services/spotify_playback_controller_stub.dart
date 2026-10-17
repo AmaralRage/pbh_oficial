@@ -10,6 +10,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
   bool get isAuthenticated => false;
   bool get isReady => false;
   bool get isPlaying => false;
+  bool get shuffleEnabled => false;
+  int get repeatMode => 0;
   bool get isBusy => false;
   bool get opened => false;
   bool get expanded => false;
@@ -28,6 +30,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
   Future<void> nextTrack() async {}
   Future<void> previousTrack() async {}
   Future<void> seek(Duration position) async {}
+  Future<void> setShuffle(bool enabled) async {}
+  Future<void> setRepeatMode(int mode) async {}
   void open() {}
   void minimize() {}
   void expand() {}

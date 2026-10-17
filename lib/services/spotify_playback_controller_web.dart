@@ -43,6 +43,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
   bool isAuthenticated = false;
   bool isReady = false;
   bool isPlaying = false;
+  bool shuffleEnabled = false;
+  int repeatMode = 0;
   bool isBusy = false;
   bool opened = false;
   bool expanded = false;
@@ -71,6 +73,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
   void _onPlaybackState(html.Event event) {
     final data = _detail(event);
     isPlaying = data['isPlaying'] == true;
+    shuffleEnabled = data['shuffleEnabled'] == true;
+    repeatMode = ((data['repeatMode'] as num?)?.toInt() ?? 0).clamp(0, 2).toInt();
     position = Duration(milliseconds: (data['position'] as num?)?.round() ?? 0);
     duration = Duration(milliseconds: (data['duration'] as num?)?.round() ?? 0);
     final trackData = data['track'];
@@ -168,6 +172,29 @@ class SpotifyPlaybackController extends ChangeNotifier {
   Future<void> previousTrack() => _invoke('pbhSpotifyPrevious');
   Future<void> seek(Duration value) => _invoke('pbhSpotifySeek', [value.inMilliseconds]);
 
+  Future<void> setShuffle(bool enabled) => _setPlaybackOption(
+        'pbhSpotifySetShuffle',
+        enabled,
+        () => shuffleEnabled = enabled,
+      );
+
+  Future<void> setRepeatMode(int mode) => _setPlaybackOption(
+        'pbhSpotifySetRepeat',
+        mode,
+        () => repeatMode = mode.clamp(0, 2).toInt(),
+      );
+
+  Future<void> _setPlaybackOption(String method, dynamic value, VoidCallback update) async {
+    try {
+      await _invoke(method, [value]);
+      update();
+      error = null;
+    } catch (exception) {
+      error = exception.toString().replaceFirst('Exception: ', '');
+    }
+    notifyListeners();
+  }
+
   void open() {
     opened = true;
     expanded = true;
@@ -193,6 +220,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
     isAuthenticated = false;
     isReady = false;
     isPlaying = false;
+    shuffleEnabled = false;
+    repeatMode = 0;
     track = null;
     lyrics = null;
     lyricsError = null;

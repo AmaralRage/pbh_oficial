@@ -154,6 +154,8 @@
     const image = track && track.album && track.album.images && track.album.images[0];
     emit('state', {
       isPlaying: !state.paused,
+      shuffleEnabled: state.shuffle === true,
+      repeatMode: Number.isInteger(state.repeat_mode) ? state.repeat_mode : 0,
       position: state.position || 0,
       duration: state.duration || (track && track.duration_ms) || 0,
       track: track ? {
@@ -289,6 +291,15 @@
   window.pbhSpotifyNext = () => player && player.nextTrack();
   window.pbhSpotifyPrevious = () => player && player.previousTrack();
   window.pbhSpotifySeek = (position) => player && player.seek(position);
+  window.pbhSpotifySetShuffle = async (enabled) => {
+    if (!deviceId) throw new Error('O player Spotify ainda estÃ¡ conectando.');
+    await spotifyFetch(`/me/player/shuffle?state=${Boolean(enabled)}&device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' });
+  };
+  window.pbhSpotifySetRepeat = async (mode) => {
+    if (!deviceId) throw new Error('O player Spotify ainda estÃ¡ conectando.');
+    const repeatMode = ['off', 'context', 'track'][mode] || 'off';
+    await spotifyFetch(`/me/player/repeat?state=${repeatMode}&device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' });
+  };
   window.pbhSpotifyOpenTrack = (uri) => uri && window.open(uri.replace('spotify:track:', 'https://open.spotify.com/track/'), '_blank', 'noopener');
   window.pbhSpotifyLogout = () => {
     if (player) player.disconnect();

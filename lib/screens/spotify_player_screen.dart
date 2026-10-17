@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
@@ -70,9 +72,47 @@ class _TrackView extends StatelessWidget {
     final totalMs = player.duration.inMilliseconds;
     final currentMs = player.position.inMilliseconds.clamp(0, totalMs > 0 ? totalMs : 0);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+    return Stack(
+      fit: StackFit.expand,
       children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (track.imageUrl.isNotEmpty)
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 700),
+                    child: ImageFiltered(
+                      key: ValueKey('background-${track.imageUrl}'),
+                      imageFilter: ui.ImageFilter.blur(sigmaX: 72, sigmaY: 72),
+                      child: Opacity(
+                        opacity: .34,
+                        child: Image.network(track.imageUrl, fit: BoxFit.cover),
+                      ),
+                    ),
+                  ),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0x5C080808),
+                        Color(0xC9080808),
+                        Color(0xF2080808),
+                      ],
+                      stops: [0, .48, 1],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        ListView(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+          children: [
         Center(
           child: Container(
             width: maxImageSize,
@@ -160,20 +200,36 @@ class _TrackView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 76,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(onPressed: player.previousTrack, icon: const Icon(Icons.skip_previous_rounded, size: 34)),
-                  const SizedBox(width: 76),
-                  IconButton(onPressed: player.nextTrack, icon: const Icon(Icons.skip_next_rounded, size: 34)),
-                ],
-              ),
+          SizedBox(
+            width: double.infinity,
+            height: 76,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      tooltip: player.shuffleEnabled ? 'Desativar reprodução aleatória' : 'Ativar reprodução aleatória',
+                      onPressed: () => player.setShuffle(!player.shuffleEnabled),
+                      color: player.shuffleEnabled ? AppColors.orange : AppColors.textPrimary,
+                      icon: const Icon(Icons.shuffle_rounded),
+                    ),
+                    IconButton(onPressed: player.previousTrack, icon: const Icon(Icons.skip_previous_rounded, size: 34)),
+                    const SizedBox(width: 76),
+                    IconButton(onPressed: player.nextTrack, icon: const Icon(Icons.skip_next_rounded, size: 34)),
+                    IconButton(
+                      tooltip: player.repeatMode == 0
+                          ? 'Ativar repetição da playlist'
+                          : player.repeatMode == 1
+                              ? 'Repetir faixa atual'
+                              : 'Desativar repetição',
+                      onPressed: () => player.setRepeatMode((player.repeatMode + 1) % 3),
+                      color: player.repeatMode == 0 ? AppColors.textPrimary : AppColors.orange,
+                      icon: Icon(player.repeatMode == 2 ? Icons.repeat_one_rounded : Icons.repeat_rounded),
+                    ),
+                  ],
+                ),
               SizedBox(
                 width: 76,
                 height: 76,
@@ -218,8 +274,8 @@ class _TrackView extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ),
+              ),
+            ),
         if (player.error != null) ...[
           const SizedBox(height: 14),
           Text(player.error!, textAlign: TextAlign.center, style: AppTextStyles.bodySmall.copyWith(color: AppColors.orangeLight)),
@@ -235,6 +291,8 @@ class _TrackView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _LyricsPanel(player: player),
+          ],
+        ),
       ],
     );
   }
