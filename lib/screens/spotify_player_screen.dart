@@ -150,7 +150,7 @@ class _TrackView extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -161,9 +161,12 @@ class _TrackView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            IconButton(onPressed: player.previousTrack, icon: const Icon(Icons.skip_previous_rounded, size: 34)),
+            Expanded(
+              child: Center(
+                child: IconButton(onPressed: player.previousTrack, icon: const Icon(Icons.skip_previous_rounded, size: 34)),
+              ),
+            ),
             SizedBox(
               width: 76,
               height: 76,
@@ -181,7 +184,11 @@ class _TrackView extends StatelessWidget {
                 ),
               ),
             ),
-            IconButton(onPressed: player.nextTrack, icon: const Icon(Icons.skip_next_rounded, size: 34)),
+            Expanded(
+              child: Center(
+                child: IconButton(onPressed: player.nextTrack, icon: const Icon(Icons.skip_next_rounded, size: 34)),
+              ),
+            ),
           ],
         ),
         if (player.error != null) ...[
