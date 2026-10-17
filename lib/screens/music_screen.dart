@@ -4,7 +4,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/spotify_playback_controller.dart';
 import 'spotify_player_screen.dart';
-import 'spotify_track_search_screen.dart';
+import 'spotify_playlist_tracks_screen.dart';
 
 class MusicScreen extends StatelessWidget {
   const MusicScreen({super.key});
@@ -23,9 +23,9 @@ class MusicScreen extends StatelessWidget {
               children: [
                 Expanded(child: Text('Música', style: AppTextStyles.headline)),
                 IconButton(
-                  tooltip: 'Buscar músicas',
+                  tooltip: 'Ver músicas da playlist',
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const SpotifyTrackSearchScreen()),
+                    MaterialPageRoute<void>(builder: (_) => const SpotifyPlaylistTracksScreen()),
                   ),
                   icon: const Icon(Icons.queue_music_rounded, color: AppColors.orange, size: 27),
                 ),

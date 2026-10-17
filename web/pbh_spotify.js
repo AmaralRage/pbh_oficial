@@ -19,6 +19,7 @@
     'user-read-private',
     'user-read-playback-state',
     'user-modify-playback-state',
+    'playlist-read-private',
   ].join(' ');
 
   let clientId = '';
@@ -214,7 +215,8 @@
     }
     if (!response.ok && response.status !== 204) {
       const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error && payload.error.message ? payload.error.message : 'O Spotify recusou este comando.');
+      const message = payload.error && payload.error.message ? payload.error.message : 'O Spotify recusou este comando.';
+      throw new Error(`${message} (HTTP ${response.status})`);
     }
     return response;
   }
@@ -238,7 +240,7 @@
     }
   };
 
-  window.pbhSpotifyLogin = async () => {
+  window.pbhSpotifyLogin = async (forceConsent = false) => {
     if (!clientId) throw new Error('O Spotify ainda n\u00e3o foi configurado para este app.');
     const popup = window.open('about:blank', 'pbhSpotifyAuth', 'popup,width=520,height=720');
     if (!popup) throw new Error('Permita pop-ups neste site para conectar ao Spotify.');
@@ -259,6 +261,7 @@
         state,
         scope: scopes,
       });
+      if (forceConsent) query.set('show_dialog', 'true');
       popup.location.href = 'https://accounts.spotify.com/authorize?' + query;
       stopAuthPopupMonitor();
       authPopupMonitor = window.setInterval(() => {
@@ -287,27 +290,50 @@
     emit('playing_context', { playlistId });
   };
 
-  window.pbhSpotifySearchTracks = async (query) => {
-    const params = new URLSearchParams({ q: query, type: 'track', limit: '30', market: 'BR' });
-    const response = await spotifyFetch(`/search?${params.toString()}`);
-    const payload = await response.json();
-    const tracks = (payload.tracks && payload.tracks.items) || [];
-    return JSON.stringify(tracks.filter((track) => track && track.uri && track.is_playable !== false).map((track) => ({
-      uri: track.uri,
-      name: track.name || '',
-      artists: (track.artists || []).map((artist) => artist.name).join(', '),
-      album: (track.album && track.album.name) || '',
-      imageUrl: (track.album && track.album.images && track.album.images[0] && track.album.images[0].url) || '',
-      spotifyUrl: (track.external_urls && track.external_urls.spotify) || '',
-    })));
+  window.pbhSpotifyGetPlaylistTracks = async (playlistId) => {
+    const tracks = [];
+    const limit = 50;
+    let offset = 0;
+    let total = 0;
+
+    do {
+      const params = new URLSearchParams({ limit: String(limit), offset: String(offset), market: 'BR' });
+      const response = await spotifyFetch(`/playlists/${encodeURIComponent(playlistId)}/items?${params.toString()}`);
+      const payload = await response.json();
+      const items = payload.items || [];
+
+      for (let index = 0; index < items.length; index++) {
+        const entry = items[index];
+        const track = entry && (entry.item || entry.track);
+        if (!track || track.type !== 'track' || !track.uri) continue;
+        tracks.push({
+          uri: track.uri,
+          name: track.name || '',
+          artists: (track.artists || []).map((artist) => artist.name).join(', '),
+          album: (track.album && track.album.name) || '',
+          imageUrl: (track.album && track.album.images && track.album.images[0] && track.album.images[0].url) || '',
+          spotifyUrl: (track.external_urls && track.external_urls.spotify) || '',
+          playlistPosition: offset + index,
+        });
+      }
+
+      total = Number(payload.total) || 0;
+      offset += items.length;
+      if (items.length === 0) break;
+    } while (offset < total);
+
+    return JSON.stringify(tracks);
   };
 
-  window.pbhSpotifyPlayTrack = async (uri) => {
+  window.pbhSpotifyPlayPlaylistTrack = async (playlistId, position, uri) => {
     if (!deviceId) throw new Error('O player Spotify ainda está conectando.');
     if (player) player.activateElement();
     await spotifyFetch(`/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
       method: 'PUT',
-      body: JSON.stringify({ uris: [uri] }),
+      body: JSON.stringify({
+        context_uri: `spotify:playlist:${playlistId}`,
+        offset: Number.isInteger(position) ? { position } : { uri },
+      }),
     });
   };
 

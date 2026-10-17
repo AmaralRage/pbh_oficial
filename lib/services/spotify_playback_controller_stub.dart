@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/config/spotify_playlist.dart';
 import '../models/spotify_track.dart';
 import 'lyrics_service.dart';
 
@@ -27,15 +28,15 @@ class SpotifyPlaybackController extends ChangeNotifier {
   bool get lyricsLoading => false;
   String? get lyricsError => null;
 
-  Future<void> connect() async {}
+  Future<void> connect({bool forceConsent = false}) async {}
   Future<void> retryLyrics() async {}
   Future<void> startPlaylist(String playlistId) async {}
   Future<void> togglePlayback() async {}
   Future<void> nextTrack() async {}
   Future<void> previousTrack() async {}
   Future<void> seek(Duration position) async {}
-  Future<List<SpotifyTrack>> searchTracks(String query) async => const [];
-  Future<void> playTrack(SpotifyTrack track) async {}
+  Future<List<SpotifyTrack>> loadPlaylistTracks([String playlistId = officialSpotifyPlaylistId]) async => const [];
+  Future<void> playPlaylistTrack(SpotifyTrack track, [String playlistId = officialSpotifyPlaylistId]) async {}
   Future<void> setShuffle(bool enabled) async {}
   Future<void> setRepeatMode(int mode) async {}
   void open() {}

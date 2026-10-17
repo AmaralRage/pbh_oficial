@@ -91,9 +91,11 @@ class SpotifyPlaybackController extends ChangeNotifier {
     return result;
   }
 
-  Future<List<SpotifyTrack>> searchTracks(String query) async {
-    if (!isAuthenticated) throw StateError('Conecte o Spotify para buscar músicas.');
-    final result = await _invokeValue('pbhSpotifySearchTracks', [query]);
+  Future<List<SpotifyTrack>> loadPlaylistTracks([
+    String playlistId = officialSpotifyPlaylistId,
+  ]) async {
+    if (!isAuthenticated) throw StateError('Conecte o Spotify para ver a playlist.');
+    final result = await _invokeValue('pbhSpotifyGetPlaylistTracks', [playlistId]);
     final decoded = jsonDecode(result.toString()) as List<dynamic>;
     return decoded
         .whereType<Map<String, dynamic>>()
@@ -101,14 +103,21 @@ class SpotifyPlaybackController extends ChangeNotifier {
         .toList(growable: false);
   }
 
-  Future<void> playTrack(SpotifyTrack selectedTrack) async {
+  Future<void> playPlaylistTrack(
+    SpotifyTrack selectedTrack, [
+    String playlistId = officialSpotifyPlaylistId,
+  ]) async {
     if (!isAuthenticated) throw StateError('Conecte o Spotify antes de tocar uma música.');
     if (!isReady) throw StateError('O player Spotify ainda está conectando.');
     error = null;
     isBusy = true;
     notifyListeners();
     try {
-      await _invoke('pbhSpotifyPlayTrack', [selectedTrack.uri]);
+      await _invoke('pbhSpotifyPlayPlaylistTrack', [
+        playlistId,
+        selectedTrack.playlistPosition,
+        selectedTrack.uri,
+      ]);
       opened = true;
       expanded = true;
     } catch (exception) {
@@ -197,12 +206,12 @@ class SpotifyPlaybackController extends ChangeNotifier {
     await _loadLyricsForCurrentTrack();
   }
 
-  Future<void> connect() async {
+  Future<void> connect({bool forceConsent = false}) async {
     error = null;
     isBusy = true;
     notifyListeners();
     try {
-      await _invoke('pbhSpotifyLogin');
+      await _invoke('pbhSpotifyLogin', [forceConsent]);
     } catch (exception) {
       error = exception.toString();
       isBusy = false;

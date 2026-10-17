@@ -6,6 +6,7 @@ class SpotifyTrack {
     required this.album,
     required this.imageUrl,
     required this.spotifyUrl,
+    this.playlistPosition,
   });
 
   final String uri;
@@ -14,6 +15,7 @@ class SpotifyTrack {
   final String album;
   final String imageUrl;
   final String spotifyUrl;
+  final int? playlistPosition;
 
   factory SpotifyTrack.fromMap(Map<String, dynamic> map) => SpotifyTrack(
         uri: map['uri'] as String? ?? '',
@@ -22,5 +24,6 @@ class SpotifyTrack {
         album: map['album'] as String? ?? '',
         imageUrl: map['imageUrl'] as String? ?? '',
         spotifyUrl: map['spotifyUrl'] as String? ?? '',
+        playlistPosition: (map['playlistPosition'] as num?)?.toInt(),
       );
 }

@@ -7,6 +7,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/spotify_track.dart';
 import '../services/spotify_playback_controller.dart';
+import 'spotify_playlist_tracks_screen.dart';
 
 class SpotifyPlayerScreen extends StatelessWidget {
   const SpotifyPlayerScreen({super.key});
@@ -38,6 +39,13 @@ class SpotifyPlayerScreen extends StatelessWidget {
             ),
             centerTitle: true,
             actions: [
+              IconButton(
+                tooltip: 'Ver músicas da playlist',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const SpotifyPlaylistTracksScreen()),
+                ),
+                icon: const Icon(Icons.queue_music_rounded, color: AppColors.orange),
+              ),
               IconButton(
                 tooltip: 'Abrir faixa no Spotify',
                 onPressed: player.openCurrentTrack,
