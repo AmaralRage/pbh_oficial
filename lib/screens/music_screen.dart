@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import '../core/config/spotify_playlist.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
-import '../widgets/spotify_playlist_player.dart';
+import '../services/spotify_playback_controller.dart';
 
 class MusicScreen extends StatelessWidget {
   const MusicScreen({super.key});
@@ -82,7 +80,7 @@ class MusicScreen extends StatelessWidget {
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: hasOfficialSpotifyPlaylist
-                                ? () => _openSpotifyPlayer(context)
+                                ? _openSpotifyPlayer
                                 : null,
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF121212)),
                             icon: const Icon(Icons.play_circle_fill),
@@ -115,67 +113,7 @@ class MusicScreen extends StatelessWidget {
     );
   }
 
-  void _openSpotifyPlayer(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.textTertiary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(Icons.graphic_eq, color: AppColors.orange),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text('Playlist oficial', style: AppTextStyles.titleMedium),
-                ),
-                IconButton(
-                  tooltip: 'Fechar player',
-                  onPressed: () => Navigator.pop(sheetContext),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Toque em ▶ no player para começar. O Spotify pode oferecer apenas uma prévia dependendo do navegador e da sessão.',
-              style: AppTextStyles.statLabel,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            const SpotifyPlaylistPlayer(),
-            TextButton.icon(
-              onPressed: () => launchUrl(
-                Uri.parse(officialSpotifyPlaylistUrl),
-                mode: LaunchMode.externalApplication,
-              ),
-              icon: const Icon(Icons.open_in_new_rounded),
-              label: const Text('Abrir no aplicativo Spotify'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  void _openSpotifyPlayer() => SpotifyPlaybackController.instance.open();
 }
 
 class _MusicBenefit extends StatelessWidget {

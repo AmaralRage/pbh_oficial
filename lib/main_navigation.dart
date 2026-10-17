@@ -18,6 +18,7 @@ import 'core/navigation/app_transitions.dart';
 import 'widgets/pbh_app_drawer.dart';
 import 'widgets/pbh_app_header.dart';
 import 'widgets/pbh_bottom_nav.dart';
+import 'widgets/spotify_playback_dock.dart';
 
 /// Widget raiz que controla a navegação principal do app (bottom nav).
 /// Cada aba mantém seu próprio estado ao trocar de tela (IndexedStack).
@@ -277,6 +278,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
               ),
             ),
+            const SpotifyPlaybackDock(),
           ],
         ),
       ),
