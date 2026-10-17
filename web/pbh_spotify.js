@@ -339,7 +339,15 @@
 
   window.pbhSpotifyToggle = () => player && player.togglePlay();
   window.pbhSpotifyNext = () => player && player.nextTrack();
-  window.pbhSpotifyPrevious = () => player && player.previousTrack();
+  window.pbhSpotifyPrevious = async () => {
+    if (!player) return;
+    const state = await player.getCurrentState();
+    if (state && state.position >= 3000) {
+      await player.seek(0);
+      return;
+    }
+    await player.previousTrack();
+  };
   window.pbhSpotifySeek = (position) => player && player.seek(position);
   window.pbhSpotifySetShuffle = async (enabled) => {
     if (!deviceId) throw new Error('O player Spotify ainda estÃ¡ conectando.');
