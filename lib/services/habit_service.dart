@@ -36,6 +36,40 @@ class HabitService {
     }
   }
 
+  /// Moves visitor habit history into the signed-in account without replacing
+  /// records that already exist there. Local keys are removed only after the
+  /// server confirms the batch write.
+  Future<int> migrateGuestHistory() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return 0;
+
+    const guestPrefix = 'pbh.habit.guest.';
+    final guestKeys = (await _storage.getKeys()).where((key) => key.startsWith(guestPrefix)).toList();
+    final rows = <Map<String, dynamic>>[];
+    final migratedKeys = <String>[];
+    for (final key in guestKeys) {
+      final remainder = key.substring(guestPrefix.length);
+      final separator = remainder.lastIndexOf('.');
+      if (separator <= 0) continue;
+      final date = remainder.substring(0, separator);
+      final habitKey = remainder.substring(separator + 1);
+      if (!habitKeys.contains(habitKey) || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date)) continue;
+      if (DateTime.tryParse(date) == null || date.compareTo(_dateKey(DateTime.now())) > 0) continue;
+      if (await _storage.getBool(key) != true) continue;
+      rows.add({'user_id': userId, 'habit_key': habitKey, 'completed_on': date});
+      migratedKeys.add(key);
+    }
+    if (rows.isEmpty) return 0;
+
+    await _client.from('habit_completions').upsert(
+          rows,
+          onConflict: 'user_id,habit_key,completed_on',
+          ignoreDuplicates: true,
+        );
+    await Future.wait(migratedKeys.map(_storage.remove));
+    return migratedKeys.length;
+  }
+
   Future<int> streak() async {
     final today = DateTime.now();
     final start = DateTime(today.year, today.month, today.day).subtract(const Duration(days: 370));

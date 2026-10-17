@@ -76,7 +76,7 @@ class FeaturedChallengeCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          'Dia ${challenge.currentDay} de ${challenge.totalDays}',
+                          '${challenge.currentDay} de ${challenge.totalDays} registros',
                           style: AppTextStyles.bodySmall,
                         ),
                         const SizedBox(width: 12),

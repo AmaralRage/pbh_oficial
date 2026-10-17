@@ -41,12 +41,17 @@ class HabitItemCard extends StatelessWidget {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: onToggle == null ? null : () {
-              lightTapFeedback();
-              onToggle?.call(!habit.completed);
-            },
-            child: Container(
+          Semantics(
+            button: true,
+            toggled: habit.completed,
+            enabled: onToggle != null,
+            label: '${habit.title}, ${habit.completed ? 'concluído' : 'não concluído'}',
+            child: GestureDetector(
+              onTap: onToggle == null ? null : () {
+                lightTapFeedback();
+                onToggle?.call(!habit.completed);
+              },
+              child: Container(
               width: 26,
               height: 26,
               decoration: BoxDecoration(
@@ -60,6 +65,7 @@ class HabitItemCard extends StatelessWidget {
               child: habit.completed
                   ? const Icon(Icons.check, size: 15, color: Colors.white)
                   : null,
+              ),
             ),
           ),
         ],

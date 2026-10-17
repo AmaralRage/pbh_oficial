@@ -25,7 +25,7 @@ O link de recuperação retorna ao app e abre a tela para definir uma nova senha
 
 ## Dados persistentes
 
-Aplique as migrations em ordem: `20261015000100_profiles_and_initial_admin.sql`, `20261015000200_announcements.sql`, `20261015000300_community_progress.sql` e `20261015000400_admin_notification_center.sql`. A terceira cria o feed, curtidas, comentários, seguidores, registros de hábitos, progresso de desafios e o catálogo inicial. A quarta adiciona segmentação por papel (todos, membros ou administradores), links de destino, rascunhos e métricas reais à central administrativa. As políticas RLS limitam alterações à conta autenticada e ao papel de administrador.
+Aplique as migrations em ordem: `20261015000100_profiles_and_initial_admin.sql`, `20261015000200_announcements.sql`, `20261015000300_community_progress.sql`, `20261015000400_admin_notification_center.sql`, `20261017000100_profile_privacy.sql`, `20261017000200_expanded_challenges_and_leader_name.sql` e `20261017000300_community_discovery_moderation.sql`. A migration `20261017000200` adiciona 52 desafios (57 no total). A migration `20261015000400` adiciona segmentação por papel, links de destino, rascunhos e métricas administrativas. A migration `20261017000300` habilita temas, denúncias com motivo, bloqueios e revisão administrativa da comunidade. As políticas RLS limitam alterações à conta autenticada e ao papel de administrador.
 
 ## Notificações push Web
 

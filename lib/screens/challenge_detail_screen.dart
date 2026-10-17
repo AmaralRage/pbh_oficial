@@ -116,6 +116,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               ClipRRect(borderRadius: BorderRadius.circular(100), child: LinearProgressIndicator(value: _challenge.progress, minHeight: 8, backgroundColor: AppColors.surfaceElevated, valueColor: const AlwaysStoppedAnimation(AppColors.orange))),
               const SizedBox(height: 10),
               Text('${_challenge.currentDay} de ${_challenge.totalDays} dias registrados', style: AppTextStyles.bodySmall),
+              const SizedBox(height: 8),
+              Text(
+                'O desafio pede um registro por dia cumprido. Os registros não precisam ser consecutivos; você pode retomar se perder um dia.',
+                style: AppTextStyles.statLabel.copyWith(height: 1.4),
+              ),
               const SizedBox(height: 22),
               if (!completed)
                 Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.borderSubtle)), child: Row(children: [Icon(_todayComplete ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, color: AppColors.orange), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Progresso de hoje', style: AppTextStyles.titleMedium), const SizedBox(height: 3), Text(_todayComplete ? 'Dia registrado. Você manteve o compromisso.' : 'Concluiu a missão de hoje?', style: AppTextStyles.bodySmall)])), Switch(value: _todayComplete, onChanged: _busy ? null : (_) => _toggleToday())])),

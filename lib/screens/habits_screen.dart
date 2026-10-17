@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/feedback/tap_feedback.dart';
 import '../core/theme/app_colors.dart';
@@ -93,6 +94,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
     }
   }
 
+  Future<void> _shareWeeklySummary() async {
+    final completed = _weekCounts.fold<int>(0, (total, count) => total + count);
+    final activeDays = _weekCounts.where((count) => count > 0).length;
+    await Share.share(
+      'Meu resumo da semana no PBH: $completed hábitos concluídos em $activeDays dias. '
+      'Um compromisso de cada vez.',
+      subject: 'Meu resumo semanal PBH',
+    );
+  }
+
   void _handleBottomTap(int index) {
     if (widget.onNavigate != null) {
       Navigator.of(context).pop();
@@ -147,11 +158,39 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 return AnimatedEntry(delayMs: 90 + index * 35, child: Padding(padding: const EdgeInsets.only(bottom: 8), child: HabitItemCard(habit: habit, onToggle: _saving.contains(habit.key) ? null : (value) => _toggleHabit(index, value))));
               }),
             const SizedBox(height: 20),
+            AnimatedEntry(delayMs: 270, child: _WeeklySummaryCard(counts: _weekCounts, onShare: _shareWeeklySummary)),
+            const SizedBox(height: 12),
             AnimatedEntry(delayMs: 300, child: _StreakCard(streak: _streak, counts: _weekCounts)),
           ],
         ),
       ),
       bottomNavigationBar: PbhBottomNav(currentIndex: 0, onTap: _handleBottomTap),
+    );
+  }
+}
+
+class _WeeklySummaryCard extends StatelessWidget {
+  const _WeeklySummaryCard({required this.counts, required this.onShare});
+  final List<int> counts;
+  final VoidCallback onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = counts.fold<int>(0, (total, count) => total + count);
+    final activeDays = counts.where((count) => count > 0).length;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.borderSubtle)),
+      child: Row(children: [
+        Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.orangeDim, borderRadius: BorderRadius.circular(13)), child: const Icon(Icons.insights_rounded, color: AppColors.orange)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Resumo da semana', style: AppTextStyles.titleMedium.copyWith(fontSize: 15)),
+          const SizedBox(height: 4),
+          Text('$completed hábitos em $activeDays ${activeDays == 1 ? 'dia' : 'dias'}', style: AppTextStyles.bodySmall),
+        ])),
+        IconButton(tooltip: 'Compartilhar resumo semanal', onPressed: onShare, icon: const Icon(Icons.share_outlined, color: AppColors.orange)),
+      ]),
     );
   }
 }

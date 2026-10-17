@@ -6,8 +6,16 @@ import '../core/config/spotify_playlist.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 
-class MusicScreen extends StatelessWidget {
+class MusicScreen extends StatefulWidget {
   const MusicScreen({super.key});
+
+  @override
+  State<MusicScreen> createState() => _MusicScreenState();
+}
+
+class _MusicScreenState extends State<MusicScreen> {
+  static const _moments = ['Treino', 'Foco', 'Manhã', 'Reflexão'];
+  int _selectedMoment = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +27,10 @@ class MusicScreen extends StatelessWidget {
           Text('Música', style: AppTextStyles.headline),
           const SizedBox(height: 6),
           Text('Uma trilha para fortalecer foco, propósito e disciplina.', style: AppTextStyles.bodySmall),
+          const SizedBox(height: 16),
+          Text('Qual é o seu momento?', style: AppTextStyles.titleMedium),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: List.generate(_moments.length, (index) => ChoiceChip(label: Text(_moments[index]), selected: _selectedMoment == index, onSelected: (_) => setState(() => _selectedMoment = index)))),
           const SizedBox(height: 26),
           Container(
             decoration: BoxDecoration(
@@ -73,7 +85,7 @@ class MusicScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Músicas para acompanhar sua jornada de evolução.',
+                          'Uma trilha para o seu momento de ${_moments[_selectedMoment].toLowerCase()}.',
                           style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withOpacity(.88)),
                         ),
                         const SizedBox(height: 24),

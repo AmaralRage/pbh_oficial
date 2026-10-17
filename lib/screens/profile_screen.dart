@@ -37,11 +37,7 @@ class ProfileScreen extends StatelessWidget {
     final metadata = user?.userMetadata ?? const <String, dynamic>{};
     final name = (metadata['display_name'] as String?)?.trim();
     final bio = (metadata['bio'] as String?)?.trim();
-    final displayName = name?.isNotEmpty == true
-        ? name!
-        : isAdmin
-            ? 'Amaral Aragão'
-            : 'Sua conta';
+    final displayName = isAdmin ? 'Amaral' : (name?.isNotEmpty == true ? name! : 'Sua conta');
 
     return SafeArea(
       bottom: false,
@@ -242,7 +238,11 @@ class _ProfileProgressState extends State<_ProfileProgress> {
       final challenges = values[1] as List<ChallengeModel>;
       final completed = challenges.where((challenge) => challenge.status == ChallengeStatus.completed).toList();
       setState(() {
-        _streak = values[0] as int;
+        final isProjectLeader = Supabase.instance.client.auth.currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com';
+        final today = DateTime.now();
+        _streak = isProjectLeader
+            ? DateTime.utc(today.year, today.month, today.day).difference(DateTime.utc(2021, 1, 1)).inDays + 1
+            : values[0] as int;
         _completedChallenges = completed.length;
         _completedChallengeIds = completed.map((challenge) => challenge.id).toSet();
         _followers = values[2] as int;
@@ -255,18 +255,23 @@ class _ProfileProgressState extends State<_ProfileProgress> {
 
   @override
   Widget build(BuildContext context) {
+    final isProjectLeader = Supabase.instance.client.auth.currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com';
     final achievements = <({IconData icon, String label, bool unlocked})>[
-      (icon: Icons.emoji_events, label: '30 Dias', unlocked: _streak >= 30),
-      (icon: Icons.local_fire_department, label: 'Sequência\n20+', unlocked: _streak >= 20),
-      (icon: Icons.self_improvement, label: 'Jejum\nDigital', unlocked: _completedChallengeIds.contains('digital_fast')),
-      (icon: Icons.fitness_center, label: 'Corpo de\nFerro', unlocked: _completedChallengeIds.contains('iron_body')),
-      (icon: Icons.menu_book, label: 'Leitor\nAssíduo', unlocked: _completedChallengeIds.contains('daily_reading')),
-      (icon: Icons.groups, label: 'Mentor', unlocked: _followers >= 10),
+      for (final days in <int>[7, 14, 21, 30, 45, 60, 75, 90, 100, 120, 150, 180, 200, 250, 300, 365, 400, 500, 600, 730, 900, 1000, 1200, 1500, 1825, 2000, 2500, 3000, 3650, 5000])
+        (icon: Icons.local_fire_department, label: '$days dias', unlocked: _streak >= days),
+      for (final count in <int>[1, 3, 5, 10, 20, 30, 50])
+        (icon: Icons.flag, label: '$count desafios', unlocked: _completedChallenges >= count),
+      for (final count in <int>[1, 5, 10, 25, 50])
+        (icon: Icons.groups, label: '$count seguidores', unlocked: _followers >= count),
+      (icon: Icons.self_improvement, label: 'Jejum digital', unlocked: _completedChallengeIds.contains('digital_fast')),
+      (icon: Icons.fitness_center, label: 'Corpo de ferro', unlocked: _completedChallengeIds.contains('iron_body')),
+      (icon: Icons.menu_book, label: 'Leitor assíduo', unlocked: _completedChallengeIds.contains('daily_reading')),
+      (icon: Icons.wb_twilight, label: 'Madrugador', unlocked: _completedChallengeIds.contains('wake_5')),
     ];
     if (_loading) return const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator()));
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        StatCard(icon: Icons.local_fire_department, value: '$_streak', label: 'Dias de\nsequência'),
+        StatCard(icon: Icons.local_fire_department, value: '$_streak', label: isProjectLeader ? 'Dias do\nprojeto' : 'Dias de\nsequência'),
         const SizedBox(width: 12),
         StatCard(icon: Icons.flag, value: '$_completedChallenges', label: 'Desafios\nconcluídos'),
         const SizedBox(width: 12),

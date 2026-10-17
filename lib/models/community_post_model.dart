@@ -10,6 +10,9 @@ class CommunityPostModel {
   final bool likedByMe;
   final bool isFollowing;
   final bool isSaved;
+  final bool isSample;
+  final String? avatarAsset;
+  final String? topic;
 
   const CommunityPostModel({
     required this.id,
@@ -22,6 +25,9 @@ class CommunityPostModel {
     required this.likedByMe,
     this.isFollowing = false,
     this.isSaved = false,
+    this.isSample = false,
+    this.avatarAsset,
+    this.topic,
     this.achievementTag,
   });
 
@@ -44,6 +50,7 @@ class CommunityPostModel {
       comments: row['comments_count'] as int? ?? 0,
       likedByMe: row['liked_by_me'] as bool? ?? false,
       achievementTag: row['achievement_tag'] as String?,
+      topic: row['topic'] as String?,
     );
   }
 
@@ -59,5 +66,8 @@ class CommunityPostModel {
         achievementTag: achievementTag,
         isFollowing: isFollowing ?? this.isFollowing,
         isSaved: isSaved ?? this.isSaved,
+      isSample: isSample,
+      avatarAsset: avatarAsset,
+      topic: topic,
       );
 }

@@ -40,10 +40,16 @@ class CommunityService {
   String? get _userId => _client.auth.currentUser?.id;
   String? get currentUserId => _userId;
 
-  Future<List<CommunityPostModel>> fetchPosts({int filterIndex = 0}) async {
+  Future<List<CommunityPostModel>> fetchPosts({int filterIndex = 0, int offset = 0, int limit = 20, String search = '', String? topic}) async {
     var query = _client.from('community_feed').select();
     final userId = _userId;
     var followingIds = <String>[];
+    final excludedIds = <String>[];
+    if (userId != null) {
+      final blockedRows = await _client.from('community_blocks').select('blocked_id').eq('blocker_id', userId);
+      excludedIds.addAll(blockedRows.map((row) => row['blocked_id'] as String));
+    }
+    if (excludedIds.isNotEmpty) query = query.not('user_id', 'in', '(${excludedIds.join(',')})');
     if (filterIndex == 1) {
       if (userId == null) return const [];
       final rows = await _client.from('community_follows').select('followed_id').eq('follower_id', userId);
@@ -52,10 +58,20 @@ class CommunityService {
       query = query.inFilter('user_id', followingIds);
     } else if (filterIndex == 2) {
       query = query.not('achievement_tag', 'is', null);
+    } else if (filterIndex == 4) {
+      if (userId == null) return const [];
+      final savedRows = await _client.from('community_saved_posts').select('post_id').eq('user_id', userId);
+      final savedIds = savedRows.map((row) => row['post_id'] as String).toList();
+      if (savedIds.isEmpty) return const [];
+      query = query.inFilter('id', savedIds);
     }
-    final rows = await (filterIndex == 3
+    final term = search.trim().replaceAll(RegExp(r'[,.*()"%_]'), ' ').trim();
+    if (term.isNotEmpty) query = query.or('content.ilike.%$term%,author_name.ilike.%$term%,topic.ilike.%$term%');
+    if (topic != null && topic.isNotEmpty) query = query.eq('topic', topic);
+    final orderedQuery = filterIndex == 3
         ? query.order('likes_count', ascending: false).order('created_at', ascending: false)
-        : query.order('created_at', ascending: false));
+        : query.order('created_at', ascending: false);
+    final rows = await orderedQuery.range(offset, offset + limit - 1);
     var savedIds = <String>{};
     if (userId != null) {
       if (filterIndex != 1) {
@@ -81,17 +97,25 @@ class CommunityService {
   }
 
   Future<List<CommunityComment>> fetchComments(String postId) async {
-    final rows = await _client.from('community_comment_feed').select().eq('post_id', postId).order('created_at');
+    var query = _client.from('community_comment_feed').select().eq('post_id', postId);
+    final userId = _userId;
+    if (userId != null) {
+      final blocks = await _client.from('community_blocks').select('blocked_id').eq('blocker_id', userId);
+      final blockedIds = blocks.map((row) => row['blocked_id'] as String).toList();
+      if (blockedIds.isNotEmpty) query = query.not('user_id', 'in', '(${blockedIds.join(',')})');
+    }
+    final rows = await query.order('created_at');
     return rows.map((row) => CommunityComment.fromMap(row)).toList();
   }
 
-  Future<void> createPost(String content, {String? achievementTag}) async {
+  Future<void> createPost(String content, {String? achievementTag, String? topic}) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para publicar.');
     await _client.from('community_posts').insert({
       'user_id': userId,
       'content': content.trim(),
       'achievement_tag': achievementTag?.trim().isEmpty == true ? null : achievementTag?.trim(),
+      'topic': topic,
     });
   }
 
@@ -121,7 +145,7 @@ class CommunityService {
 
   Future<void> toggleSaved(String postId, bool saved) async {
     final userId = _userId;
-    if (userId == null) throw StateError('Entre na sua conta para salvar publicações.');
+    if (userId == null) throw StateError('Entre na sua conta para salvar publica��es.');
     if (saved) {
       await _client.from('community_saved_posts').delete().eq('user_id', userId).eq('post_id', postId);
     } else {
@@ -129,10 +153,29 @@ class CommunityService {
     }
   }
 
-  Future<void> report(String postId) async {
+  Future<void> report(String postId, {required String reason}) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para denunciar.');
-    await _client.from('community_reports').insert({'reporter_id': userId, 'post_id': postId});
+    await _client.from('community_reports').insert({'reporter_id': userId, 'post_id': postId, 'reason': reason});
+  }
+
+  Future<void> blockMember(String userId) async {
+    final blockerId = _userId;
+    if (blockerId == null) throw StateError('Entre na sua conta para bloquear membros.');
+    if (blockerId == userId) throw StateError('Você não pode bloquear a própria conta.');
+    await _client.from('community_blocks').upsert({'blocker_id': blockerId, 'blocked_id': userId}, onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true);
+  }
+
+  Future<void> unblockMember(String userId) async {
+    final blockerId = _userId;
+    if (blockerId == null) throw StateError('Entre na sua conta para desbloquear membros.');
+    await _client.from('community_blocks').delete().eq('blocker_id', blockerId).eq('blocked_id', userId);
+  }
+
+  Future<void> deleteOwnPost(String postId) async {
+    final userId = _userId;
+    if (userId == null) throw StateError('Entre na sua conta para excluir publica��es.');
+    await _client.from('community_posts').delete().eq('id', postId).eq('user_id', userId);
   }
 
   Future<bool> isFollowing(String userId) async {

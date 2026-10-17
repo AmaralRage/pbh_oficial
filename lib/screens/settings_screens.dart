@@ -8,6 +8,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/auth_service.dart';
 import '../services/notification_push_service.dart';
+import 'blocked_members_screen.dart';
 import '../widgets/animated_entry.dart';
 
 class NotificationPreferences {
@@ -242,23 +243,88 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       );
 }
 
-class PrivacySettingsScreen extends StatelessWidget {
+class PrivacySettingsScreen extends StatefulWidget {
   const PrivacySettingsScreen({super.key});
+
+  @override
+  State<PrivacySettingsScreen> createState() => _PrivacySettingsScreenState();
+}
+
+class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
+  bool _publicName = true;
+  bool _loading = true;
+  bool _saving = false;
+  String? _visibilityError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVisibility();
+  }
+
+  Future<void> _loadVisibility() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) throw StateError('Entre novamente para alterar sua privacidade.');
+      final profile = await Supabase.instance.client.from('profiles').select('is_public').eq('id', userId).maybeSingle();
+      if (profile == null) throw StateError('Não foi possível localizar seu perfil.');
+      if (mounted) setState(() { _publicName = profile['is_public'] as bool? ?? true; _loading = false; _visibilityError = null; });
+    } catch (error) {
+      if (mounted) setState(() { _loading = false; _visibilityError = error.toString().replaceFirst('Exception: ', ''); });
+    }
+  }
+
+  Future<void> _setPublicName(bool value) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final previous = _publicName;
+    setState(() { _publicName = value; _saving = true; _visibilityError = null; });
+    try {
+      await Supabase.instance.client.from('profiles').update({'is_public': value}).eq('id', userId);
+    } catch (error) {
+      if (mounted) setState(() { _publicName = previous; _visibilityError = error.toString().replaceFirst('Exception: ', ''); });
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   Future<void> _sendReset(BuildContext context) async {
     final email = Supabase.instance.client.auth.currentUser?.email;
     if (email == null) return;
     try {
       await AuthService().sendPasswordReset(email);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enviamos um link de redefinição para seu e-mail.')),
-        );
-      }
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enviamos um link de redefinição para seu e-mail.')));
     } on AuthException catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
-      }
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
+  Future<void> _requestAccountDeletion(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Solicitar exclusão da conta?'),
+        content: const Text('O pedido será enviado ao suporte para processamento. Sua conta não será apagada automaticamente por este app.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Continuar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    final emailUri = Uri(
+      scheme: 'mailto',
+      path: AuthService.adminEmail,
+      queryParameters: {
+        'subject': 'Solicitação de exclusão de conta PBH Oficial',
+        'body': 'Solicito a exclusão da minha conta PBH Oficial.\nE-mail da conta: ${user?.email ?? 'não disponível'}',
+      },
+    );
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível abrir seu aplicativo de e-mail. Fale com o suporte pelo canal de ajuda.')));
     }
   }
 
@@ -268,48 +334,66 @@ class PrivacySettingsScreen extends StatelessWidget {
     final name = user?.userMetadata?['display_name'] as String?;
     return _SettingsPage(
       title: 'Privacidade',
-      subtitle: 'Veja os dados associados à sua conta e proteja seu acesso.',
+      subtitle: 'Controle como seu nome aparece na comunidade e proteja seu acesso.',
       icon: Icons.lock_outline_rounded,
       children: [
         _SettingsCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Dados da conta', style: AppTextStyles.titleMedium),
-              const SizedBox(height: 14),
-              _AccountDataRow(label: 'E-mail', value: user?.email ?? 'Não disponível'),
-              const SizedBox(height: 10),
-              _AccountDataRow(label: 'Nome de exibição', value: name?.isNotEmpty == true ? name! : 'Não definido'),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Visibilidade na comunidade', style: AppTextStyles.titleMedium),
+            const SizedBox(height: 6),
+            Text('Suas publicações e comentários são visíveis publicamente. Esta opção oculta seu nome e mostra “Membro” como autor.', style: AppTextStyles.bodySmall),
+            const SizedBox(height: 12),
+            if (_loading)
+              const Center(child: CircularProgressIndicator())
+            else
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Mostrar meu nome'),
+                subtitle: Text(_publicName ? 'Seu nome de exibição aparece no feed.' : 'Seu nome aparece como Membro.'),
+                value: _publicName,
+                onChanged: _saving || _visibilityError != null ? null : _setPublicName,
+              ),
+            if (_visibilityError != null) ...[
+              Text(_visibilityError!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.orange)),
+              TextButton(onPressed: _loadVisibility, child: const Text('Tentar novamente')),
             ],
-          ),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const BlockedMembersScreen())), icon: const Icon(Icons.block_outlined), label: const Text('Gerenciar membros bloqueados')),
+        const SizedBox(height: 12),
+        _SettingsCard(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Dados da conta', style: AppTextStyles.titleMedium),
+            const SizedBox(height: 14),
+            _AccountDataRow(label: 'E-mail', value: user?.email ?? 'Não disponível'),
+            const SizedBox(height: 10),
+            _AccountDataRow(label: 'Nome de exibição', value: name?.isNotEmpty == true ? name! : 'Não definido'),
+          ]),
         ),
         const SizedBox(height: 12),
         _SettingsCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Segurança', style: AppTextStyles.titleMedium),
-              const SizedBox(height: 6),
-              Text('Redefina sua senha usando o link enviado ao e-mail da conta.', style: AppTextStyles.bodySmall),
-              const SizedBox(height: 14),
-              OutlinedButton.icon(
-                onPressed: () => _sendReset(context),
-                icon: const Icon(Icons.mark_email_read_outlined),
-                label: const Text('Enviar link para redefinir senha'),
-              ),
-            ],
-          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Segurança', style: AppTextStyles.titleMedium),
+            const SizedBox(height: 6),
+            Text('Redefina sua senha usando o link enviado ao e-mail da conta.', style: AppTextStyles.bodySmall),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(onPressed: () => _sendReset(context), icon: const Icon(Icons.mark_email_read_outlined), label: const Text('Enviar link para redefinir senha')),
+          ]),
         ),
         const SizedBox(height: 14),
-        Text(
-          'Seu nome e sua descrição ficam nos metadados da conta. Os avisos e o estado de leitura ficam no banco do projeto.',
-          style: AppTextStyles.bodySmall,
+        Text('O nome e a descrição ficam nos metadados da conta. As publicações e comentários continuam no feed mesmo quando o nome fica oculto.', style: AppTextStyles.bodySmall),
+        const SizedBox(height: 18),
+        OutlinedButton.icon(
+          onPressed: () => _requestAccountDeletion(context),
+          icon: const Icon(Icons.delete_outline_rounded),
+          label: const Text('Solicitar exclusão da conta'),
+          style: OutlinedButton.styleFrom(foregroundColor: AppColors.orange),
         ),
       ],
     );
   }
 }
-
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 

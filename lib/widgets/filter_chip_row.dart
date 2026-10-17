@@ -25,12 +25,16 @@ class FilterChipRow extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final isSelected = index == selectedIndex;
-          return GestureDetector(
-            onTap: () {
-              lightTapFeedback();
-              onSelected(index);
-            },
-            child: AnimatedContainer(
+          return Semantics(
+            button: true,
+            selected: isSelected,
+            label: options[index],
+            child: GestureDetector(
+              onTap: () {
+                lightTapFeedback();
+                onSelected(index);
+              },
+              child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.symmetric(horizontal: 18),
               alignment: Alignment.center,
@@ -47,6 +51,7 @@ class FilterChipRow extends StatelessWidget {
                 style: isSelected
                     ? AppTextStyles.chipActive.copyWith(color: Colors.white)
                     : AppTextStyles.chip,
+              ),
               ),
             ),
           );

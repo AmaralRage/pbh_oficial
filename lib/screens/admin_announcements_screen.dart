@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/announcement_service.dart';
+import 'admin_community_moderation_screen.dart';
 
 class AdminAnnouncementsScreen extends StatefulWidget {
   const AdminAnnouncementsScreen({super.key});
@@ -244,6 +245,8 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
           final contentWidth = (availableWidth - horizontalInset * 2).clamp(1.0, 1280.0).toDouble();
           final content = <Widget>[
             _pageHeading(),
+            const SizedBox(height: 12),
+            Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdminCommunityModerationScreen())), icon: const Icon(Icons.shield_outlined), label: const Text('Revisar denúncias da comunidade'))),
             const SizedBox(height: 24),
             if (_loading && _metrics == null)
               const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator()))

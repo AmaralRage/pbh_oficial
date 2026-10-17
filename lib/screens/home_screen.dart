@@ -25,7 +25,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _habitService = HabitService();
   final _challengeService = ChallengeService();
   int _streak = 0;
@@ -33,14 +33,36 @@ class _HomeScreenState extends State<HomeScreen> {
   int _completedChallenges = 0;
   List<int> _weekCounts = List.filled(7, 0);
   ChallengeModel? _activeChallenge;
+  bool _loading = true;
+  String? _loadError;
+  int _loadVersion = 0;
+
+  int get _projectDays {
+    final today = DateTime.now();
+    return DateTime.utc(today.year, today.month, today.day).difference(DateTime.utc(2021, 1, 1)).inDays + 1;
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _load();
+  }
+
   Future<void> _load() async {
+    final loadVersion = ++_loadVersion;
+    if (mounted) setState(() { _loading = true; _loadError = null; });
     try {
       final values = await Future.wait([
         _habitService.streak(),
@@ -48,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _habitService.weekCounts(DateTime.now()),
         _challengeService.fetchChallenges(),
       ]);
-      if (!mounted) return;
+      if (!mounted || loadVersion != _loadVersion) return;
       final challenges = values[3] as List<ChallengeModel>;
       ChallengeModel? active;
       for (final challenge in challenges) {
@@ -63,36 +85,46 @@ class _HomeScreenState extends State<HomeScreen> {
         _weekCounts = values[2] as List<int>;
         _activeChallenge = active;
         _completedChallenges = challenges.where((item) => item.status == ChallengeStatus.completed).length;
+        _loading = false;
+        _loadError = null;
       });
-    } catch (_) {}
+    } catch (error) {
+      if (!mounted || loadVersion != _loadVersion) return;
+      setState(() {
+        _loading = false;
+        _loadError = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final today = DateTime.now();
-    final completedWeekDays = {for (var i = 0; i < _weekCounts.length; i++) if (_weekCounts[i] > 0) i};
-    final metadata = Supabase.instance.client.auth.currentUser?.userMetadata ?? const <String, dynamic>{};
-    final displayName = (metadata['display_name'] as String?)?.trim();
+    final completedWeekDays = <int>{for (var i = 0; i < _weekCounts.length; i++) if (_weekCounts[i] > 0) i};
+    final elapsedWeekDays = <int>{for (var i = 0; i < today.weekday; i++) i};
     final currentUser = Supabase.instance.client.auth.currentUser;
-    final greetingName = displayName?.isNotEmpty == true
-        ? displayName!
-        : currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com'
-            ? 'Amaral Aragão'
-            : 'guerreiro';
+    final isProjectLeader = currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com';
+    final metadata = currentUser?.userMetadata ?? const <String, dynamic>{};
+    final displayName = (metadata['display_name'] as String?)?.trim();
+    final greetingName = isProjectLeader ? 'Amaral' : (displayName?.isNotEmpty == true ? displayName! : 'guerreiro');
     final greeting = switch (today.hour) { < 12 => 'Bom dia', < 18 => 'Boa tarde', _ => 'Boa noite' };
     final routinePercent = (100 * _todayCompleted / HabitService.habitKeys.length).round();
 
-    return SafeArea(bottom: false, child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
-      AnimatedEntry(delayMs: 60, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$greeting, $greetingName.', style: AppTextStyles.headline), if (currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com') ...[const SizedBox(height: 4), Text('Líder do projeto PBH Oficial', style: AppTextStyles.bodySmall.copyWith(color: AppColors.orange))] else ...[const SizedBox(height: 4), Text('Seja intencional em cada escolha.', style: AppTextStyles.bodySmall)]])),
+    return SafeArea(bottom: false, child: RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
+      AnimatedEntry(delayMs: 60, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$greeting, $greetingName.', style: AppTextStyles.headline), if (isProjectLeader) ...[const SizedBox(height: 4), Text('Líder do projeto PBH Oficial', style: AppTextStyles.bodySmall.copyWith(color: AppColors.orange))] else ...[const SizedBox(height: 4), Text('Seja intencional em cada escolha.', style: AppTextStyles.bodySmall)]])),
+      if (_loadError != null)
+        Padding(padding: const EdgeInsets.only(top: 16), child: _HomeLoadError(message: _loadError!, onRetry: _load))
+      else if (_loading)
+        const Padding(padding: EdgeInsets.only(top: 18), child: LinearProgressIndicator(minHeight: 2)),
       const SizedBox(height: 24),
-      AnimatedEntry(delayMs: 110, child: WeekdaySelector(date: today, completedIndexes: completedWeekDays)),
+      AnimatedEntry(delayMs: 110, child: WeekdaySelector(date: today, completedIndexes: completedWeekDays, elapsedIndexes: elapsedWeekDays)),
       const SizedBox(height: 28),
       AnimatedEntry(delayMs: 160, child: SectionHeader(title: 'Seu progresso', actionLabel: 'Ver tudo', onActionTap: () => Navigator.of(context).push(fadeSlideRoute(HabitsScreen(onNavigate: widget.onNavigate))))),
       const SizedBox(height: 14),
       AnimatedEntry(delayMs: 190, child: Row(children: [
         StatCard(icon: Icons.track_changes, value: '$routinePercent%', label: 'Rotina\nde hoje'),
         const SizedBox(width: 12),
-        StatCard(icon: Icons.local_fire_department, value: '$_streak', label: 'Dias de\nsequência'),
+        StatCard(icon: Icons.local_fire_department, value: '${isProjectLeader ? _projectDays : _streak}', label: isProjectLeader ? 'Dias do\nprojeto' : 'Dias de\nsequência'),
         const SizedBox(width: 12),
         StatCard(icon: Icons.emoji_events, value: '$_completedChallenges', label: 'Desafios\nconcluídos'),
       ])),
@@ -107,8 +139,33 @@ class _HomeScreenState extends State<HomeScreen> {
       AnimatedEntry(delayMs: 330, child: SectionHeader(title: 'Conteúdo recomendado', actionLabel: 'Ver todos', onActionTap: () => widget.onNavigate(2))),
       const SizedBox(height: 14),
       ...programCatalog.take(2).toList().asMap().entries.map((entry) => AnimatedEntry(delayMs: 370 + entry.key * 55, child: Padding(padding: const EdgeInsets.only(bottom: 12), child: ProgramCard(program: entry.value, onTap: () => Navigator.of(context).push(fadeSlideRoute(ProgramDetailScreen(program: entry.value))))))),
-    ]));
+    ])));
   }
+}
+
+class _HomeLoadError extends StatelessWidget {
+  const _HomeLoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off_outlined, color: AppColors.orange),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Não foi possível atualizar seu progresso. $message', style: AppTextStyles.bodySmall)),
+            TextButton(onPressed: onRetry, child: const Text('Tentar')),
+          ],
+        ),
+      );
 }
 
 class _NoActiveChallenge extends StatelessWidget {

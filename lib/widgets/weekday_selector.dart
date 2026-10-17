@@ -6,11 +6,13 @@ class WeekdaySelector extends StatelessWidget {
   /// Data usada para destacar o dia atual. O índice 0 é segunda-feira.
   final DateTime date;
   final Set<int> completedIndexes;
+  final Set<int> elapsedIndexes;
 
   const WeekdaySelector({
     super.key,
     required this.date,
     required this.completedIndexes,
+    required this.elapsedIndexes,
   });
 
   static const _labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -30,6 +32,7 @@ class WeekdaySelector extends StatelessWidget {
           children: List.generate(7, (index) {
         final isToday = index == _todayIndex;
         final isCompleted = completedIndexes.contains(index);
+        final isElapsed = elapsedIndexes.contains(index);
 
         return Column(
           children: [
@@ -45,11 +48,11 @@ class WeekdaySelector extends StatelessWidget {
               height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isCompleted ? AppColors.orange : Colors.transparent,
+                color: isCompleted ? AppColors.orange : (isElapsed ? AppColors.orangeDim : Colors.transparent),
                 border: Border.all(
                   color: isToday
                       ? AppColors.orange
-                      : (isCompleted ? Colors.transparent : AppColors.border),
+                      : (isCompleted ? Colors.transparent : (isElapsed ? AppColors.orange.withOpacity(.35) : AppColors.border)),
                   width: isToday ? 2 : 1,
                 ),
               ),

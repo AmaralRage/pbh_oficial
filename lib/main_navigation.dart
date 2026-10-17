@@ -11,6 +11,7 @@ import 'screens/music_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/admin_announcements_screen.dart';
 import 'services/announcement_service.dart';
+import 'services/habit_service.dart';
 import 'services/notification_sound.dart';
 import 'screens/settings_screens.dart';
 import 'core/navigation/app_transitions.dart';
@@ -45,6 +46,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _previousIndex = 0;
   int _unreadNotifications = 0;
   int _notificationPulseKey = 0;
+  int _habitMigrationGeneration = 0;
   bool _notificationAlertsEnabled = true;
   bool _notificationSoundEnabled = true;
   RealtimeChannel? _announcementChannel;
@@ -53,7 +55,10 @@ class _MainNavigationState extends State<MainNavigation> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-    if (widget.isAuthenticated) _connectNotifications();
+    if (widget.isAuthenticated) {
+      _connectNotifications();
+      _migrateGuestHabitHistory();
+    }
   }
 
   @override
@@ -61,8 +66,24 @@ class _MainNavigationState extends State<MainNavigation> {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.isAuthenticated && widget.isAuthenticated) {
       _connectNotifications();
+      _migrateGuestHabitHistory();
     } else if (oldWidget.isAuthenticated && !widget.isAuthenticated) {
       _disconnectNotifications();
+    }
+  }
+
+  Future<void> _migrateGuestHabitHistory() async {
+    try {
+      await HabitService().migrateGuestHistory();
+      if (mounted) setState(() => _habitMigrationGeneration++);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Não foi possível transferir seus hábitos de visitante. Eles continuam salvos neste dispositivo.'),
+          action: SnackBarAction(label: 'Tentar', onPressed: _migrateGuestHabitHistory),
+        ),
+      );
     }
   }
 
@@ -181,7 +202,7 @@ class _MainNavigationState extends State<MainNavigation> {
     final sectionNames = [..._sectionNames, if (widget.isAdmin) 'Admin'];
     final accountKey = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
     final screens = <Widget>[
-      HomeScreen(key: ValueKey('home-$accountKey'), onNavigate: _goTo),
+      HomeScreen(key: ValueKey('home-$accountKey-$_habitMigrationGeneration'), onNavigate: _goTo),
       ChallengesScreen(
         key: ValueKey('challenges-$accountKey'),
         isAuthenticated: widget.isAuthenticated,
