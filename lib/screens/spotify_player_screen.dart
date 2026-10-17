@@ -66,8 +66,7 @@ class _TrackView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageSize = MediaQuery.of(context).size.width - 48;
-    final maxImageSize = imageSize.clamp(220.0, 430.0).toDouble();
+    final maxImageSize = (MediaQuery.of(context).size.width - 48).clamp(0.0, 430.0).toDouble();
     final totalMs = player.duration.inMilliseconds;
     final currentMs = player.position.inMilliseconds.clamp(0, totalMs > 0 ? totalMs : 0);
 
@@ -84,18 +83,33 @@ class _TrackView extends StatelessWidget {
               boxShadow: [BoxShadow(color: AppColors.orange.withOpacity(.08), blurRadius: 34, spreadRadius: 2)],
             ),
             clipBehavior: Clip.antiAlias,
-            child: track.imageUrl.isEmpty
-                ? const Center(child: Icon(Icons.music_note_rounded, color: AppColors.orange, size: 90))
-                : Image.network(
-                    track.imageUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.music_note_rounded, color: AppColors.orange, size: 90)),
+            child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 360),
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        scale: Tween<double>(begin: .97, end: 1).animate(animation),
+                        child: child,
+                      ),
+                    ),
+                    child: track.imageUrl.isEmpty
+                        ? const Center(
+                            key: ValueKey('no-album-art'),
+                            child: Icon(Icons.music_note_rounded, color: AppColors.orange, size: 90),
+                          )
+                        : Image.network(
+                            track.imageUrl,
+                            key: ValueKey(track.imageUrl),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Center(
+                              key: ValueKey('album-art-error'),
+                              child: Icon(Icons.music_note_rounded, color: AppColors.orange, size: 90),
+                            ),
+                          ),
                   ),
           ),
         ),
-        const SizedBox(height: 23),
-        _LyricsPanel(player: player),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
         Row(
           children: [
             Expanded(
@@ -156,7 +170,15 @@ class _TrackView extends StatelessWidget {
               child: FilledButton(
                 onPressed: player.togglePlayback,
                 style: FilledButton.styleFrom(backgroundColor: AppColors.orange, foregroundColor: Colors.white, shape: const CircleBorder()),
-                child: Icon(player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 40),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                  child: Icon(
+                    player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    key: ValueKey(player.isPlaying),
+                    size: 40,
+                  ),
+                ),
               ),
             ),
             IconButton(onPressed: player.nextTrack, icon: const Icon(Icons.skip_next_rounded, size: 34)),
@@ -175,6 +197,8 @@ class _TrackView extends StatelessWidget {
             TextButton(onPressed: player.openCurrentTrack, child: const Text('Spotify')),
           ],
         ),
+        const SizedBox(height: 12),
+        _LyricsPanel(player: player),
       ],
     );
   }
@@ -244,9 +268,22 @@ class _LyricsPanel extends StatelessWidget {
                 ),
               )
             else
-              Text(
-                player.lyricsError ?? 'As letras desta faixa serão buscadas automaticamente.',
-                style: AppTextStyles.bodySmall,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    player.lyricsError ?? 'As letras desta faixa serão buscadas automaticamente.',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                  if (player.lyricsError != null) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: player.retryLyrics,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Tentar carregar novamente'),
+                    ),
+                  ],
+                ],
               ),
             const SizedBox(height: 12),
             Text('Fonte das letras: LRCLIB', style: AppTextStyles.statLabel),

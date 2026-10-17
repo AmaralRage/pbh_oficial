@@ -122,6 +122,14 @@ class SpotifyPlaybackController extends ChangeNotifier {
     }
   }
 
+  Future<void> retryLyrics() async {
+    if (track == null || lyricsLoading) return;
+    _lyricsTrackUri = null;
+    lyrics = null;
+    lyricsError = null;
+    await _loadLyricsForCurrentTrack();
+  }
+
   Future<void> connect() async {
     error = null;
     isBusy = true;

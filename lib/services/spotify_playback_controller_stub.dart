@@ -22,6 +22,7 @@ class SpotifyPlaybackController extends ChangeNotifier {
   String? get lyricsError => null;
 
   Future<void> connect() async {}
+  Future<void> retryLyrics() async {}
   Future<void> startPlaylist(String playlistId) async {}
   Future<void> togglePlayback() async {}
   Future<void> nextTrack() async {}
