@@ -12,6 +12,7 @@
   let clientId = '';
   let player = null;
   let deviceId = null;
+  let playbackPoll = null;
   let sdkReadyResolve;
   const sdkReady = new Promise((resolve) => { sdkReadyResolve = resolve; });
 
@@ -19,7 +20,7 @@
   if (window.Spotify) sdkReadyResolve();
 
   function emit(name, detail = {}) {
-    window.dispatchEvent(new CustomEvent(`pbh-spotify-${name}`, { detail }));
+    window.dispatchEvent(new CustomEvent(`pbh-spotify-${name}`, { detail: JSON.stringify(detail) }));
   }
 
   function redirectUri() {
@@ -135,6 +136,10 @@
     player.addListener('ready', ({ device_id }) => {
       deviceId = device_id;
       emit('ready', { ready: true });
+      if (playbackPoll) window.clearInterval(playbackPoll);
+      playbackPoll = window.setInterval(() => {
+        player.getCurrentState().then(publishState).catch(() => {});
+      }, 900);
     });
     player.addListener('not_ready', () => {
       deviceId = null;
@@ -146,8 +151,8 @@
     player.addListener('initialization_error', ({ message }) => emit('error', { message: message || 'Este navegador não conseguiu iniciar o player do Spotify.' }));
     player.addListener('playback_error', ({ message }) => emit('error', { message: message || 'O Spotify não conseguiu iniciar esta faixa.' }));
     player.addListener('autoplay_failed', () => emit('error', { message: 'Toque em reproduzir para liberar o áudio neste navegador.' }));
-    await player.connect();
-    emit('ready', { ready: true });
+    const connected = await player.connect();
+    if (!connected) emit('error', { message: 'Não foi possível conectar o player Spotify neste navegador.' });
   }
 
   async function spotifyFetch(path, options = {}) {
@@ -226,6 +231,8 @@
   window.pbhSpotifyOpenTrack = (uri) => uri && window.open(uri.replace('spotify:track:', 'https://open.spotify.com/track/'), '_blank', 'noopener');
   window.pbhSpotifyLogout = () => {
     if (player) player.disconnect();
+    if (playbackPoll) window.clearInterval(playbackPoll);
+    playbackPoll = null;
     player = null;
     deviceId = null;
     token = null;

@@ -16,7 +16,7 @@ jobs:
           cache: true
 
       - run: flutter pub get
-      - run: flutter build web --release
+      - run: flutter build web --release --dart-define=SPOTIFY_CLIENT_ID=${{ vars.SPOTIFY_CLIENT_ID }}
 
       - name: Deploy na Vercel
         env:

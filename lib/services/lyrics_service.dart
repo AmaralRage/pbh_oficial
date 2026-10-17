@@ -25,18 +25,45 @@ class LyricsService {
       final response = await _client.get(uri, headers: const {
         'X-User-Agent': 'PBH Oficial/1.0 (https://pbh-oficial.vercel.app)',
       });
-      if (response.statusCode == 404) {
-        _cache[track.uri] = null;
-        return null;
-      }
       if (response.statusCode == 429) {
         throw const LyricsUnavailableException('Muitas consultas de letras em sequência. Tente novamente em instantes.');
       }
-      if (response.statusCode != 200) {
+      Map<String, dynamic>? data;
+      if (response.statusCode == 200) {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } else if (response.statusCode == 404) {
+        final searchUri = Uri.https('lrclib.net', '/api/search', {
+          'track_name': track.name,
+          'artist_name': track.artists,
+        });
+        final searchResponse = await _client.get(searchUri, headers: const {
+          'X-User-Agent': 'PBH Oficial/1.0 (https://pbh-oficial.vercel.app)',
+        });
+        if (searchResponse.statusCode == 429) {
+          throw const LyricsUnavailableException('Muitas consultas de letras em sequência. Tente novamente em instantes.');
+        }
+        if (searchResponse.statusCode == 200) {
+          final records = jsonDecode(searchResponse.body) as List<dynamic>;
+          final matching = records.whereType<Map<String, dynamic>>().where((record) {
+            final titleMatches = (record['trackName'] as String? ?? '').toLowerCase() == track.name.toLowerCase();
+            final primaryArtist = track.artists.split(',').first.trim().toLowerCase();
+            final candidateArtist = (record['artistName'] as String? ?? '').toLowerCase();
+            final artistMatches = candidateArtist == primaryArtist || candidateArtist.contains(primaryArtist);
+            return titleMatches && artistMatches;
+          });
+          data = matching.cast<Map<String, dynamic>?>().firstWhere(
+                (record) => ((record?['plainLyrics'] as String?)?.isNotEmpty ?? false) || ((record?['syncedLyrics'] as String?)?.isNotEmpty ?? false),
+                orElse: () => null,
+              );
+        }
+      } else {
         throw const LyricsUnavailableException('Não foi possível carregar a letra agora.');
       }
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (data == null) {
+        _cache[track.uri] = null;
+        return null;
+      }
       var text = (data['plainLyrics'] as String?)?.trim() ?? '';
       if (text.isEmpty) {
         // Display timed lyrics as readable text without highlighting against playback.

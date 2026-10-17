@@ -1,168 +1,106 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../core/config/spotify_playlist.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/spotify_playback_controller.dart';
-import 'spotify_playlist_player.dart';
+import '../screens/spotify_player_screen.dart';
 
 class SpotifyPlaybackDock extends StatelessWidget {
   const SpotifyPlaybackDock({super.key});
 
-  static const _playerHeight = 352.0;
-  static const _headerHeight = 68.0;
-  static const _miniHeight = 70.0;
-
   @override
   Widget build(BuildContext context) {
-    final controller = SpotifyPlaybackController.instance;
+    final player = SpotifyPlaybackController.instance;
     return AnimatedBuilder(
-      animation: controller,
+      animation: player,
       builder: (context, _) {
-        if (!controller.opened) return const SizedBox.shrink();
-
-        final expanded = controller.expanded;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeInOutCubic,
-          height: expanded ? _headerHeight + _playerHeight : _miniHeight,
+        final track = player.track;
+        if (!player.opened || track == null) return const SizedBox.shrink();
+        return Container(
+          height: 68,
           margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(18),
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(15),
             border: Border.all(color: AppColors.borderSubtle),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(.28), blurRadius: 18, offset: const Offset(0, -4)),
-            ],
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(.32), blurRadius: 18, offset: const Offset(0, -4))],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Stack(
-              clipBehavior: Clip.hardEdge,
-              children: [
-                // Keep this exact widget mounted while the dock is minimized.
-                Positioned(
-                  top: expanded ? _headerHeight : 0,
-                  left: 0,
-                  right: 0,
-                  height: _playerHeight,
-                  child: const SpotifyPlaylistPlayer(
-                    key: ValueKey('persistent-spotify-embed'),
-                  ),
-                ),
-                if (expanded)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: _headerHeight,
-                    child: _ExpandedHeader(
-                      onMinimize: controller.minimize,
-                      onOpenSpotify: _openSpotifyApp,
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          player.expand();
+                          Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SpotifyPlayerScreen()));
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Row(
+                            children: [
+                              _MiniArtwork(imageUrl: track.imageUrl),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(track.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.titleMedium.copyWith(fontSize: 13)),
+                                    const SizedBox(height: 2),
+                                    Text(track.artists, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.statLabel),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: player.isPlaying ? 'Pausar' : 'Reproduzir',
+                                onPressed: player.togglePlayback,
+                                icon: Icon(player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: AppColors.textPrimary, size: 28),
+                              ),
+                              IconButton(
+                                tooltip: 'Avançar faixa',
+                                onPressed: player.nextTrack,
+                                icon: const Icon(Icons.skip_next_rounded, color: AppColors.textSecondary, size: 26),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  )
-                else
-                  Positioned.fill(
-                    child: _MiniPlayerBar(onExpand: controller.expand),
-                  ),
-              ],
-            ),
+                    LinearProgressIndicator(
+                      minHeight: 2,
+                      value: player.duration.inMilliseconds == 0
+                          ? 0
+                          : (player.position.inMilliseconds / player.duration.inMilliseconds).clamp(0.0, 1.0).toDouble(),
+                      backgroundColor: Colors.transparent,
+                      valueColor: const AlwaysStoppedAnimation(AppColors.orange),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
-
-  Future<void> _openSpotifyApp() async {
-    await launchUrl(
-      Uri.parse(officialSpotifyPlaylistUrl),
-      mode: LaunchMode.externalApplication,
-    );
-  }
 }
 
-class _ExpandedHeader extends StatelessWidget {
-  const _ExpandedHeader({required this.onMinimize, required this.onOpenSpotify});
-
-  final VoidCallback onMinimize;
-  final VoidCallback onOpenSpotify;
+class _MiniArtwork extends StatelessWidget {
+  const _MiniArtwork({required this.imageUrl});
+  final String imageUrl;
 
   @override
-  Widget build(BuildContext context) => Container(
-        color: AppColors.surface,
-        padding: const EdgeInsets.only(left: 16, right: 6),
-        child: Row(
-          children: [
-            const Icon(Icons.graphic_eq, color: AppColors.orange, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Playlist oficial', style: AppTextStyles.titleMedium),
-                  Text('Toque em ▶ para iniciar', style: AppTextStyles.statLabel),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: 'Abrir no aplicativo Spotify',
-              onPressed: onOpenSpotify,
-              icon: const Icon(Icons.open_in_new_rounded),
-            ),
-            IconButton(
-              tooltip: 'Minimizar e continuar tocando',
-              onPressed: onMinimize,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded),
-            ),
-          ],
-        ),
-      );
-}
-
-class _MiniPlayerBar extends StatelessWidget {
-  const _MiniPlayerBar({required this.onExpand});
-
-  final VoidCallback onExpand;
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: AppColors.surface,
-        child: InkWell(
-          onTap: onExpand,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: AppColors.orangeDim,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.graphic_eq, color: AppColors.orange),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Playlist oficial', style: AppTextStyles.titleMedium, maxLines: 1),
-                      Text('Player Spotify mantido aberto', style: AppTextStyles.statLabel, maxLines: 1),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Abrir controles do Spotify',
-                  onPressed: onExpand,
-                  icon: const Icon(Icons.keyboard_arrow_up_rounded, color: AppColors.orange),
-                ),
-              ],
-            ),
-          ),
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 46,
+          height: 46,
+          child: imageUrl.isEmpty
+              ? const ColoredBox(color: AppColors.background, child: Icon(Icons.music_note_rounded, color: AppColors.orange))
+              : Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: AppColors.background, child: Icon(Icons.music_note_rounded, color: AppColors.orange))),
         ),
       );
 }

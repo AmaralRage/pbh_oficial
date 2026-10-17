@@ -23,6 +23,30 @@ e-mail. O cliente não pode alterar o próprio papel.
 
 O link de recuperação retorna ao app e abre a tela para definir uma nova senha.
 
+## Player Spotify
+
+O player web usa o Spotify Web Playback SDK. Cada pessoa conecta a própria conta
+Spotify Premium; o app não recebe senha nem Client Secret. Para habilitar:
+
+1. Crie um app no [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2. Cadastre `https://pbh-oficial.vercel.app/` como Redirect URI nas configurações do app. Durante o desenvolvimento local, cadastre também a URL local que você usa, como `http://localhost:7357/`.
+3. Adicione o Client ID como variável de repositório `SPOTIFY_CLIENT_ID` em GitHub → Settings → Secrets and variables → Actions → Variables.
+4. Publique um novo build pela workflow de deploy.
+
+O player inicia a playlist oficial neste navegador, mostra a faixa atual e oferece
+controles de pausa, avanço, retorno e posição. Letras são consultadas faixa a faixa
+na LRCLIB; a cobertura depende do catálogo externo. Se uma faixa não tiver letra,
+o player informa isso sem interromper a reprodução.
+
+O Spotify Web Playback SDK exige Premium e pode ter restrições de reprodução em
+segundo plano nos navegadores móveis. Revise também os termos do Spotify para
+confirmar que o uso no seu app se enquadra nas regras da plataforma.
+
+No Development Mode do Spotify, o app fica limitado a cinco usuários autorizados
+e se destina a testes e uso pessoal não comercial. Para disponibilizar o player
+para a comunidade inteira do PBH, será necessário obter acesso ampliado do Spotify.
+Veja o [guia de mudanças do Development Mode](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide).
+
 ## Dados persistentes
 
 Aplique as migrations em ordem: `20261015000100_profiles_and_initial_admin.sql`, `20261015000200_announcements.sql`, `20261015000300_community_progress.sql`, `20261015000400_admin_notification_center.sql`, `20261017000100_profile_privacy.sql`, `20261017000200_expanded_challenges_and_leader_name.sql` e `20261017000300_community_discovery_moderation.sql`. A migration `20261017000200` adiciona 52 desafios (57 no total). A migration `20261015000400` adiciona segmentação por papel, links de destino, rascunhos e métricas administrativas. A migration `20261017000300` habilita temas, denúncias com motivo, bloqueios e revisão administrativa da comunidade. As políticas RLS limitam alterações à conta autenticada e ao papel de administrador.
