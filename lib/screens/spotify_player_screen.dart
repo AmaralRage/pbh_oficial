@@ -179,15 +179,41 @@ class _TrackView extends StatelessWidget {
                 height: 76,
                 child: FilledButton(
                   onPressed: player.togglePlayback,
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.orange, foregroundColor: Colors.white, shape: const CircleBorder()),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.orange,
+                    foregroundColor: Colors.white,
+                    shape: const CircleBorder(),
+                    padding: EdgeInsets.zero,
+                    alignment: Alignment.center,
+                  ),
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
-                    child: Icon(
-                      player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      key: ValueKey(player.isPlaying),
-                      size: 40,
-                    ),
+                    child: player.isPlaying
+                        ? const SizedBox(
+                            key: ValueKey('pause'),
+                            width: 76,
+                            height: 76,
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  left: 29,
+                                  top: 26,
+                                  child: _PauseBar(),
+                                ),
+                                Positioned(
+                                  left: 41,
+                                  top: 26,
+                                  child: _PauseBar(),
+                                ),
+                              ],
+                            ),
+                          )
+                        : const Icon(
+                            Icons.play_arrow_rounded,
+                            key: ValueKey('play'),
+                            size: 40,
+                          ),
                   ),
                 ),
               ),
@@ -212,6 +238,20 @@ class _TrackView extends StatelessWidget {
       ],
     );
   }
+}
+
+class _PauseBar extends StatelessWidget {
+  const _PauseBar();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 6,
+        height: 24,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(3),
+        ),
+      );
 }
 
 class _LyricsPanel extends StatelessWidget {
