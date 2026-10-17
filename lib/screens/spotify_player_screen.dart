@@ -160,36 +160,39 @@ class _TrackView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: Center(
-                child: IconButton(onPressed: player.previousTrack, icon: const Icon(Icons.skip_previous_rounded, size: 34)),
+        SizedBox(
+          width: double.infinity,
+          height: 76,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(onPressed: player.previousTrack, icon: const Icon(Icons.skip_previous_rounded, size: 34)),
+                  const SizedBox(width: 76),
+                  IconButton(onPressed: player.nextTrack, icon: const Icon(Icons.skip_next_rounded, size: 34)),
+                ],
               ),
-            ),
-            SizedBox(
-              width: 76,
-              height: 76,
-              child: FilledButton(
-                onPressed: player.togglePlayback,
-                style: FilledButton.styleFrom(backgroundColor: AppColors.orange, foregroundColor: Colors.white, shape: const CircleBorder()),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
-                  child: Icon(
-                    player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    key: ValueKey(player.isPlaying),
-                    size: 40,
+              SizedBox(
+                width: 76,
+                height: 76,
+                child: FilledButton(
+                  onPressed: player.togglePlayback,
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.orange, foregroundColor: Colors.white, shape: const CircleBorder()),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                    child: Icon(
+                      player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      key: ValueKey(player.isPlaying),
+                      size: 40,
+                    ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Center(
-                child: IconButton(onPressed: player.nextTrack, icon: const Icon(Icons.skip_next_rounded, size: 34)),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
         if (player.error != null) ...[
           const SizedBox(height: 14),
