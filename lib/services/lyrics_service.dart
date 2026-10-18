@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -26,6 +27,65 @@ class LyricsService {
   static final LyricsService instance = LyricsService._();
   final http.Client _client = http.Client();
   final Map<String, LyricsDocument?> _cache = {};
+  Future<void> _requestQueue = Future<void>.value();
+  DateTime? _lastRequestAt;
+
+  Future<http.Response> _get(Uri uri) {
+    final completer = Completer<http.Response>();
+    _requestQueue = _requestQueue.then((_) async {
+      try {
+        completer.complete(await _getWithRetry(uri));
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      }
+    });
+    return completer.future;
+  }
+
+  Future<http.Response> _getWithRetry(Uri uri) async {
+    var retryCount = 0;
+    while (true) {
+      final lastRequestAt = _lastRequestAt;
+      if (lastRequestAt != null) {
+        final remaining = const Duration(milliseconds: 300) - DateTime.now().difference(lastRequestAt);
+        if (remaining > Duration.zero) await Future<void>.delayed(remaining);
+      }
+
+      http.Response response;
+      try {
+        response = await _client.get(uri, headers: const {
+          'X-User-Agent': 'PBH Oficial/1.0 (https://pbh-oficial.vercel.app)',
+        }).timeout(const Duration(seconds: 12));
+      } catch (_) {
+        _lastRequestAt = DateTime.now();
+        if (retryCount++ == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          continue;
+        }
+        throw const LyricsUnavailableException('O serviço de letras está temporariamente indisponível. Tente novamente.');
+      }
+      _lastRequestAt = DateTime.now();
+
+      if (response.statusCode == 429) {
+        final retryAfter = int.tryParse(response.headers['retry-after'] ?? '');
+        if (retryCount == 0 && retryAfter != null && retryAfter <= 5) {
+          retryCount++;
+          await Future<void>.delayed(Duration(seconds: retryAfter));
+          continue;
+        }
+        final waitMessage = retryAfter == null
+            ? ' Tente novamente em instantes.'
+            : ' Aguarde $retryAfter segundos e tente novamente.';
+        throw LyricsUnavailableException('O serviço de letras limitou as consultas.$waitMessage');
+      }
+
+      if (response.statusCode >= 500 && retryCount++ == 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        continue;
+      }
+      return response;
+    }
+  }
 
   Future<LyricsDocument?> lyricsFor(SpotifyTrack track, Duration duration) async {
     if (_cache.containsKey(track.uri)) return _cache[track.uri];
@@ -38,42 +98,37 @@ class LyricsService {
     };
     final uri = Uri.https('lrclib.net', '/api/get', query);
     try {
-      final response = await _client.get(uri, headers: const {
-        'X-User-Agent': 'PBH Oficial/1.0 (https://pbh-oficial.vercel.app)',
-      });
-      if (response.statusCode == 429) {
-        throw const LyricsUnavailableException('Muitas consultas de letras em sequÃªncia. Tente novamente em instantes.');
-      }
+      final response = await _get(uri);
       Map<String, dynamic>? data;
       if (response.statusCode == 200) {
         data = jsonDecode(response.body) as Map<String, dynamic>;
       } else if (response.statusCode == 404) {
         final searchUri = Uri.https('lrclib.net', '/api/search', {
           'track_name': track.name,
-          'artist_name': track.artists,
+          'artist_name': track.artists.split(',').first.trim(),
         });
-        final searchResponse = await _client.get(searchUri, headers: const {
-          'X-User-Agent': 'PBH Oficial/1.0 (https://pbh-oficial.vercel.app)',
-        });
-        if (searchResponse.statusCode == 429) {
-          throw const LyricsUnavailableException('Muitas consultas de letras em sequÃªncia. Tente novamente em instantes.');
-        }
+        final searchResponse = await _get(searchUri);
         if (searchResponse.statusCode == 200) {
           final records = jsonDecode(searchResponse.body) as List<dynamic>;
+          final primaryArtist = _normalize(track.artists.split(',').first);
+          final title = _normalize(track.name);
           final matching = records.whereType<Map<String, dynamic>>().where((record) {
-            final titleMatches = (record['trackName'] as String? ?? '').toLowerCase() == track.name.toLowerCase();
-            final primaryArtist = track.artists.split(',').first.trim().toLowerCase();
-            final candidateArtist = (record['artistName'] as String? ?? '').toLowerCase();
-            final artistMatches = candidateArtist == primaryArtist || candidateArtist.contains(primaryArtist);
-            return titleMatches && artistMatches;
-          });
-          data = matching.cast<Map<String, dynamic>?>().firstWhere(
-                (record) => ((record?['plainLyrics'] as String?)?.isNotEmpty ?? false) || ((record?['syncedLyrics'] as String?)?.isNotEmpty ?? false),
-                orElse: () => null,
-              );
+            final candidateTitle = _normalize(record['trackName'] as String? ?? '');
+            final candidateArtist = _normalize(record['artistName'] as String? ?? '');
+            final hasLyrics = ((record['plainLyrics'] as String?)?.trim().isNotEmpty ?? false) ||
+                ((record['syncedLyrics'] as String?)?.trim().isNotEmpty ?? false);
+            return candidateTitle == title &&
+                candidateArtist.contains(primaryArtist) &&
+                hasLyrics &&
+                _durationMatches(record, duration);
+          }).toList();
+          matching.sort((first, second) => _durationDifference(first, duration).compareTo(_durationDifference(second, duration)));
+          if (matching.isNotEmpty) data = matching.first;
+        } else {
+          throw const LyricsUnavailableException('O serviço de letras não respondeu corretamente. Tente novamente.');
         }
       } else {
-        throw const LyricsUnavailableException('NÃ£o foi possÃ­vel carregar a letra agora.');
+        throw const LyricsUnavailableException('O serviço de letras não respondeu corretamente. Tente novamente.');
       }
 
       if (data == null) {
@@ -98,8 +153,37 @@ class LyricsService {
     } on LyricsUnavailableException {
       rethrow;
     } catch (_) {
-      throw const LyricsUnavailableException('Sem conexÃ£o para carregar as letras.');
+      throw const LyricsUnavailableException('Não foi possível carregar as letras. Verifique a conexão e tente novamente.');
     }
+  }
+
+  String _normalize(String value) {
+    var normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp('[áàâãäå]'), 'a')
+        .replaceAll(RegExp('[éèêë]'), 'e')
+        .replaceAll(RegExp('[íìîï]'), 'i')
+        .replaceAll(RegExp('[óòôõö]'), 'o')
+        .replaceAll(RegExp('[úùûü]'), 'u')
+        .replaceAll('ç', 'c')
+        .replaceAll('ñ', 'n');
+    if (normalized.runes.any((rune) => rune > 127)) {
+      return normalized.replaceAll(RegExp(r'\s+'), ' ');
+    }
+    return normalized.replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  bool _durationMatches(Map<String, dynamic> record, Duration duration) {
+    final seconds = (record['duration'] as num?)?.toDouble();
+    if (seconds == null || duration <= Duration.zero) return true;
+    return (seconds - duration.inMilliseconds / 1000).abs() <= 8;
+  }
+
+  double _durationDifference(Map<String, dynamic> record, Duration duration) {
+    final seconds = (record['duration'] as num?)?.toDouble();
+    if (seconds == null || duration <= Duration.zero) return double.infinity;
+    return (seconds - duration.inMilliseconds / 1000).abs();
   }
 
   List<LyricLine> _parseSyncedLyrics(String source) {
