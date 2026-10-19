@@ -8,9 +8,10 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(self.registration.showNotification(payload.title || 'PBH Oficial', {
     body: payload.body || 'Há uma nova mensagem na comunidade.',
-    icon: './icons/Icon-192.png',
-    badge: './icons/Icon-192.png',
+    icon: payload.icon || './icons/Icon-192.png',
+    badge: payload.badge || './icons/Icon-192.png',
     tag: payload.tag || 'pbh-announcement',
+    vibrate: payload.vibrate || [120, 60, 120],
     data: { url: payload.url || './' },
   }));
 });

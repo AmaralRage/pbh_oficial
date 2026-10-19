@@ -27,11 +27,13 @@ class CommunityPostCard extends StatefulWidget {
   State<CommunityPostCard> createState() => _CommunityPostCardState();
 }
 
-class _CommunityPostCardState extends State<CommunityPostCard> with SingleTickerProviderStateMixin {
+class _CommunityPostCardState extends State<CommunityPostCard>
+    with SingleTickerProviderStateMixin {
   final _service = CommunityService();
   final _commentController = TextEditingController();
   late bool _liked;
   late int _likeCount;
+  late int _commentCount;
   bool _saved = false;
   bool _following = false;
   bool _showBurst = false;
@@ -47,13 +49,24 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
     super.initState();
     _liked = widget.post.likedByMe;
     _likeCount = widget.post.likes;
+    _commentCount = widget.post.comments;
     _saved = widget.post.isSaved;
     _following = widget.post.isFollowing;
-    _likeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 620));
+    _likeController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 620));
     _likeScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.45).chain(CurveTween(curve: Curves.easeOutBack)), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.45, end: .9).chain(CurveTween(curve: Curves.easeInOut)), weight: 25),
-      TweenSequenceItem(tween: Tween(begin: .9, end: 1.0).chain(CurveTween(curve: Curves.elasticOut)), weight: 35),
+      TweenSequenceItem(
+          tween: Tween(begin: 1.0, end: 1.45)
+              .chain(CurveTween(curve: Curves.easeOutBack)),
+          weight: 40),
+      TweenSequenceItem(
+          tween: Tween(begin: 1.45, end: .9)
+              .chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 25),
+      TweenSequenceItem(
+          tween: Tween(begin: .9, end: 1.0)
+              .chain(CurveTween(curve: Curves.elasticOut)),
+          weight: 35),
     ]).animate(_likeController);
     _likeRotation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: -.12), weight: 30),
@@ -61,19 +74,25 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
       TweenSequenceItem(tween: Tween(begin: .08, end: 0.0), weight: 40),
     ]).animate(CurvedAnimation(parent: _likeController, curve: Curves.easeOut));
     _likeController.addStatusListener((status) {
-      if (status == AnimationStatus.completed && mounted) setState(() => _showBurst = false);
+      if (status == AnimationStatus.completed && mounted)
+        setState(() => _showBurst = false);
     });
     _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
+    if (widget.post.isSample) unawaited(_loadSampleInteraction());
   }
 
   @override
   void didUpdateWidget(covariant CommunityPostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.post.likes != widget.post.likes || oldWidget.post.likedByMe != widget.post.likedByMe) {
+    if (oldWidget.post.likes != widget.post.likes ||
+        oldWidget.post.likedByMe != widget.post.likedByMe) {
       _likeCount = widget.post.likes;
       _liked = widget.post.likedByMe;
+    }
+    if (oldWidget.post.comments != widget.post.comments) {
+      _commentCount = widget.post.comments;
     }
     _saved = widget.post.isSaved;
     _following = widget.post.isFollowing;
@@ -107,15 +126,6 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
   }
 
   Future<void> _toggleLike() async {
-    if (widget.post.isSample) {
-      setState(() {
-        _liked = !_liked;
-        _likeCount += _liked ? 1 : -1;
-        _showBurst = _liked;
-      });
-      _likeController.forward(from: 0);
-      return;
-    }
     if (!widget.isAuthenticated) {
       widget.onRequireLogin();
       return;
@@ -128,8 +138,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
       _showBurst = _liked;
     });
     _likeController.forward(from: 0);
+    setState(() => _busy = true);
     try {
-      await _service.toggleLike(widget.post.id, oldLiked);
+      await _service.toggleLike(
+        widget.post.id,
+        oldLiked,
+        isSample: widget.post.isSample,
+      );
       await widget.onChanged();
     } catch (error) {
       if (mounted) {
@@ -140,11 +155,27 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
         });
         _showError(error);
       }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _loadSampleInteraction() async {
+    try {
+      final interaction =
+          await _service.fetchSamplePostInteraction(widget.post.id);
+      if (!mounted) return;
+      setState(() {
+        _likeCount = (interaction['likes_count'] as num?)?.toInt() ?? 0;
+        _commentCount = (interaction['comments_count'] as num?)?.toInt() ?? 0;
+        _liked = interaction['liked_by_me'] as bool? ?? false;
+      });
+    } catch (_) {
+      // The sample interactions become available after the community migration.
     }
   }
 
   Future<void> _showComments() async {
-    if (widget.post.isSample) return;
     final comments = await _loadComments();
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -153,21 +184,33 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
       backgroundColor: AppColors.surface,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, refreshSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 18, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
+          padding: EdgeInsets.fromLTRB(
+              20, 18, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
           child: SafeArea(
             top: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.borderSubtle, borderRadius: BorderRadius.circular(4)))),
+                Center(
+                    child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: AppColors.borderSubtle,
+                            borderRadius: BorderRadius.circular(4)))),
                 const SizedBox(height: 18),
-                Text('Comentários (${comments.length})', style: AppTextStyles.titleMedium),
+                Text('Comentários (${comments.length})',
+                    style: AppTextStyles.titleMedium),
                 const SizedBox(height: 12),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 360),
                   child: comments.isEmpty
-                      ? Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('Seja a primeira pessoa a comentar.', style: AppTextStyles.bodySmall)))
+                      ? Center(
+                          child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text('Seja a primeira pessoa a comentar.',
+                                  style: AppTextStyles.bodySmall)))
                       : ListView.builder(
                           shrinkWrap: true,
                           itemCount: comments.length,
@@ -175,9 +218,34 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
                             final comment = comments[index];
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: _commentAvatar(comment.author),
-                              title: Row(children: [Expanded(child: Text(comment.author, style: AppTextStyles.titleMedium.copyWith(fontSize: 13))), Text(_formatElapsed(comment.createdAt), style: AppTextStyles.statLabel)]),
-                              subtitle: Padding(padding: const EdgeInsets.only(top: 4), child: Text(comment.content, style: AppTextStyles.bodySmall)),
+                              leading: _commentAvatar(
+                                  comment.author, comment.avatarUrl),
+                              title: Row(children: [
+                                Expanded(
+                                    child: Text(comment.author,
+                                        style: AppTextStyles.titleMedium
+                                            .copyWith(fontSize: 13))),
+                                Text(_formatElapsed(comment.createdAt),
+                                    style: AppTextStyles.statLabel)
+                              ]),
+                              subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(comment.content,
+                                      style: AppTextStyles.bodySmall)),
+                              trailing: widget.isAuthenticated &&
+                                      comment.userId == _service.currentUserId
+                                  ? IconButton(
+                                      tooltip: 'Excluir meu comentário',
+                                      onPressed: _busy
+                                          ? null
+                                          : () => _deleteComment(
+                                              comment, comments, refreshSheet),
+                                      icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: AppColors.textTertiary,
+                                          size: 20),
+                                    )
+                                  : null,
                             );
                           },
                         ),
@@ -185,11 +253,39 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
                 const SizedBox(height: 12),
                 if (widget.isAuthenticated)
                   Row(children: [
-                    Expanded(child: TextField(controller: _commentController, textInputAction: TextInputAction.send, onSubmitted: (_) => _addComment(comments, refreshSheet), decoration: InputDecoration(hintText: 'Escreva um comentário...', filled: true, fillColor: AppColors.background, border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)))),
-                    IconButton(onPressed: _busy ? null : () => _addComment(comments, refreshSheet), icon: const Icon(Icons.send_rounded, color: AppColors.orange)),
+                    Expanded(
+                        child: TextField(
+                            controller: _commentController,
+                            maxLength: 1000,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) =>
+                                _addComment(comments, refreshSheet),
+                            decoration: InputDecoration(
+                                counterText: '',
+                                hintText: 'Escreva um comentário...',
+                                filled: true,
+                                fillColor: AppColors.background,
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide.none),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10)))),
+                    IconButton(
+                        onPressed: _busy
+                            ? null
+                            : () => _addComment(comments, refreshSheet),
+                        icon: const Icon(Icons.send_rounded,
+                            color: AppColors.orange)),
                   ])
                 else
-                  SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () { Navigator.pop(sheetContext); widget.onRequireLogin(); }, child: const Text('Entre para comentar'))),
+                  SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            widget.onRequireLogin();
+                          },
+                          child: const Text('Entre para comentar'))),
               ],
             ),
           ),
@@ -200,23 +296,70 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
 
   Future<List<CommunityComment>> _loadComments() async {
     try {
-      return await _service.fetchComments(widget.post.id);
+      return await _service.fetchComments(widget.post.id,
+          isSample: widget.post.isSample);
     } catch (error) {
       if (mounted) _showError(error);
       return const [];
     }
   }
 
-  Future<void> _addComment(List<CommunityComment> comments, StateSetter refreshSheet) async {
+  Future<void> _addComment(
+      List<CommunityComment> comments, StateSetter refreshSheet) async {
     final content = _commentController.text.trim();
     if (content.isEmpty) return;
     setState(() => _busy = true);
     try {
-      await _service.addComment(widget.post.id, content);
+      await _service.addComment(widget.post.id, content,
+          isSample: widget.post.isSample);
       _commentController.clear();
       comments
         ..clear()
-        ..addAll(await _service.fetchComments(widget.post.id));
+        ..addAll(await _service.fetchComments(widget.post.id,
+            isSample: widget.post.isSample));
+      if (mounted) setState(() => _commentCount++);
+      refreshSheet(() {});
+      await widget.onChanged();
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteComment(
+    CommunityComment comment,
+    List<CommunityComment> comments,
+    StateSetter refreshSheet,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir comentário?'),
+        content: const Text(
+            'Você poderá remover somente um comentário escrito por você.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Excluir')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _service.deleteComment(comment.id, isSample: widget.post.isSample);
+      comments
+        ..clear()
+        ..addAll(await _service.fetchComments(widget.post.id,
+            isSample: widget.post.isSample));
+      if (mounted) {
+        setState(
+            () => _commentCount = _commentCount > 0 ? _commentCount - 1 : 0);
+      }
       refreshSheet(() {});
       await widget.onChanged();
     } catch (error) {
@@ -230,14 +373,33 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: AppColors.surface,
-      builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border), title: Text(_saved ? 'Remover dos salvos' : 'Salvar publicação'), onTap: () => Navigator.pop(context, 'save')),
-        ListTile(leading: const Icon(Icons.copy_outlined), title: const Text('Copiar texto'), onTap: () => Navigator.pop(context, 'copy')),
-        ListTile(leading: const Icon(Icons.flag_outlined), title: const Text('Denunciar publicação'), onTap: () => Navigator.pop(context, 'report')),
-        if (widget.isAuthenticated && widget.post.userId != _service.currentUserId)
-          ListTile(leading: const Icon(Icons.block_outlined), title: const Text('Bloquear este membro'), onTap: () => Navigator.pop(context, 'block')),
-        if (widget.isAuthenticated && widget.post.userId == _service.currentUserId)
-          ListTile(leading: const Icon(Icons.delete_outline, color: AppColors.orange), title: const Text('Excluir minha publicação'), onTap: () => Navigator.pop(context, 'delete')),
+      builder: (context) => SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+            leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
+            title: Text(_saved ? 'Remover dos salvos' : 'Salvar publicação'),
+            onTap: () => Navigator.pop(context, 'save')),
+        ListTile(
+            leading: const Icon(Icons.copy_outlined),
+            title: const Text('Copiar texto'),
+            onTap: () => Navigator.pop(context, 'copy')),
+        ListTile(
+            leading: const Icon(Icons.flag_outlined),
+            title: const Text('Denunciar publicação'),
+            onTap: () => Navigator.pop(context, 'report')),
+        if (widget.isAuthenticated &&
+            widget.post.userId != _service.currentUserId)
+          ListTile(
+              leading: const Icon(Icons.block_outlined),
+              title: const Text('Bloquear este membro'),
+              onTap: () => Navigator.pop(context, 'block')),
+        if (widget.isAuthenticated &&
+            widget.post.userId == _service.currentUserId)
+          ListTile(
+              leading:
+                  const Icon(Icons.delete_outline, color: AppColors.orange),
+              title: const Text('Excluir minha publicação'),
+              onTap: () => Navigator.pop(context, 'delete')),
       ])),
     );
     if (!mounted || action == null) return;
@@ -249,7 +411,8 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
         }
         await _service.toggleSaved(widget.post.id, _saved);
         setState(() => _saved = !_saved);
-        _showMessage(_saved ? 'Publicação salva.' : 'Publicação removida dos salvos.');
+        _showMessage(
+            _saved ? 'Publicação salva.' : 'Publicação removida dos salvos.');
       } else if (action == 'copy') {
         await Clipboard.setData(ClipboardData(text: widget.post.content));
         _showMessage('Texto copiado.');
@@ -267,10 +430,15 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Bloquear membro?'),
-            content: const Text('As publicações deste membro deixarão de aparecer para você.'),
+            content: const Text(
+                'As publicações deste membro deixarão de aparecer para você.'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
-              ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Bloquear')),
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancelar')),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Bloquear')),
             ],
           ),
         );
@@ -283,10 +451,15 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Excluir publicação?'),
-            content: const Text('Esta ação remove sua publicação e seus comentários associados.'),
+            content: const Text(
+                'Esta ação remove sua publicação e seus comentários associados.'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
-              ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Excluir')),
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancelar')),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Excluir')),
             ],
           ),
         );
@@ -311,15 +484,21 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
               (id: 'inappropriate', label: 'Conteúdo inadequado'),
               (id: 'other', label: 'Outro motivo'),
             ])
-              ListTile(title: Text(reason.label), onTap: () => Navigator.pop(context, reason.id)),
+              ListTile(
+                  title: Text(reason.label),
+                  onTap: () => Navigator.pop(context, reason.id)),
           ]),
         ),
       );
 
-  Future<void> _sharePost() async => Share.share('${widget.post.authorName}: ${widget.post.content}', subject: 'Publicação de ${widget.post.authorName}');
+  Future<void> _sharePost() async =>
+      Share.share('${widget.post.authorName}: ${widget.post.content}',
+          subject: 'Publicação de ${widget.post.authorName}');
 
-  void _showError(Object error) => _showMessage(error.toString().replaceFirst('Exception: ', ''));
-  void _showMessage(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  void _showError(Object error) =>
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+  void _showMessage(String message) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(message)));
 
   String _formatElapsed(DateTime date) {
     final elapsed = _now.difference(date);
@@ -330,25 +509,43 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  Widget _commentAvatar(String author) {
+  Widget _commentAvatar(String author, String? avatarUrl) {
     final image = switch (author.trim().toLowerCase()) {
+      'amaral' => 'assets/images/profile_photo.png',
       'samuel' => 'assets/images/samuel.png',
       'wellerson' => 'assets/images/wellerson.png',
       'kanye west' => 'assets/images/kanye.png',
       'chad' => 'assets/images/chad.png',
       _ => null,
     };
+    final placeholder = Text(_initials(author),
+        style: const TextStyle(color: AppColors.orange, fontSize: 12));
     return CircleAvatar(
       backgroundColor: AppColors.orangeDim,
       child: image == null
-          ? Text(_initials(author), style: const TextStyle(color: AppColors.orange, fontSize: 12))
-          : ClipOval(child: Image.asset(image, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Center(child: Text(_initials(author), style: const TextStyle(color: AppColors.orange, fontSize: 12))))),
+          ? avatarUrl == null || avatarUrl.isEmpty
+              ? placeholder
+              : ClipOval(
+                  child: Image.network(avatarUrl,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(child: placeholder)))
+          : ClipOval(
+              child: Image.asset(image,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Center(child: placeholder))),
     );
   }
+
   String _initials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty || parts.first.isEmpty) return 'M';
-    return parts.length == 1 ? parts.first[0].toUpperCase() : '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    return parts.length == 1
+        ? parts.first[0].toUpperCase()
+        : '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
   String _topicLabel(String topic) => switch (topic) {
@@ -360,48 +557,171 @@ class _CommunityPostCardState extends State<CommunityPostCard> with SingleTicker
         _ => topic,
       };
 
+  Widget _postAvatar(CommunityPostModel post) {
+    final placeholder = Text(
+      post.authorInitials,
+      style: AppTextStyles.chip.copyWith(
+        color: AppColors.orange,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+    if (post.avatarAsset != null) {
+      return ClipOval(
+        child: Image.asset(
+          post.avatarAsset!,
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(child: placeholder),
+        ),
+      );
+    }
+    if (post.avatarUrl != null && post.avatarUrl!.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          post.avatarUrl!,
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(child: placeholder),
+        ),
+      );
+    }
+    return placeholder;
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.borderSubtle)),
+      decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.borderSubtle)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           CircleAvatar(
             radius: 20,
             backgroundColor: AppColors.orangeDim,
-            child: post.avatarAsset == null
-                ? Text(post.authorInitials, style: AppTextStyles.chip.copyWith(color: AppColors.orange, fontWeight: FontWeight.w800))
-                : ClipOval(child: Image.asset(post.avatarAsset!, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Center(child: Text(post.authorInitials, style: AppTextStyles.chip.copyWith(color: AppColors.orange, fontWeight: FontWeight.w800))))),
+            child: _postAvatar(post),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(post.authorName, style: AppTextStyles.titleMedium.copyWith(fontSize: 14)), Text(post.isSample ? 'Exemplo · ${_formatElapsed(post.createdAt)}' : _formatElapsed(post.createdAt), style: AppTextStyles.statLabel)])),
-          if (!post.isSample && widget.isAuthenticated && post.userId != _service.currentUserId)
-            IconButton(tooltip: _following ? 'Deixar de seguir' : 'Seguir', onPressed: _toggleFollow, icon: Icon(_following ? Icons.person_remove_alt_1_rounded : Icons.person_add_alt_1_rounded, size: 19, color: _following ? AppColors.orange : AppColors.textTertiary)),
-          if (!post.isSample) IconButton(tooltip: 'Mais opções', onPressed: _showPostMenu, icon: const Icon(Icons.more_horiz, color: AppColors.textTertiary)),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(post.authorName,
+                    style: AppTextStyles.titleMedium.copyWith(fontSize: 14)),
+                Text(
+                    post.isSample
+                        ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
+                        : _formatElapsed(post.createdAt),
+                    style: AppTextStyles.statLabel)
+              ])),
+          if (!post.isSample &&
+              widget.isAuthenticated &&
+              post.userId != _service.currentUserId)
+            IconButton(
+                tooltip: _following ? 'Deixar de seguir' : 'Seguir',
+                onPressed: _toggleFollow,
+                icon: Icon(
+                    _following
+                        ? Icons.person_remove_alt_1_rounded
+                        : Icons.person_add_alt_1_rounded,
+                    size: 19,
+                    color: _following
+                        ? AppColors.orange
+                        : AppColors.textTertiary)),
+          if (!post.isSample)
+            IconButton(
+                tooltip: 'Mais opções',
+                onPressed: _showPostMenu,
+                icon: const Icon(Icons.more_horiz,
+                    color: AppColors.textTertiary)),
         ]),
         if (post.achievementTag != null) ...[
           const SizedBox(height: 12),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: AppColors.orangeDim, borderRadius: BorderRadius.circular(8)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.emoji_events, size: 13, color: AppColors.orange), const SizedBox(width: 6), Text(post.achievementTag!, style: AppTextStyles.chip.copyWith(color: AppColors.orange, fontWeight: FontWeight.w700))])),
+          Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                  color: AppColors.orangeDim,
+                  borderRadius: BorderRadius.circular(8)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.emoji_events,
+                    size: 13, color: AppColors.orange),
+                const SizedBox(width: 6),
+                Text(post.achievementTag!,
+                    style: AppTextStyles.chip.copyWith(
+                        color: AppColors.orange, fontWeight: FontWeight.w700))
+              ])),
         ],
         if (post.topic != null) ...[
           const SizedBox(height: 8),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: AppColors.backgroundElevated, borderRadius: BorderRadius.circular(8)), child: Text(_topicLabel(post.topic!), style: AppTextStyles.chip.copyWith(color: AppColors.textSecondary))),
+          Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                  color: AppColors.backgroundElevated,
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(_topicLabel(post.topic!),
+                  style: AppTextStyles.chip
+                      .copyWith(color: AppColors.textSecondary))),
         ],
         const SizedBox(height: 12),
-        Text(post.content, style: AppTextStyles.body.copyWith(color: AppColors.textPrimary, height: 1.5)),
+        Text(post.content,
+            style: AppTextStyles.body
+                .copyWith(color: AppColors.textPrimary, height: 1.5)),
         const SizedBox(height: 16),
         Row(children: [
-          Semantics(button: true, toggled: _liked, label: 'Curtir publicação, $_likeCount curtidas', child: GestureDetector(onTap: _busy ? null : _toggleLike, child: Row(mainAxisSize: MainAxisSize.min, children: [
-            AnimatedBuilder(animation: _likeController, builder: (_, child) => Transform.rotate(angle: _likeRotation.value, child: Transform.scale(scale: _likeScale.value, child: child)), child: Icon(_liked ? Icons.local_fire_department : Icons.local_fire_department_outlined, size: 19, color: _liked ? AppColors.orange : AppColors.textSecondary)),
-            const SizedBox(width: 6), Text('$_likeCount', style: AppTextStyles.bodySmall),
-            if (_showBurst) Padding(padding: const EdgeInsets.only(left: 5), child: Text('+1', style: AppTextStyles.chip.copyWith(color: AppColors.orange, fontWeight: FontWeight.w800))),
-          ]))),
+          Semantics(
+              button: true,
+              toggled: _liked,
+              label: 'Curtir publicação, $_likeCount curtidas',
+              child: GestureDetector(
+                  onTap: _busy ? null : _toggleLike,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    AnimatedBuilder(
+                        animation: _likeController,
+                        builder: (_, child) => Transform.rotate(
+                            angle: _likeRotation.value,
+                            child: Transform.scale(
+                                scale: _likeScale.value, child: child)),
+                        child: Icon(
+                            _liked
+                                ? Icons.local_fire_department
+                                : Icons.local_fire_department_outlined,
+                            size: 19,
+                            color: _liked
+                                ? AppColors.orange
+                                : AppColors.textSecondary)),
+                    const SizedBox(width: 6),
+                    Text('$_likeCount', style: AppTextStyles.bodySmall),
+                    if (_showBurst)
+                      Padding(
+                          padding: const EdgeInsets.only(left: 5),
+                          child: Text('+1',
+                              style: AppTextStyles.chip.copyWith(
+                                  color: AppColors.orange,
+                                  fontWeight: FontWeight.w800))),
+                  ]))),
           const SizedBox(width: 20),
-          Semantics(button: true, label: 'Ver ${post.comments} comentários', child: GestureDetector(onTap: _showComments, child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.textSecondary), const SizedBox(width: 6), Text('${post.comments}', style: AppTextStyles.bodySmall)]))),
+          Semantics(
+              button: true,
+              label: 'Ver $_commentCount comentários',
+              child: GestureDetector(
+                  onTap: _showComments,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.chat_bubble_outline,
+                        size: 18, color: AppColors.textSecondary),
+                    const SizedBox(width: 6),
+                    Text('$_commentCount', style: AppTextStyles.bodySmall)
+                  ]))),
           const Spacer(),
-          IconButton(tooltip: 'Compartilhar publicação', onPressed: _sharePost, icon: const Icon(Icons.share_outlined, size: 18, color: AppColors.textTertiary)),
+          IconButton(
+              tooltip: 'Compartilhar publicação',
+              onPressed: _sharePost,
+              icon: const Icon(Icons.share_outlined,
+                  size: 18, color: AppColors.textTertiary)),
         ]),
       ]),
     );

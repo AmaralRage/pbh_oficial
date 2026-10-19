@@ -49,7 +49,7 @@ Veja o [guia de mudanças do Development Mode](https://developer.spotify.com/doc
 
 ## Dados persistentes
 
-Aplique as migrations em ordem: `20261015000100_profiles_and_initial_admin.sql`, `20261015000200_announcements.sql`, `20261015000300_community_progress.sql`, `20261015000400_admin_notification_center.sql`, `20261017000100_profile_privacy.sql`, `20261017000200_expanded_challenges_and_leader_name.sql` e `20261017000300_community_discovery_moderation.sql`. A migration `20261017000200` adiciona 52 desafios (57 no total). A migration `20261015000400` adiciona segmentação por papel, links de destino, rascunhos e métricas administrativas. A migration `20261017000300` habilita temas, denúncias com motivo, bloqueios e revisão administrativa da comunidade. As políticas RLS limitam alterações à conta autenticada e ao papel de administrador.
+Aplique as migrations em ordem: `20261015000100_profiles_and_initial_admin.sql`, `20261015000200_announcements.sql`, `20261015000300_community_progress.sql`, `20261015000400_admin_notification_center.sql`, `20261017000100_profile_privacy.sql`, `20261017000200_expanded_challenges_and_leader_name.sql`, `20261017000300_community_discovery_moderation.sql`, `20261019000100_habit_routine_reminders.sql` e `20261019000200_community_interactions_avatars.sql`. A migration `20261017000200` adiciona 52 desafios (57 no total). A migration `20261015000400` adiciona segmentação por papel, links de destino, rascunhos e métricas administrativas. A migration `20261017000300` habilita temas, denúncias com motivo, bloqueios e revisão administrativa da comunidade. A migration `20261019000100` cria as preferências e o controle de envio dos lembretes da rotina. A migration `20261019000200` salva curtidas e comentários dos cards de exemplo, inclui foto pública nos comentários e limita a exclusão ao autor. Fotos de perfil são lidas dos metadados `avatar_url`, `picture` ou `avatar` do usuário autenticado; perfis privados ocultam a foto e o nome no feed. As políticas RLS limitam alterações à conta autenticada e ao papel de administrador.
 
 ## Notificações push Web
 
@@ -68,3 +68,66 @@ flutter build web `
 ```
 
 Depois de publicar o site em HTTPS, cada pessoa ativa “Notificações no navegador” em Perfil > Configurações > Notificações. A Edge Function verifica o papel de administrador e o público selecionado antes de enviar os avisos. A taxa de envio representa notificações aceitas pelo serviço push do navegador; a taxa de leitura vem das confirmações registradas dentro do app. O agendamento ainda depende de configurar uma rotina no Supabase; enquanto isso, a central publica imediatamente ou salva como rascunho.
+
+### Lembretes automáticos da rotina
+
+Os lembretes podem ser ativados em **Rotina de Hábitos**. No app Android/iOS, cada tarefa pendente recebe um aviso próprio no prazo automático (treino 20h; leitura e meditação 21h; foco 21h30; descanso 22h), e o horário escolhido pela pessoa continua como lembrete geral. A conclusão das tarefas atualiza os avisos locais. No navegador, o push envia no máximo um aviso por dia, no primeiro prazo pendente ou no horário escolhido. As notificações usam a identidade visual do PBH e mensagens relacionadas à tarefa. Para o site, é necessário HTTPS, permissão do navegador, aplicar a migration `20261019000100_habit_routine_reminders.sql`, configurar a Edge Function e o cron. Em iPhone/iPad, push web pode exigir que o site esteja instalado na tela inicial.
+
+O envio usa os segredos VAPID já configurados acima e uma chave compartilhada exclusiva para o cron. Gere uma chave longa e aleatória, guarde-a fora do repositório e configure a Edge Function:
+
+```powershell
+supabase secrets set HABIT_REMINDER_CRON_SECRET=SUA_CHAVE_LONGA_E_ALEATORIA
+supabase functions deploy send-habit-reminders --no-verify-jwt
+```
+
+No SQL Editor do Supabase, habilite `pg_cron` e `pg_net` em **Database > Extensions**. Depois crie dois segredos no Vault: a URL do projeto e a mesma chave usada em `HABIT_REMINDER_CRON_SECRET` (substitua os valores de exemplo):
+
+```sql
+select vault.create_secret('https://xbwspizvpcnjxvlylcvx.supabase.co', 'pbh_project_url');
+select vault.create_secret('SUA_CHAVE_LONGA_E_ALEATORIA', 'pbh_habit_reminder_cron_secret');
+```
+
+Agende a verificação a cada minuto:
+
+```sql
+select cron.schedule(
+  'pbh-habit-routine-reminders',
+  '* * * * *',
+  $$
+    select net.http_post(
+      url := (select decrypted_secret from vault.decrypted_secrets where name = 'pbh_project_url') || '/functions/v1/send-habit-reminders',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'x-pbh-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'pbh_habit_reminder_cron_secret')
+      ),
+      body := '{}'::jsonb
+    );
+  $$
+);
+```
+
+O cron apenas verifica os horários configurados; o banco usa o fuso local de cada pessoa para decidir quando enviar. Para revisar ou remover o agendamento, consulte `cron.job` e use `cron.unschedule(jobid)` no SQL Editor.
+
+### Notificações locais nos apps Android e iOS
+
+As pastas `android/` e `ios/` permitem instalar o mesmo app Flutter nos celulares. Na **Rotina de Hábitos**, ao ativar o lembrete no app instalado, o sistema operacional agenda a notificação no aparelho. A permissão é solicitada pelo Android/iOS; o Firebase, o Google e o cron de push web não participam desse envio local. A rotina e as preferências ainda usam a conta PBH/Supabase para sincronizar os dados.
+
+Para executar no Android, conecte um aparelho ou inicie um emulador e rode:
+
+```powershell
+flutter run -d SEU_DEVICE_ID `
+  --dart-define=SUPABASE_URL=https://xbwspizvpcnjxvlylcvx.supabase.co `
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=SUA_CHAVE_PUBLICA_SUPABASE
+```
+
+Para gerar o APK:
+
+```powershell
+flutter build apk `
+  --dart-define=SUPABASE_URL=https://xbwspizvpcnjxvlylcvx.supabase.co `
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=SUA_CHAVE_PUBLICA_SUPABASE
+```
+
+O Vercel continua servindo a versão web sem alterações no endereço. Para compilar ou publicar o app iOS é necessário abrir o projeto em um Mac com Xcode; a pasta iOS já está criada. O build iOS recebe as mesmas variáveis `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`. No iOS, também é necessário assinar o app com uma conta Apple para instalar em aparelhos físicos.
+
+Os lembretes nativos são agendados localmente e atualizados quando o app abre a rotina ou quando a pessoa marca/desmarca tarefas. Como o sistema operacional executa o aviso, ele pode aparecer com o app fechado. Enquanto o aparelho estiver sem abrir o app, ele não consegue consultar mudanças novas na conta PBH; ao voltar a abrir, sincroniza tarefas e atualiza os próximos avisos. A versão web permanece usando o push do navegador descrito acima.

@@ -41,7 +41,14 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  static const _sectionNames = ['Início', 'Desafios', 'Conteúdo', 'Música', 'Comunidade', 'Perfil'];
+  static const _sectionNames = [
+    'Início',
+    'Desafios',
+    'Conteúdo',
+    'Música',
+    'Comunidade',
+    'Perfil'
+  ];
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _currentIndex;
   int _previousIndex = 0;
@@ -81,8 +88,10 @@ class _MainNavigationState extends State<MainNavigation> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Não foi possível transferir seus hábitos de visitante. Eles continuam salvos neste dispositivo.'),
-          action: SnackBarAction(label: 'Tentar', onPressed: _migrateGuestHabitHistory),
+          content: const Text(
+              'Não foi possível transferir seus hábitos de visitante. Eles continuam salvos neste dispositivo.'),
+          action: SnackBarAction(
+              label: 'Tentar', onPressed: _migrateGuestHabitHistory),
         ),
       );
     }
@@ -92,7 +101,8 @@ class _MainNavigationState extends State<MainNavigation> {
     _loadNotificationPreferences();
     _refreshUnreadNotifications();
     _announcementChannel = Supabase.instance.client
-        .channel('announcements-${Supabase.instance.client.auth.currentUser?.id ?? 'user'}')
+        .channel(
+            'announcements-${Supabase.instance.client.auth.currentUser?.id ?? 'user'}')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -100,12 +110,16 @@ class _MainNavigationState extends State<MainNavigation> {
           callback: (payload) {
             final sender = payload.newRecord['created_by'] as String?;
             final currentUser = Supabase.instance.client.auth.currentUser?.id;
-            if (sender != null && sender != currentUser && mounted && _notificationAlertsEnabled) {
+            if (sender != null &&
+                sender != currentUser &&
+                mounted &&
+                _notificationAlertsEnabled) {
               setState(() {
                 _unreadNotifications++;
                 _notificationPulseKey++;
               });
-              if (_notificationSoundEnabled && payload.newRecord['sound_enabled'] != false) {
+              if (_notificationSoundEnabled &&
+                  payload.newRecord['sound_enabled'] != false) {
                 NotificationSound.play();
               }
             } else {
@@ -157,7 +171,8 @@ class _MainNavigationState extends State<MainNavigation> {
     _refreshUnreadNotifications();
   }
 
-  Future<void> _openSettingsScreen(Widget screen, {bool refreshNotifications = false}) async {
+  Future<void> _openSettingsScreen(Widget screen,
+      {bool refreshNotifications = false}) async {
     await Navigator.of(context).push<void>(fadeSlideRoute<void>(screen));
     if (!mounted) return;
     if (refreshNotifications) {
@@ -193,6 +208,7 @@ class _MainNavigationState extends State<MainNavigation> {
         onLogoPressed: _returnToLaunch,
         onAccountAction: _accountAction,
         onNotificationsChanged: _refreshUnreadNotifications,
+        onRequireLogin: widget.onOpenSignIn,
       );
 
   void _returnToLaunch() {
@@ -215,7 +231,10 @@ class _MainNavigationState extends State<MainNavigation> {
     final sectionNames = [..._sectionNames, if (widget.isAdmin) 'Admin'];
     final accountKey = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
     final screens = <Widget>[
-      HomeScreen(key: ValueKey('home-$accountKey-$_habitMigrationGeneration'), onNavigate: _goTo, onOpenHabits: _openHabits),
+      HomeScreen(
+          key: ValueKey('home-$accountKey-$_habitMigrationGeneration'),
+          onNavigate: _goTo,
+          onOpenHabits: _openHabits),
       ChallengesScreen(
         key: ValueKey('challenges-$accountKey'),
         isAuthenticated: widget.isAuthenticated,
@@ -233,11 +252,16 @@ class _MainNavigationState extends State<MainNavigation> {
         isAdmin: widget.isAdmin,
         isAuthenticated: widget.isAuthenticated,
         onOpenSignIn: widget.onOpenSignIn,
-        onEditProfile: widget.isAuthenticated ? () => _openSettingsScreen(const EditProfileScreen()) : null,
-        onOpenNotificationSettings: widget.isAuthenticated
-            ? () => _openSettingsScreen(const NotificationSettingsScreen(), refreshNotifications: true)
+        onEditProfile: widget.isAuthenticated
+            ? () => _openSettingsScreen(const EditProfileScreen())
             : null,
-        onOpenPrivacy: widget.isAuthenticated ? () => _openSettingsScreen(const PrivacySettingsScreen()) : null,
+        onOpenNotificationSettings: widget.isAuthenticated
+            ? () => _openSettingsScreen(const NotificationSettingsScreen(),
+                refreshNotifications: true)
+            : null,
+        onOpenPrivacy: widget.isAuthenticated
+            ? () => _openSettingsScreen(const PrivacySettingsScreen())
+            : null,
         onOpenHelp: () => _openSettingsScreen(const HelpSupportScreen()),
       ),
     ];

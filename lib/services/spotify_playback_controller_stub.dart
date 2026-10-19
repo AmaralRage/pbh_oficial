@@ -30,7 +30,7 @@ class SpotifyPlaybackController extends ChangeNotifier {
 
   Future<void> connect({bool forceConsent = false}) async {}
   Future<void> retryLyrics() async {}
-  Future<void> startPlaylist(String playlistId) async {}
+  Future<void> startPlaylist([String playlistId = officialSpotifyPlaylistId]) async {}
   Future<void> togglePlayback() async {}
   Future<void> nextTrack() async {}
   Future<void> previousTrack() async {}

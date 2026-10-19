@@ -1,2 +1,5 @@
 [functions.send-announcement]
 verify_jwt = true
+
+[functions.send-habit-reminders]
+verify_jwt = false

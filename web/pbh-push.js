@@ -17,3 +17,7 @@ window.pbhGetPushSubscription = async function (vapidKey) {
   }
   return JSON.stringify(subscription.toJSON());
 };
+
+window.pbhGetTimeZone = function () {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
+};

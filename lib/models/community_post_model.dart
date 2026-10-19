@@ -2,6 +2,7 @@ class CommunityPostModel {
   final String id;
   final String userId;
   final String authorName;
+  final String? avatarUrl;
   final DateTime createdAt;
   final String content;
   final int likes;
@@ -18,6 +19,7 @@ class CommunityPostModel {
     required this.id,
     required this.userId,
     required this.authorName,
+    this.avatarUrl,
     required this.createdAt,
     required this.content,
     required this.likes,
@@ -44,6 +46,7 @@ class CommunityPostModel {
       id: row['id'] as String,
       userId: row['user_id'] as String,
       authorName: row['author_name'] as String? ?? 'Membro',
+      avatarUrl: row['author_avatar_url'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
       content: row['content'] as String,
       likes: row['likes_count'] as int? ?? 0,
@@ -54,10 +57,12 @@ class CommunityPostModel {
     );
   }
 
-  CommunityPostModel copyWith({bool? isFollowing, bool? isSaved}) => CommunityPostModel(
+  CommunityPostModel copyWith({bool? isFollowing, bool? isSaved}) =>
+      CommunityPostModel(
         id: id,
         userId: userId,
         authorName: authorName,
+        avatarUrl: avatarUrl,
         createdAt: createdAt,
         content: content,
         likes: likes,
@@ -66,8 +71,8 @@ class CommunityPostModel {
         achievementTag: achievementTag,
         isFollowing: isFollowing ?? this.isFollowing,
         isSaved: isSaved ?? this.isSaved,
-      isSample: isSample,
-      avatarAsset: avatarAsset,
-      topic: topic,
+        isSample: isSample,
+        avatarAsset: avatarAsset,
+        topic: topic,
       );
 }
