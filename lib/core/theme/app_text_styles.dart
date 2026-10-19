@@ -33,6 +33,23 @@ class AppTextStyles {
         height: 1.25,
       );
 
+  /// Cabeçalhos de tela com a tipografia geométrica da marca PBH.
+  static TextStyle get brandTitle => GoogleFonts.orbitron(
+        color: AppColors.textPrimary,
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        height: 1.3,
+        letterSpacing: .1,
+      );
+
+  static TextStyle get brandHeadline => GoogleFonts.orbitron(
+        color: AppColors.textPrimary,
+        fontSize: 20,
+        fontWeight: FontWeight.w500,
+        height: 1.25,
+        letterSpacing: .1,
+      );
+
   // Título de card médio
   static TextStyle get titleMedium => _base.copyWith(
         fontSize: 16,

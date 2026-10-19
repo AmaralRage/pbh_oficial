@@ -179,9 +179,21 @@ class _MainNavigationState extends State<MainNavigation> {
 
   void _openHabits() {
     Navigator.of(context).push(
-      fadeSlideRoute(HabitsScreen(onNavigate: _goTo)),
+      fadeSlideRoute(_buildHabitsScreen()),
     );
   }
+
+  HabitsScreen _buildHabitsScreen() => HabitsScreen(
+        onNavigate: _goTo,
+        currentIndex: _currentIndex,
+        isAuthenticated: widget.isAuthenticated,
+        isAdmin: widget.isAdmin,
+        unreadNotifications: _unreadNotifications,
+        notificationPulseKey: _notificationPulseKey,
+        onLogoPressed: _returnToLaunch,
+        onAccountAction: _accountAction,
+        onNotificationsChanged: _refreshUnreadNotifications,
+      );
 
   void _returnToLaunch() {
     Navigator.of(context).pushAndRemoveUntil(
@@ -203,7 +215,7 @@ class _MainNavigationState extends State<MainNavigation> {
     final sectionNames = [..._sectionNames, if (widget.isAdmin) 'Admin'];
     final accountKey = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
     final screens = <Widget>[
-      HomeScreen(key: ValueKey('home-$accountKey-$_habitMigrationGeneration'), onNavigate: _goTo),
+      HomeScreen(key: ValueKey('home-$accountKey-$_habitMigrationGeneration'), onNavigate: _goTo, onOpenHabits: _openHabits),
       ChallengesScreen(
         key: ValueKey('challenges-$accountKey'),
         isAuthenticated: widget.isAuthenticated,

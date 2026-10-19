@@ -18,8 +18,9 @@ import 'habits_screen.dart';
 import 'program_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.onNavigate});
+  const HomeScreen({super.key, required this.onNavigate, this.onOpenHabits});
   final ValueChanged<int> onNavigate;
+  final VoidCallback? onOpenHabits;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _challengeService = ChallengeService();
   int _streak = 0;
   int _todayCompleted = 0;
+  int _selectedHabitCount = HabitService.habitKeys.length;
   int _completedChallenges = 0;
   List<int> _weekCounts = List.filled(7, 0);
   ChallengeModel? _activeChallenge;
@@ -64,10 +66,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final loadVersion = ++_loadVersion;
     if (mounted) setState(() { _loading = true; _loadError = null; });
     try {
+      final selectedHabits = await _habitService.selectedHabitKeys();
       final values = await Future.wait([
-        _habitService.streak(),
+        _habitService.streak(habitKeysForStreak: selectedHabits),
         _habitService.completedOn(DateTime.now()),
-        _habitService.weekCounts(DateTime.now()),
+        _habitService.weekCounts(DateTime.now(), selectedHabits: selectedHabits),
         _challengeService.fetchChallenges(),
       ]);
       if (!mounted || loadVersion != _loadVersion) return;
@@ -81,10 +84,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       setState(() {
         _streak = values[0] as int;
-        _todayCompleted = (values[1] as Set<String>).length;
+        _todayCompleted = (values[1] as Set<String>).intersection(selectedHabits).length;
         _weekCounts = values[2] as List<int>;
         _activeChallenge = active;
         _completedChallenges = challenges.where((item) => item.status == ChallengeStatus.completed).length;
+        _selectedHabitCount = selectedHabits.length;
         _loading = false;
         _loadError = null;
       });
@@ -108,10 +112,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final displayName = (metadata['display_name'] as String?)?.trim();
     final greetingName = isProjectLeader ? 'Amaral' : (displayName?.isNotEmpty == true ? displayName! : 'guerreiro');
     final greeting = switch (today.hour) { < 12 => 'Bom dia', < 18 => 'Boa tarde', _ => 'Boa noite' };
-    final routinePercent = (100 * _todayCompleted / HabitService.habitKeys.length).round();
+    final routinePercent = _selectedHabitCount == 0 ? 0 : (100 * _todayCompleted / _selectedHabitCount).round().clamp(0, 100).toInt();
 
     return SafeArea(bottom: false, child: RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
-      AnimatedEntry(delayMs: 60, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$greeting, $greetingName.', style: AppTextStyles.headline), if (isProjectLeader) ...[const SizedBox(height: 4), Text('Líder do projeto PBH Oficial', style: AppTextStyles.bodySmall.copyWith(color: AppColors.orange))] else ...[const SizedBox(height: 4), Text('Seja intencional em cada escolha.', style: AppTextStyles.bodySmall)]])),
+      AnimatedEntry(delayMs: 60, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$greeting, $greetingName.', style: AppTextStyles.brandHeadline), if (isProjectLeader) ...[const SizedBox(height: 4), Text('Líder do projeto PBH Oficial', style: AppTextStyles.bodySmall.copyWith(color: AppColors.orange))] else ...[const SizedBox(height: 4), Text('Seja intencional em cada escolha.', style: AppTextStyles.bodySmall)]])),
       if (_loadError != null)
         Padding(padding: const EdgeInsets.only(top: 16), child: _HomeLoadError(message: _loadError!, onRetry: _load))
       else if (_loading)
@@ -119,12 +123,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       const SizedBox(height: 24),
       AnimatedEntry(delayMs: 110, child: WeekdaySelector(date: today, completedIndexes: completedWeekDays, elapsedIndexes: elapsedWeekDays)),
       const SizedBox(height: 28),
-      AnimatedEntry(delayMs: 160, child: SectionHeader(title: 'Seu progresso', actionLabel: 'Ver tudo', onActionTap: () => Navigator.of(context).push(fadeSlideRoute(HabitsScreen(onNavigate: widget.onNavigate))))),
+      AnimatedEntry(delayMs: 160, child: SectionHeader(title: 'Seu progresso', actionLabel: 'Ver tudo', onActionTap: widget.onOpenHabits ?? () => Navigator.of(context).push(fadeSlideRoute(HabitsScreen(onNavigate: widget.onNavigate))))),
       const SizedBox(height: 14),
       AnimatedEntry(delayMs: 190, child: Row(children: [
         StatCard(icon: Icons.track_changes, value: '$routinePercent%', label: 'Rotina\nde hoje'),
-        const SizedBox(width: 12),
-        StatCard(icon: Icons.local_fire_department, value: '${isProjectLeader ? _projectDays : _streak}', label: isProjectLeader ? 'Dias do\nprojeto' : 'Dias de\nsequência'),
+        if (currentUser != null) ...[
+          const SizedBox(width: 12),
+          StatCard(icon: Icons.local_fire_department, value: '${isProjectLeader ? _projectDays : _streak}', label: isProjectLeader ? 'Dias do\nprojeto' : 'Dias de\nsequência'),
+        ],
         const SizedBox(width: 12),
         StatCard(icon: Icons.emoji_events, value: '$_completedChallenges', label: 'Desafios\nconcluídos'),
       ])),

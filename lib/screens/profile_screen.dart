@@ -44,7 +44,7 @@ class ProfileScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          Text('Perfil', style: AppTextStyles.headline),
+          Text('Perfil', style: AppTextStyles.brandHeadline),
           const SizedBox(height: 20),
           if (!isAuthenticated) ...[
             Container(
@@ -256,6 +256,7 @@ class _ProfileProgressState extends State<_ProfileProgress> {
   @override
   Widget build(BuildContext context) {
     final isProjectLeader = Supabase.instance.client.auth.currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com';
+    final isAuthenticated = Supabase.instance.client.auth.currentUser != null;
     final achievements = <({IconData icon, String label, bool unlocked})>[
       for (final days in <int>[7, 14, 21, 30, 45, 60, 75, 90, 100, 120, 150, 180, 200, 250, 300, 365, 400, 500, 600, 730, 900, 1000, 1200, 1500, 1825, 2000, 2500, 3000, 3650, 5000])
         (icon: Icons.local_fire_department, label: '$days dias', unlocked: _streak >= days),
@@ -271,8 +272,10 @@ class _ProfileProgressState extends State<_ProfileProgress> {
     if (_loading) return const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator()));
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        StatCard(icon: Icons.local_fire_department, value: '$_streak', label: isProjectLeader ? 'Dias do\nprojeto' : 'Dias de\nsequência'),
-        const SizedBox(width: 12),
+        if (isAuthenticated) ...[
+          StatCard(icon: Icons.local_fire_department, value: '$_streak', label: isProjectLeader ? 'Dias do\nprojeto' : 'Dias de\nsequência'),
+          const SizedBox(width: 12),
+        ],
         StatCard(icon: Icons.flag, value: '$_completedChallenges', label: 'Desafios\nconcluídos'),
         const SizedBox(width: 12),
         StatCard(icon: Icons.emoji_events, value: '${achievements.where((item) => item.unlocked).length}', label: 'Conquistas'),

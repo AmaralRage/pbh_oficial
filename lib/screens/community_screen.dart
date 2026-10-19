@@ -236,7 +236,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Comunidade', style: AppTextStyles.headline),
+              Text('Comunidade', style: AppTextStyles.brandHeadline),
               IconButton(tooltip: 'Criar publicação', icon: const Icon(Icons.edit_outlined, color: AppColors.textPrimary), onPressed: _composePost),
             ]),
             const SizedBox(height: 6),

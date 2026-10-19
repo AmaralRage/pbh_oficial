@@ -75,7 +75,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     final list = _filteredChallenges;
     return SafeArea(bottom: false, child: RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text('Desafios', style: AppTextStyles.headline),
+        Text('Desafios', style: AppTextStyles.brandHeadline),
         IconButton(tooltip: 'Buscar desafios', icon: Icon(_searching ? Icons.close : Icons.search, color: AppColors.textPrimary), onPressed: () { setState(() { _searching = !_searching; if (!_searching) _searchController.clear(); }); }),
       ]),
       if (_searching) Padding(padding: const EdgeInsets.only(top: 8), child: TextField(controller: _searchController, autofocus: true, decoration: const InputDecoration(hintText: 'Buscar desafios', prefixIcon: Icon(Icons.search)))),

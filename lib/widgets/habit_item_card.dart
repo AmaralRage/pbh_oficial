@@ -12,23 +12,41 @@ class HabitItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: habit.completed ? AppColors.orange.withOpacity(.075) : AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: habit.completed ? AppColors.orange.withOpacity(.48) : AppColors.borderSubtle),
+        boxShadow: habit.completed
+            ? [BoxShadow(color: AppColors.orange.withOpacity(.08), blurRadius: 18, spreadRadius: 1)]
+            : const [],
       ),
       child: Row(
         children: [
-          Container(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 260),
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.backgroundElevated,
+              color: habit.completed ? AppColors.orangeDim : AppColors.backgroundElevated,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(habit.icon, color: AppColors.textSecondary, size: 20),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              ),
+              child: Icon(
+                habit.icon,
+                key: ValueKey('${habit.key}-${habit.completed}'),
+                color: habit.completed ? AppColors.orange : AppColors.textSecondary,
+                size: 20,
+              ),
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -51,20 +69,30 @@ class HabitItemCard extends StatelessWidget {
                 lightTapFeedback();
                 onToggle?.call(!habit.completed);
               },
-              child: Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: habit.completed ? AppColors.orange : Colors.transparent,
-                border: Border.all(
-                  color: habit.completed ? AppColors.orange : AppColors.border,
-                  width: 1.5,
+              child: AnimatedScale(
+                scale: habit.completed ? 1 : .88,
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.elasticOut,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  width: 27,
+                  height: 27,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: habit.completed ? AppColors.orange : Colors.transparent,
+                    border: Border.all(
+                      color: habit.completed ? AppColors.orange : AppColors.border,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                    child: habit.completed
+                        ? const Icon(Icons.check_rounded, key: ValueKey('done'), size: 17, color: Colors.white)
+                        : const SizedBox(key: ValueKey('pending'), width: 17, height: 17),
+                  ),
                 ),
-              ),
-              child: habit.completed
-                  ? const Icon(Icons.check, size: 15, color: Colors.white)
-                  : null,
               ),
             ),
           ),

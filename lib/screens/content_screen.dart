@@ -92,7 +92,7 @@ class _ContentScreenState extends State<ContentScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Conteúdo', style: AppTextStyles.headline),
+              Text('Conteúdo', style: AppTextStyles.brandHeadline),
               IconButton(
                 tooltip: _searchOpen ? 'Fechar busca' : 'Buscar programas',
                 icon: Icon(_searchOpen ? Icons.close : Icons.search, color: AppColors.textPrimary),

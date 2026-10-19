@@ -12,6 +12,7 @@ class PbhAppDrawer extends StatelessWidget {
   final VoidCallback onOpenHabits;
   final VoidCallback onAccountAction;
   final bool isAuthenticated;
+  final bool isOnHabits;
 
   const PbhAppDrawer({
     super.key,
@@ -20,6 +21,7 @@ class PbhAppDrawer extends StatelessWidget {
     required this.onOpenHabits,
     required this.onAccountAction,
     this.isAuthenticated = true,
+    this.isOnHabits = false,
   });
 
   static const _mainItems = <_DrawerItemData>[
@@ -99,7 +101,7 @@ class PbhAppDrawer extends StatelessWidget {
                   _DrawerNavigationItem(
                     icon: Icons.checklist_outlined,
                     label: 'Rotina de hábitos',
-                    selected: false,
+                    selected: isOnHabits,
                     onTap: () => _openHabits(context),
                   ),
                 ],

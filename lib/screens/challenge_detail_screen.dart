@@ -82,6 +82,45 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     }
   }
 
+  Future<void> _leaveChallenge() async {
+    final focus = '${_challenge.title} ${_challenge.description}'.toLowerCase();
+    final encouragement = focus.contains('trein') || focus.contains('corrida') || focus.contains('caminhada') || focus.contains('corpo')
+        ? 'Seu corpo se fortalece com constância, não com perfeição. Ajuste o ritmo e avance um treino de cada vez.'
+        : focus.contains('leitura') || focus.contains('estudo') || focus.contains('idioma') || focus.contains('escrita')
+            ? 'Conhecimento se constrói página por página. Mesmo um passo pequeno mantém sua mente em movimento.'
+            : focus.contains('celular') || focus.contains('digital') || focus.contains('redes') || focus.contains('conteúdo')
+                ? 'Recuperar o foco é um processo. Uma escolha consciente hoje já é um recomeço.'
+                : focus.contains('sono') || focus.contains('dormir') || focus.contains('acordar')
+                    ? 'Uma rotina melhor começa com decisões possíveis, repetidas com paciência. Você pode ajustar e continuar.'
+                    : 'Uma fase difícil não define sua jornada. Reduza o ritmo se precisar e retome um passo de cada vez.';
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Antes de desistir'),
+        content: Text(
+          'Você já avançou ${_challenge.currentDay} de ${_challenge.totalDays} dias em "${_challenge.title}". '
+          '$encouragement\n\n'
+          'Se sair agora, os registros deste desafio serão apagados. Quer continuar mesmo assim?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Continuar o desafio')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Desistir')),
+        ],
+      ),
+    );
+    if (leave != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _service.leave(_challenge.id);
+      await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Desafio removido. Quando quiser, você poderá recomeçar.')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível sair do desafio: $error')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final progressPercent = (_challenge.progress * 100).round();
@@ -125,6 +164,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               if (!completed)
                 Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.borderSubtle)), child: Row(children: [Icon(_todayComplete ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, color: AppColors.orange), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Progresso de hoje', style: AppTextStyles.titleMedium), const SizedBox(height: 3), Text(_todayComplete ? 'Dia registrado. Você manteve o compromisso.' : 'Concluiu a missão de hoje?', style: AppTextStyles.bodySmall)])), Switch(value: _todayComplete, onChanged: _busy ? null : (_) => _toggleToday())])),
               if (completed) Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.orangeDim, borderRadius: BorderRadius.circular(16)), child: const Row(children: [Icon(Icons.emoji_events_rounded, color: AppColors.orange), SizedBox(width: 10), Expanded(child: Text('Desafio concluído. Parabéns pela consistência!'))])),
+              if (!completed) ...[
+                const SizedBox(height: 8),
+                Center(child: TextButton.icon(onPressed: _busy ? null : _leaveChallenge, icon: const Icon(Icons.flag_outlined), label: const Text('Sair deste desafio'))),
+              ],
             ] else ...[
               Text('Comece quando estiver pronto. Seu progresso diário ficará salvo na sua conta.', style: AppTextStyles.body),
               const SizedBox(height: 22),

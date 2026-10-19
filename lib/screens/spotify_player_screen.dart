@@ -495,7 +495,6 @@ class _LyricsPanelState extends State<_LyricsPanel> {
               ],
             ),
           const SizedBox(height: 12),
-          Text('Fonte das letras: LRCLIB', style: AppTextStyles.statLabel),
         ],
       ),
     );

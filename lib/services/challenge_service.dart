@@ -120,6 +120,14 @@ class ChallengeService {
     await _client.from('user_challenges').insert({'user_id': userId, 'challenge_id': challengeId});
   }
 
+  Future<void> leave(String challengeId) async {
+    final userId = _userId;
+    if (userId == null) throw StateError('Entre na sua conta para sair do desafio.');
+    // Deleting the enrollment also removes its daily records through the
+    // database foreign key, so a future attempt starts cleanly.
+    await _client.from('user_challenges').delete().eq('user_id', userId).eq('challenge_id', challengeId);
+  }
+
   Future<bool> completedToday(String challengeId) async {
     final userId = _userId;
     if (userId == null) return false;

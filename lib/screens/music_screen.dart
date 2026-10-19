@@ -21,7 +21,7 @@ class MusicScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text('Música', style: AppTextStyles.headline)),
+                Expanded(child: Text('Música', style: AppTextStyles.brandHeadline)),
                 IconButton(
                   tooltip: 'Ver músicas da playlist',
                   onPressed: () => Navigator.of(context).push(

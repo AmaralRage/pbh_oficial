@@ -13,6 +13,19 @@ class HabitService {
   String get _userKey => _client.auth.currentUser?.id ?? 'guest';
   String _dateKey(DateTime date) => '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
+  Future<Set<String>> selectedHabitKeys() async {
+    final saved = await _storage.getStringList('pbh.habits.selected.$_userKey');
+    if (saved == null) return habitKeys.toSet();
+    final selected = saved.where(habitKeys.contains).toSet();
+    return selected.isEmpty ? habitKeys.toSet() : selected;
+  }
+
+  Future<void> saveSelectedHabitKeys(Set<String> keys) async {
+    final selected = keys.where(habitKeys.contains).toSet();
+    if (selected.isEmpty) throw ArgumentError('Escolha pelo menos um hábito para sua rotina.');
+    await _storage.setStringList('pbh.habits.selected.$_userKey', selected.toList());
+  }
+
   Future<Set<String>> completedOn(DateTime date) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
@@ -70,35 +83,50 @@ class HabitService {
     return migratedKeys.length;
   }
 
-  Future<int> streak() async {
+  Future<int> streak({Set<String>? habitKeysForStreak}) async {
     final today = DateTime.now();
-    final start = DateTime(today.year, today.month, today.day).subtract(const Duration(days: 370));
     final userId = _client.auth.currentUser?.id;
-    if (userId == null) {
-      var count = 0;
-      var cursor = DateTime(today.year, today.month, today.day);
-      for (var offset = 0; offset < 371; offset++) {
-        if ((await completedOn(cursor)).isEmpty) break;
+    if (userId == null) return 0;
+    final selected = habitKeysForStreak ?? await selectedHabitKeys();
+    if (selected.isEmpty) return 0;
+    final todayStart = DateTime(today.year, today.month, today.day);
+    final dates = <String>{};
+    var cursor = todayStart;
+    var count = 0;
+    var offset = 0;
+    var checkedToday = false;
+    while (true) {
+      final rows = await _client
+          .from('habit_completions')
+          .select('completed_on')
+          .eq('user_id', userId)
+          .inFilter('habit_key', selected.toList())
+          .lte('completed_on', _dateKey(today))
+          .order('completed_on', ascending: false)
+          .range(offset, offset + 999);
+      if (rows.isEmpty) break;
+      dates.addAll(rows.map((row) => row['completed_on'] as String));
+      final earliest = rows.last['completed_on'] as String;
+
+      if (!checkedToday && dates.contains(_dateKey(todayStart))) {
+        checkedToday = true;
+      } else if (!checkedToday && (earliest.compareTo(_dateKey(todayStart)) < 0 || rows.length < 1000)) {
+        cursor = cursor.subtract(const Duration(days: 1));
+        checkedToday = true;
+      }
+      while (dates.contains(_dateKey(cursor))) {
         count++;
         cursor = cursor.subtract(const Duration(days: 1));
       }
-      return count;
-    }
-    final rows = await _client.from('habit_completions').select('completed_on').eq('user_id', userId).gte('completed_on', _dateKey(start)).lte('completed_on', _dateKey(today));
-    final dates = rows.map((row) => row['completed_on'] as String).toSet();
-    var count = 0;
-    var cursor = DateTime(today.year, today.month, today.day);
-    if (!dates.contains(_dateKey(cursor))) cursor = cursor.subtract(const Duration(days: 1));
-    while (dates.contains(_dateKey(cursor))) {
-      count++;
-      cursor = cursor.subtract(const Duration(days: 1));
+      if (earliest.compareTo(_dateKey(cursor)) < 0 || rows.length < 1000) break;
+      offset += rows.length;
     }
     return count;
   }
 
-  Future<List<int>> weekCounts(DateTime today) async {
+  Future<List<int>> weekCounts(DateTime today, {Set<String>? selectedHabits}) async {
     final monday = DateTime(today.year, today.month, today.day).subtract(Duration(days: today.weekday - 1));
     final values = await Future.wait(List.generate(7, (index) => completedOn(monday.add(Duration(days: index)))));
-    return values.map((set) => set.length).toList();
+    return values.map((set) => selectedHabits == null ? set.length : set.intersection(selectedHabits).length).toList();
   }
 }
