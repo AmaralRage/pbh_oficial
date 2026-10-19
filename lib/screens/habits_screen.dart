@@ -149,8 +149,15 @@ class _HabitsScreenState extends State<HabitsScreen> {
       if (!mounted) return;
       setState(() =>
           _reminderSettings = _reminderSettings.copyWith(enabled: enabled));
+      final now = TimeOfDay.now();
+      final selectedTimeHasPassed =
+          _reminderSettings.time.hour < now.hour ||
+              (_reminderSettings.time.hour == now.hour &&
+                  _reminderSettings.time.minute <= now.minute);
       _showReminderMessage(enabled
-          ? 'Lembretes da rotina ativados.'
+          ? selectedTimeHasPassed
+              ? 'Lembretes ativados. Esse horário já passou hoje; o próximo aviso será amanhã.'
+              : 'Lembretes da rotina ativados.'
           : 'Lembretes da rotina pausados.');
     } catch (error) {
       if (mounted) _showReminderMessage(_friendlyReminderError(error));
@@ -240,6 +247,14 @@ class _HabitsScreenState extends State<HabitsScreen> {
       },
     );
     if (time == null || !mounted) return;
+    if (_reminderSettings.enabled &&
+        !kIsWeb &&
+        !await RoutineLocalNotificationScheduler.requestPermission()) {
+      _showReminderMessage(
+        'Permita as notificações e “Alarmes e lembretes” do PBH para atualizar o horário.',
+      );
+      return;
+    }
     final previousSettings = _reminderSettings;
     setState(() {
       _reminderSettings = _reminderSettings.copyWith(time: time);
@@ -267,7 +282,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     if (message.contains('habit_reminder_settings'))
       return 'Aplique a migration de lembretes no Supabase para ativar este recurso.';
     if (message.contains('Permissão') || message.contains('permission'))
-      return 'Permita as notificações do PBH nas configurações do aparelho ou navegador.';
+      return 'Permita as notificações do PBH e o acesso a “Alarmes e lembretes” nas configurações do Android.';
     return 'Não foi possível salvar os lembretes. Confira sua conexão e tente de novo.';
   }
 
@@ -293,8 +308,13 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 .map((habit) => habit.key)
                 .toSet(),
       );
-    } catch (_) {
-      // A later routine refresh retries scheduling without blocking check-offs.
+    } catch (error) {
+      if (mounted) {
+        debugPrint('Falha ao sincronizar lembretes locais: $error');
+        _showReminderMessage(
+          'Não foi possível agendar os lembretes. Confira as permissões de notificação e “Alarmes e lembretes” do PBH.',
+        );
+      }
     }
   }
 

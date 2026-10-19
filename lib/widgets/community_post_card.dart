@@ -108,7 +108,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     setState(() => _following = !_following);
     try {
       await _service.toggleFollow(widget.post.userId, previous);
-      await widget.onChanged();
+      if (!widget.post.isSample) unawaited(widget.onChanged());
     } catch (error) {
       if (mounted) {
         setState(() => _following = previous);
@@ -145,7 +145,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         oldLiked,
         isSample: widget.post.isSample,
       );
-      await widget.onChanged();
+      if (!widget.post.isSample) unawaited(widget.onChanged());
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -176,120 +176,144 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   }
 
   Future<void> _showComments() async {
-    final comments = await _loadComments();
-    if (!mounted) return;
+    final comments = <CommunityComment>[];
+    var isLoading = true;
+    var loadStarted = false;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, refreshSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              20, 18, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                    child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: AppColors.borderSubtle,
-                            borderRadius: BorderRadius.circular(4)))),
-                const SizedBox(height: 18),
-                Text('Comentários (${comments.length})',
-                    style: AppTextStyles.titleMedium),
-                const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 360),
-                  child: comments.isEmpty
-                      ? Center(
-                          child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Text('Seja a primeira pessoa a comentar.',
-                                  style: AppTextStyles.bodySmall)))
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: comments.length,
-                          itemBuilder: (_, index) {
-                            final comment = comments[index];
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: _commentAvatar(
-                                  comment.author, comment.avatarUrl),
-                              title: Row(children: [
-                                Expanded(
-                                    child: Text(comment.author,
-                                        style: AppTextStyles.titleMedium
-                                            .copyWith(fontSize: 13))),
-                                Text(_formatElapsed(comment.createdAt),
-                                    style: AppTextStyles.statLabel)
-                              ]),
-                              subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(comment.content,
-                                      style: AppTextStyles.bodySmall)),
-                              trailing: widget.isAuthenticated &&
-                                      comment.userId == _service.currentUserId
-                                  ? IconButton(
-                                      tooltip: 'Excluir meu comentário',
-                                      onPressed: _busy
-                                          ? null
-                                          : () => _deleteComment(
-                                              comment, comments, refreshSheet),
-                                      icon: const Icon(
-                                          Icons.delete_outline_rounded,
-                                          color: AppColors.textTertiary,
-                                          size: 20),
-                                    )
-                                  : null,
-                            );
-                          },
-                        ),
-                ),
-                const SizedBox(height: 12),
-                if (widget.isAuthenticated)
-                  Row(children: [
-                    Expanded(
-                        child: TextField(
-                            controller: _commentController,
-                            maxLength: 1000,
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) =>
-                                _addComment(comments, refreshSheet),
-                            decoration: InputDecoration(
-                                counterText: '',
-                                hintText: 'Escreva um comentário...',
-                                filled: true,
-                                fillColor: AppColors.background,
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                    borderSide: BorderSide.none),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 10)))),
-                    IconButton(
-                        onPressed: _busy
-                            ? null
-                            : () => _addComment(comments, refreshSheet),
-                        icon: const Icon(Icons.send_rounded,
-                            color: AppColors.orange)),
-                  ])
-                else
-                  SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.pop(sheetContext);
-                            widget.onRequireLogin();
-                          },
-                          child: const Text('Entre para comentar'))),
-              ],
+        builder: (context, refreshSheet) {
+          if (!loadStarted) {
+            loadStarted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              final loadedComments = await _loadComments();
+              if (!context.mounted) return;
+              refreshSheet(() {
+                comments
+                  ..clear()
+                  ..addAll(loadedComments);
+                isLoading = false;
+              });
+            });
+          }
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+                20, 18, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                      child: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                              color: AppColors.borderSubtle,
+                              borderRadius: BorderRadius.circular(4)))),
+                  const SizedBox(height: 18),
+                  Text('Comentários (${comments.length})',
+                      style: AppTextStyles.titleMedium),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 96,
+                            child: Center(
+                                child: CircularProgressIndicator(
+                                    color: AppColors.orange, strokeWidth: 2)))
+                        : comments.isEmpty
+                            ? Center(
+                                child: Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Text(
+                                        'Seja a primeira pessoa a comentar.',
+                                        style: AppTextStyles.bodySmall)))
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: comments.length,
+                                itemBuilder: (_, index) {
+                                  final comment = comments[index];
+                                  return ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: _commentAvatar(
+                                        comment.author, comment.avatarUrl),
+                                    title: Row(children: [
+                                      Expanded(
+                                          child: Text(comment.author,
+                                              style: AppTextStyles.titleMedium
+                                                  .copyWith(fontSize: 13))),
+                                      Text(_formatElapsed(comment.createdAt),
+                                          style: AppTextStyles.statLabel)
+                                    ]),
+                                    subtitle: Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(comment.content,
+                                            style: AppTextStyles.bodySmall)),
+                                    trailing: widget.isAuthenticated &&
+                                            comment.userId ==
+                                                _service.currentUserId
+                                        ? IconButton(
+                                            tooltip: 'Excluir meu comentário',
+                                            onPressed: _busy
+                                                ? null
+                                                : () => _deleteComment(comment,
+                                                    comments, refreshSheet),
+                                            icon: const Icon(
+                                                Icons.delete_outline_rounded,
+                                                color: AppColors.textTertiary,
+                                                size: 20),
+                                          )
+                                        : null,
+                                  );
+                                },
+                              ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (widget.isAuthenticated)
+                    Row(children: [
+                      Expanded(
+                          child: TextField(
+                              controller: _commentController,
+                              maxLength: 1000,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) =>
+                                  _addComment(comments, refreshSheet),
+                              decoration: InputDecoration(
+                                  counterText: '',
+                                  hintText: 'Escreva um comentário...',
+                                  filled: true,
+                                  fillColor: AppColors.background,
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                      borderSide: BorderSide.none),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10)))),
+                      IconButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _addComment(comments, refreshSheet),
+                          icon: const Icon(Icons.send_rounded,
+                              color: AppColors.orange)),
+                    ])
+                  else
+                    SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.pop(sheetContext);
+                              widget.onRequireLogin();
+                            },
+                            child: const Text('Entre para comentar'))),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -319,7 +343,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
             isSample: widget.post.isSample));
       if (mounted) setState(() => _commentCount++);
       refreshSheet(() {});
-      await widget.onChanged();
+      if (!widget.post.isSample) unawaited(widget.onChanged());
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
@@ -361,7 +385,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
             () => _commentCount = _commentCount > 0 ? _commentCount - 1 : 0);
       }
       refreshSheet(() {});
-      await widget.onChanged();
+      if (!widget.post.isSample) unawaited(widget.onChanged());
     } catch (error) {
       if (mounted) _showError(error);
     } finally {

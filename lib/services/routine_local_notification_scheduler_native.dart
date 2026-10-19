@@ -43,7 +43,15 @@ class RoutineLocalNotificationScheduler {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
-      return await android.requestNotificationsPermission() ?? false;
+      final notificationsGranted =
+          await android.requestNotificationsPermission() ?? false;
+      if (!notificationsGranted) return false;
+
+      // Exact, user-selected reminder times require Android's special
+      // "Alarms & reminders" access on Android 12 and newer.
+      final exactAlarmsGranted = await android.requestExactAlarmsPermission();
+      return exactAlarmsGranted ??
+          (await android.canScheduleExactNotifications() ?? false);
     }
     final ios = _plugin.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
@@ -61,6 +69,11 @@ class RoutineLocalNotificationScheduler {
     for (final id in _notificationIds) {
       await _plugin.cancel(id);
     }
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final canScheduleExactly = android == null
+        ? false
+        : await android.canScheduleExactNotifications() ?? false;
     final now = timezone.TZDateTime.now(timezone.local);
     for (final reminder in reminders) {
       var next = timezone.TZDateTime(
@@ -89,7 +102,7 @@ class RoutineLocalNotificationScheduler {
         reminder.title,
         reminder.body,
         next,
-        const NotificationDetails(
+        NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId,
             'Rotina de habitos',
@@ -98,7 +111,8 @@ class RoutineLocalNotificationScheduler {
             importance: Importance.high,
             priority: Priority.high,
             icon: 'ic_stat_pbh',
-            largeIcon: DrawableResourceAndroidBitmap('pbh_notification_large'),
+            largeIcon:
+                DrawableResourceAndroidBitmap(reminder.largeIconResource),
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -107,7 +121,9 @@ class RoutineLocalNotificationScheduler {
             threadIdentifier: 'pbh-habit-routine',
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: canScheduleExactly
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
         payload: 'pbh://routine',
       );

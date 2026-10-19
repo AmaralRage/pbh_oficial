@@ -30,30 +30,35 @@ class HabitReminderService {
   static const _habitReminders = <String, _HabitReminderCopy>{
     'train': _HabitReminderCopy(
         label: 'Treinar o corpo',
+        largeIconResource: 'notification_habit_train',
         deadline: TimeOfDay(hour: 20, minute: 0),
         title: '🏋️ Seu treino ainda cabe no dia',
         body:
             '45 minutos para cumprir o compromisso que você assumiu consigo.'),
     'read': _HabitReminderCopy(
         label: 'Ler ou estudar',
+        largeIconResource: 'notification_habit_read',
         deadline: TimeOfDay(hour: 21, minute: 0),
         title: '📚 Alimente sua mente hoje',
         body:
             'Separe 30 minutos para ler ou estudar. Um pouco todos os dias transforma o futuro.'),
     'digital_fast': _HabitReminderCopy(
         label: 'Sem pornografia',
+        largeIconResource: 'notification_habit_focus',
         deadline: TimeOfDay(hour: 21, minute: 30),
         title: '🧭 Proteja o foco que você construiu',
         body:
             'Sua meta de hoje continua em andamento. Escolha o que fortalece sua liberdade.'),
     'meditate': _HabitReminderCopy(
         label: 'Meditar / Orar',
+        largeIconResource: 'notification_habit_meditate',
         deadline: TimeOfDay(hour: 21, minute: 0),
         title: '🧘 Reserve um momento para se alinhar',
         body:
             'Dez minutos de silêncio, meditação ou oração também fazem parte da disciplina.'),
     'sleep_early': _HabitReminderCopy(
         label: 'Dormir cedo',
+        largeIconResource: 'notification_habit_sleep',
         deadline: TimeOfDay(hour: 22, minute: 0),
         title: '🌙 Prepare-se para descansar',
         body:
@@ -125,7 +130,8 @@ class HabitReminderService {
     if (kIsWeb) {
       await NotificationPushService.subscribe();
     } else if (!await RoutineLocalNotificationScheduler.requestPermission()) {
-      throw StateError('Permissão para notificações não concedida.');
+      throw StateError(
+          'Permissão de notificações ou Alarmes e lembretes não concedida.');
     }
     await save(enabled: true, time: time, selectedHabitKeys: selectedHabitKeys);
     await synchronizeLocalSchedule(
@@ -159,6 +165,7 @@ class HabitReminderService {
         time: copy.deadline,
         title: copy.title,
         body: copy.body,
+        largeIconResource: copy.largeIconResource,
         skipToday: !todayPending.contains(entry.key) ||
             _hasReached(now, copy.deadline),
       ));
@@ -176,6 +183,8 @@ class HabitReminderService {
       body: selectedReminderCopy == null
           ? 'Escolha um novo passo e mantenha a disciplina. O progresso se constrói um dia de cada vez.'
           : '${selectedReminderCopy.label} ainda está pendente. ${selectedReminderCopy.body}',
+      largeIconResource:
+          selectedReminderCopy?.largeIconResource ?? 'pbh_notification_large',
       skipToday: _hasReached(now, time) || pendingCopies.isEmpty,
     ));
     await RoutineLocalNotificationScheduler.scheduleDaily(reminders);
@@ -189,10 +198,12 @@ class HabitReminderService {
 class _HabitReminderCopy {
   const _HabitReminderCopy(
       {required this.label,
+      required this.largeIconResource,
       required this.deadline,
       required this.title,
       required this.body});
   final String label;
+  final String largeIconResource;
   final TimeOfDay deadline;
   final String title;
   final String body;

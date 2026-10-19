@@ -55,37 +55,19 @@ class CommunityService {
     var query = _client.from('community_feed').select();
     final userId = _userId;
     var followingIds = <String>[];
-    final excludedIds = <String>[];
-    if (userId != null) {
-      final blockedRows = await _client
-          .from('community_blocks')
-          .select('blocked_id')
-          .eq('blocker_id', userId);
-      excludedIds.addAll(blockedRows.map((row) => row['blocked_id'] as String));
-    }
-    if (excludedIds.isNotEmpty)
-      query = query.not('user_id', 'in', '(${excludedIds.join(',')})');
+    var savedPostIds = <String>[];
     if (filterIndex == 1) {
       if (userId == null) return const [];
-      final rows = await _client
-          .from('community_follows')
-          .select('followed_id')
-          .eq('follower_id', userId);
-      followingIds = rows.map((row) => row['followed_id'] as String).toList();
+      followingIds = await _fetchFollowingIds(userId);
       if (followingIds.isEmpty) return const [];
       query = query.inFilter('user_id', followingIds);
     } else if (filterIndex == 2) {
       query = query.not('achievement_tag', 'is', null);
     } else if (filterIndex == 4) {
       if (userId == null) return const [];
-      final savedRows = await _client
-          .from('community_saved_posts')
-          .select('post_id')
-          .eq('user_id', userId);
-      final savedIds =
-          savedRows.map((row) => row['post_id'] as String).toList();
-      if (savedIds.isEmpty) return const [];
-      query = query.inFilter('id', savedIds);
+      savedPostIds = await _fetchSavedPostIds(userId);
+      if (savedPostIds.isEmpty) return const [];
+      query = query.inFilter('id', savedPostIds);
     }
     final term = search.trim().replaceAll(RegExp(r'[,.*()"%_]'), ' ').trim();
     if (term.isNotEmpty)
@@ -97,22 +79,22 @@ class CommunityService {
             .order('likes_count', ascending: false)
             .order('created_at', ascending: false)
         : query.order('created_at', ascending: false);
+    final auxiliaryDataFuture = userId == null
+        ? null
+        : Future.wait<List<String>>([
+            filterIndex == 1
+                ? Future.value(followingIds)
+                : _fetchFollowingIds(userId),
+            filterIndex == 4
+                ? Future.value(savedPostIds)
+                : _fetchSavedPostIds(userId),
+          ]);
     final rows = await orderedQuery.range(offset, offset + limit - 1);
     var savedIds = <String>{};
-    if (userId != null) {
-      if (filterIndex != 1) {
-        final follows = await _client
-            .from('community_follows')
-            .select('followed_id')
-            .eq('follower_id', userId);
-        followingIds =
-            follows.map((row) => row['followed_id'] as String).toList();
-      }
-      final saved = await _client
-          .from('community_saved_posts')
-          .select('post_id')
-          .eq('user_id', userId);
-      savedIds = saved.map((row) => row['post_id'] as String).toSet();
+    if (auxiliaryDataFuture != null) {
+      final auxiliaryData = await auxiliaryDataFuture;
+      followingIds = auxiliaryData[0];
+      savedIds = auxiliaryData[1].toSet();
     }
     return rows.map((row) {
       final post = CommunityPostModel.fromMap(row);
@@ -141,27 +123,32 @@ class CommunityService {
     return row;
   }
 
+  Future<List<String>> _fetchFollowingIds(String userId) async {
+    final rows = await _client
+        .from('community_follows')
+        .select('followed_id')
+        .eq('follower_id', userId);
+    return rows.map((row) => row['followed_id'] as String).toList();
+  }
+
+  Future<List<String>> _fetchSavedPostIds(String userId) async {
+    final rows = await _client
+        .from('community_saved_posts')
+        .select('post_id')
+        .eq('user_id', userId);
+    return rows.map((row) => row['post_id'] as String).toList();
+  }
+
   Future<List<CommunityComment>> fetchComments(
     String postId, {
     bool isSample = false,
   }) async {
-    var query = isSample
+    final query = isSample
         ? _client
             .from('community_sample_comment_feed')
             .select()
             .eq('sample_post_key', postId)
         : _client.from('community_comment_feed').select().eq('post_id', postId);
-    final userId = _userId;
-    if (userId != null) {
-      final blocks = await _client
-          .from('community_blocks')
-          .select('blocked_id')
-          .eq('blocker_id', userId);
-      final blockedIds =
-          blocks.map((row) => row['blocked_id'] as String).toList();
-      if (blockedIds.isNotEmpty)
-        query = query.not('user_id', 'in', '(${blockedIds.join(',')})');
-    }
     final rows = await query.order('created_at');
     return rows.map((row) => CommunityComment.fromMap(row)).toList();
   }

@@ -49,6 +49,8 @@ Veja o [guia de mudanças do Development Mode](https://developer.spotify.com/doc
 
 ## Dados persistentes
 
+Depois das migrations existentes, aplique também `20261019000300_community_access_performance.sql`. Ela corrige a leitura segura necessária para salvar curtidas e reduz consultas repetidas no feed e nos comentários.
+
 Aplique as migrations em ordem: `20261015000100_profiles_and_initial_admin.sql`, `20261015000200_announcements.sql`, `20261015000300_community_progress.sql`, `20261015000400_admin_notification_center.sql`, `20261017000100_profile_privacy.sql`, `20261017000200_expanded_challenges_and_leader_name.sql`, `20261017000300_community_discovery_moderation.sql`, `20261019000100_habit_routine_reminders.sql` e `20261019000200_community_interactions_avatars.sql`. A migration `20261017000200` adiciona 52 desafios (57 no total). A migration `20261015000400` adiciona segmentação por papel, links de destino, rascunhos e métricas administrativas. A migration `20261017000300` habilita temas, denúncias com motivo, bloqueios e revisão administrativa da comunidade. A migration `20261019000100` cria as preferências e o controle de envio dos lembretes da rotina. A migration `20261019000200` salva curtidas e comentários dos cards de exemplo, inclui foto pública nos comentários e limita a exclusão ao autor. Fotos de perfil são lidas dos metadados `avatar_url`, `picture` ou `avatar` do usuário autenticado; perfis privados ocultam a foto e o nome no feed. As políticas RLS limitam alterações à conta autenticada e ao papel de administrador.
 
 ## Notificações push Web
@@ -110,7 +112,7 @@ O cron apenas verifica os horários configurados; o banco usa o fuso local de ca
 
 ### Notificações locais nos apps Android e iOS
 
-As pastas `android/` e `ios/` permitem instalar o mesmo app Flutter nos celulares. Na **Rotina de Hábitos**, ao ativar o lembrete no app instalado, o sistema operacional agenda a notificação no aparelho. A permissão é solicitada pelo Android/iOS; o Firebase, o Google e o cron de push web não participam desse envio local. A rotina e as preferências ainda usam a conta PBH/Supabase para sincronizar os dados.
+As pastas `android/` e `ios/` permitem instalar o mesmo app Flutter nos celulares. Na **Rotina de Hábitos**, ao ativar o lembrete no app instalado, o sistema operacional agenda a notificação no aparelho. No Android, permita tanto notificações quanto **Alarmes e lembretes** para que o horário escolhido seja pontual; o app solicita esse acesso ao ativar os lembretes. O Firebase, o Google e o cron de push web não participam desse envio local. A rotina e as preferências ainda usam a conta PBH/Supabase para sincronizar os dados.
 
 Para executar no Android, conecte um aparelho ou inicie um emulador e rode:
 

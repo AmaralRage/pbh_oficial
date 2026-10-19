@@ -6,6 +6,7 @@ class RoutineLocalReminder {
     required this.time,
     required this.title,
     required this.body,
+    this.largeIconResource = 'pbh_notification_large',
     this.skipToday = false,
   });
 
@@ -13,5 +14,6 @@ class RoutineLocalReminder {
   final TimeOfDay time;
   final String title;
   final String body;
+  final String largeIconResource;
   final bool skipToday;
 }
