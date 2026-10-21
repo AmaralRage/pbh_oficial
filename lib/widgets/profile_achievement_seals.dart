@@ -26,7 +26,7 @@ Future<ui.Image> _firstFrame(String asset) =>
       }
     });
 
-class ProfileAchievementSeals extends StatelessWidget {
+class ProfileAchievementSeals extends StatefulWidget {
   const ProfileAchievementSeals({super.key, required this.achievements});
   final List<ProfileAchievement> achievements;
 
@@ -139,7 +139,27 @@ class ProfileAchievementSeals extends StatelessWidget {
   }
 
   @override
+  State<ProfileAchievementSeals> createState() =>
+      _ProfileAchievementSealsState();
+}
+
+class _ProfileAchievementSealsState extends State<ProfileAchievementSeals> {
+  @override
+  void initState() {
+    super.initState();
+    // Prepare the engine after the profile has rendered, not on the tap.
+    Future<void>.delayed(const Duration(milliseconds: 700), () {
+      if (mounted &&
+          (ModalRoute.isCurrentOf(context) ?? true) &&
+          widget.achievements.any((badge) => badge.htmlAsset != null)) {
+        SupremeSealArt.warmUp();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final achievements = widget.achievements;
     if (achievements.isEmpty) {
       return Container(
         width: double.infinity,
@@ -193,7 +213,8 @@ class ProfileAchievementSeals extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(20),
-                    onTap: () => showDetails(context, badge),
+                    onTap: () =>
+                        ProfileAchievementSeals.showDetails(context, badge),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),

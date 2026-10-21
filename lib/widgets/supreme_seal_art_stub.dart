@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_achievement.dart';
 
 class SupremeSealArt extends StatelessWidget {
+  static Future<void> warmUp() async {}
   const SupremeSealArt({
     super.key,
     required this.size,

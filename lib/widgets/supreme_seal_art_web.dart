@@ -5,6 +5,7 @@ import '../services/supreme_seal_document.dart';
 import '../models/profile_achievement.dart';
 
 class SupremeSealArt extends StatefulWidget {
+  static Future<void> warmUp() async {}
   const SupremeSealArt({
     super.key,
     required this.size,

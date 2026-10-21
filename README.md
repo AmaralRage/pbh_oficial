@@ -217,14 +217,16 @@ O Vercel continua servindo a versão web sem alterações no endereço. Para com
 
 Os lembretes nativos são agendados localmente e atualizados quando o app abre a rotina ou quando a pessoa marca/desmarca tarefas. Como o sistema operacional executa o aviso, ele pode aparecer com o app fechado. Enquanto o aparelho estiver sem abrir o app, ele não consegue consultar mudanças novas na conta PBH; ao voltar a abrir, sincroniza tarefas e atualiza os próximos avisos. A versão web permanece usando o push do navegador descrito acima.
 
-Nos dispositivos móveis, a expansão dos selos usa a arte renderizada dos HTMLs
-com animação nativa de flutuação, escala e brilho. Ela não inicializa um WebView
-nem executa os filtros SVG do HTML ao abrir o diálogo. A imagem permanece fora
-das reconstruções da animação, e a opção de reduzir movimento é respeitada.
-Na versão web, a expansão continua exibindo o HTML com seus efeitos internos.
+Nos dispositivos móveis, a expansão dos selos preserva as animações e scripts
+dos HTMLs originais. Um único controlador WebView ocioso é preparado no perfil
+e reaproveitado entre aberturas. A arte só é criada após a expansão do diálogo;
+a miniatura fica visível até o carregamento terminar. Os efeitos são pausados
+ao fechar o selo ou colocar o app em segundo plano. A textura procedural usa
+menos detalhe no mobile, preservando os movimentos, partículas e brilhos.
+A opção de reduzir movimento continua sendo respeitada.
 
 Os selos de 50 desafios, Corpo de ferro, Foco inabalável, Leitor assíduo e
 Madrugador usam suas próprias artes HTML e miniaturas renderizadas. O primeiro
 exige pelo menos 50 desafios concluídos. Os demais exigem a conclusão de
 `iron_body`, `digital_fast`, `daily_reading` e `wake_5`, respectivamente.
-Todos usam animação nativa no mobile e HTML na web, sem concessão manual.
+Todos exibem os efeitos dos HTMLs no mobile e na web, sem concessão manual.

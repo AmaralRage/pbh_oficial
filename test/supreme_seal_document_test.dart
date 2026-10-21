@@ -7,6 +7,70 @@ import 'package:pbh_oficial/services/supreme_seal_document.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'mobile optimization preserves every trophy animation and script',
+    () async {
+      final additional = ProfileAchievement.earned(
+        isAuthenticated: true,
+        isProjectLeader: true,
+        streak: 2000,
+        completedChallenges: 57,
+        totalChallenges: 57,
+        followers: 0,
+        completedIds: {'iron_body', 'digital_fast', 'daily_reading', 'wake_5'},
+      );
+      for (final badge in additional.where(
+        (badge) => badge.htmlAsset != null,
+      )) {
+        final original = await rootBundle.loadString(badge.htmlAsset!);
+        final optimized = await supremeSealDocument(
+          reducedMotion: false,
+          mobileRendering: true,
+          assetPath: badge.htmlAsset!,
+        );
+        for (final pattern in [
+          r'@keyframes\s+[\w-]+',
+          r'<script>[\s\S]*?</script>',
+        ]) {
+          expect(
+            RegExp(
+              pattern,
+            ).allMatches(optimized).map((m) => m.group(0)).toList(),
+            RegExp(
+              pattern,
+            ).allMatches(original).map((m) => m.group(0)).toList(),
+            reason: badge.title,
+          );
+        }
+        expect(optimized, contains('id="pbh-playback"'));
+        expect(optimized, contains('numOctaves="2"'));
+        expect(optimized, contains('feGaussianBlur'));
+        // Keep the source's accessibility media query, without disabling motion globally.
+        expect(
+          RegExp('animation:none!important').allMatches(optimized).length,
+          RegExp('animation:none!important').allMatches(original).length,
+        );
+      }
+    },
+  );
+  test(
+    'mobile and web caches keep independent rendering and accessibility settings',
+    () async {
+      final mobile = await supremeSealDocument(
+        reducedMotion: false,
+        mobileRendering: true,
+      );
+      final web = await supremeSealDocument(reducedMotion: false);
+      final reduced = await supremeSealDocument(
+        reducedMotion: true,
+        mobileRendering: true,
+      );
+      expect(mobile, contains('numOctaves="2"'));
+      expect(web, contains('numOctaves="4"'));
+      expect(web, isNot(contains('id="pbh-playback"')));
+      expect(reduced, contains('*{animation:none!important}'));
+    },
+  );
   test('every trophy preview asset exists and decodes', () async {
     for (final badge in [
       ...ProfileAchievement.supremeSeals,
