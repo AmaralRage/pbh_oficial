@@ -23,6 +23,19 @@ class ProfileAchievement {
   final String? category;
   final String? artCaption;
 
+  static const challenges50 = ProfileAchievement(
+    id: 'challenges',
+    title: '50 desafios concluídos',
+    description:
+        'Você conquistou 50 troféus de desafios. Um marco de disciplina e dedicação ao PBH.',
+    icon: Icons.emoji_events_rounded,
+    color: Color(0xFF66EFC9),
+    artAsset: 'assets/images/trofeu_50_desafios.png',
+    htmlAsset: 'assets/images/Trofeu_50_desafios_concluidos.html',
+    category: 'DESAFIOS',
+    artCaption: '50 DESAFIOS • DEDICAÇÃO AO PBH',
+  );
+
   static const dedication2000 = ProfileAchievement(
     id: 'streak',
     title: '2000 dias de dedicação',
@@ -164,6 +177,10 @@ class ProfileAchievement {
     }
     for (final count in [50, 30, 20, 10, 5, 3, 1]) {
       if (completedChallenges < count) continue;
+      if (count == 50) {
+        badges.add(challenges50);
+        break;
+      }
       badges.add(
         ProfileAchievement(
           id: 'challenges',
@@ -184,6 +201,12 @@ class ProfileAchievement {
         description:
             'Desafio de jejum digital concluído. Você escolheu presença e foco para cuidar da sua atenção.',
         icon: Icons.self_improvement_rounded,
+        color: Color(0xFFBC8AFF),
+        artAsset: 'assets/images/trofeu_foco_inabalavel.png',
+        htmlAsset:
+            'assets/images/Trofeu_foco_inabalavel_ametista_PBH_universo.html',
+        category: 'FOCO',
+        artCaption: 'FOCO INABALÁVEL • DESAFIO CONCLUÍDO',
       ),
       'iron_body': ProfileAchievement(
         id: 'iron_body',
@@ -191,6 +214,12 @@ class ProfileAchievement {
         description:
             'Desafio Corpo de Ferro concluído. Um selo de disciplina e compromisso com o movimento.',
         icon: Icons.fitness_center_rounded,
+        color: Color(0xFFFF6D79),
+        artAsset: 'assets/images/trofeu_corpo_de_ferro.png',
+        htmlAsset:
+            'assets/images/Trofeu_corpo_de_ferro_PBH_pulso_reforcado.html',
+        category: 'TREINO',
+        artCaption: 'CORPO DE FERRO • DESAFIO CONCLUÍDO',
       ),
       'daily_reading': ProfileAchievement(
         id: 'daily_reading',
@@ -198,6 +227,11 @@ class ProfileAchievement {
         description:
             'Desafio de leitura diária concluído. Conhecimento cultivado uma página de cada vez.',
         icon: Icons.menu_book_rounded,
+        color: Color(0xFF62EAC7),
+        artAsset: 'assets/images/trofeu_leitor_assiduo.png',
+        htmlAsset: 'assets/images/Trofeu_leitor_assiduo_esmeralda_PBH.html',
+        category: 'LEITURA',
+        artCaption: 'LEITOR ASSÍDUO • DESAFIO CONCLUÍDO',
       ),
       'wake_5': ProfileAchievement(
         id: 'wake_5',
@@ -205,6 +239,11 @@ class ProfileAchievement {
         description:
             'Desafio de acordar cedo concluído. Você criou espaço para começar o dia com intenção.',
         icon: Icons.wb_twilight_rounded,
+        color: Color(0xFFF7A1CD),
+        artAsset: 'assets/images/trofeu_madrugador.png',
+        htmlAsset: 'assets/images/Trofeu_madrugador_rosa_perola_mar_PBH.html',
+        category: 'ROTINA',
+        artCaption: 'MADRUGADOR • DESAFIO CONCLUÍDO',
       ),
     };
     for (final entry in special.entries) {

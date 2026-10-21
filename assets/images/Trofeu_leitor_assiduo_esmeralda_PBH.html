@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Leitor Assíduo · Troféu PBH</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Spectral:wght@400;500&display=swap">
+<style>
+:root{--bg:#071e25;--fg:#e8fffa;--muted:#9bd9d1;--card:#0b2c35;--line:#286b71;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#041319;--fg:#e8fffa;--muted:#9bd9d1;--card:#0b2c35;--line:#286b71;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#041319;--fg:#e8fffa;--muted:#9bd9d1;--card:#0b2c35;--line:#286b71;color-scheme:dark}
+*{box-sizing:border-box}
+html{height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-family:"Spectral",Georgia,serif;display:flex;justify-content:center;padding:24px 16px}
+main{width:100%;max-width:560px}
+.stage{background:#041319;border-radius:20px;overflow:hidden;box-shadow:0 0 60px rgba(51,236,194,.30)}
+svg{display:block;width:100%;height:auto}
+.card{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 8px 28px rgba(0,0,0,.2)}
+h1{font-family:"Cinzel",Georgia,serif;font-weight:900;font-size:1.6rem;margin:0 0 6px;letter-spacing:.02em}
+.tag{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:.85rem;color:#8debd6;margin:0 0 10px}
+p{margin:0;line-height:1.55;color:var(--muted);font-size:1.05rem}
+/* animações do SVG */
+.float{animation:float 5s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.beams{transform-origin:300px 285px;animation:spin 70s linear infinite}
+.ring{transform-origin:300px 300px;animation:spin 90s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.wave{transform-origin:300px 285px;animation:wave 3.2s ease-out infinite}
+.w2{animation-delay:1.6s}
+@keyframes wave{0%{transform:scale(.45);opacity:.9}100%{transform:scale(3.3);opacity:0}}
+.crack{animation:crack 3.4s ease-in-out infinite}
+@keyframes crack{0%,100%{opacity:.75}50%{opacity:1}}
+.aura{transform-origin:300px 300px;animation:aura 4.5s ease-in-out infinite}
+@keyframes aura{0%,100%{transform:scale(.96);opacity:.7}50%{transform:scale(1.05);opacity:1}}
+.p{transform-box:fill-box;animation:rise linear infinite}
+@keyframes rise{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-360px);opacity:0}}
+.core{animation:core 1.6s ease-in-out infinite}
+@keyframes core{0%,100%{opacity:.5}50%{opacity:1}}
+.sheen{animation:sheen 6s ease-in-out infinite}
+@keyframes sheen{0%,55%{transform:translateX(-380px)}100%{transform:translateX(380px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+<div class="stage">
+<svg viewBox="0 0 600 600" role="img" aria-label="Leitor Assíduo: selo hexagonal esmeralda com livro aberto luminoso, coroa PBH e animações">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="48%" r="62%"><stop offset="0" stop-color="#14535a"/><stop offset=".55" stop-color="#092a35"/><stop offset="1" stop-color="#041319"/></radialGradient>
+  <radialGradient id="glowc" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#51f4cf" stop-opacity=".55"/><stop offset=".6" stop-color="#19b4a5" stop-opacity=".18"/><stop offset="1" stop-color="#19b4a5" stop-opacity="0"/></radialGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#b7fff0"/><stop offset=".7" stop-color="#16777d"/><stop offset="1" stop-color="#7eeed9"/></linearGradient>
+  <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#75ffe0"/><stop offset="1" stop-color="#115164"/></linearGradient>
+  <linearGradient id="body" gradientUnits="userSpaceOnUse" x1="300" y1="160" x2="300" y2="410"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#c4fff5"/><stop offset="1" stop-color="#137f8c"/></linearGradient>
+  <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9aa0b5"/><stop offset=".5" stop-color="#ffffff"/><stop offset="1" stop-color="#8a90a8"/></linearGradient>
+  <linearGradient id="shn" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="glowG" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="stone" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="4" seed="7" result="n"/><feDiffuseLighting in="n" lighting-color="#b7fff0" surfaceScale="2.4" result="l"><feDistantLight azimuth="225" elevation="55"/></feDiffuseLighting><feComposite in="l" in2="SourceGraphic" operator="in" result="lc"/><feBlend in="SourceGraphic" in2="lc" mode="multiply"/></filter>
+  <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#85ffe2"/><stop offset=".25" stop-color="#188d8c"/><stop offset=".6" stop-color="#092e3b"/><stop offset="1" stop-color="#1aafa0"/></linearGradient>
+  <radialGradient id="face" cx="40%" cy="40%" r="75%"><stop offset="0" stop-color="#c4fff5"/><stop offset=".45" stop-color="#7bead5"/><stop offset="1" stop-color="#0b5465"/></radialGradient>
+  <radialGradient id="beam" gradientUnits="userSpaceOnUse" cx="300" cy="285" r="230"><stop offset="0" stop-color="#7eeed9" stop-opacity=".5"/><stop offset="1" stop-color="#7eeed9" stop-opacity="0"/></radialGradient>
+  <pattern id="knurl" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H6M0 0V6" stroke="#7eeed9" stroke-opacity=".6" stroke-width="1.2"/></pattern>
+  <clipPath id="ci"><polygon points="300,72 497,186 497,414 300,528 103,414 103,186"/></clipPath>
+  <clipPath id="co"><polygon points="300,40 525,170 525,430 300,560 75,430 75,170"/></clipPath>
+</defs>
+
+<rect width="600" height="600" fill="url(#bg)"/>
+<circle class="aura" cx="300" cy="300" r="290" fill="url(#glowc)"/>
+<circle class="ring" cx="300" cy="300" r="287" fill="none" stroke="#b7fff0" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="2 14"/>
+
+<!-- hexágono fantasma: a conquista passou do próprio limite -->
+<polygon points="300,40 525,170 525,430 300,560 75,430 75,170" transform="rotate(30 300 300) scale(1.1) translate(-27.3 -27.3)" fill="none" stroke="#b7fff0" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="6 8"/>
+
+<!-- moldura de pedra -->
+<polygon points="300,40 525,170 525,430 300,560 75,430 75,170" fill="url(#rim)" filter="url(#stone)"/>
+<polygon points="300,72 497,186 497,414 300,528 103,414 103,186" fill="#0a0204"/>
+<polygon points="300,40 525,170 525,430 300,560 75,430 75,170" fill="none" stroke="#fff1dc" stroke-width="2" filter="url(#glow)"/>
+<polygon points="300,72 497,186 497,414 300,528 103,414 103,186" fill="none" stroke="#75ffe0" stroke-width="2" filter="url(#glow)"/>
+
+<!-- rachaduras preenchidas por luz de platina -->
+<g class="crack" fill="none" stroke="url(#gold)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowG)">
+  <path d="M300 40 L306 52 L296 62 L300 72"/>
+  <path d="M525 300 L512 305 L520 322 L497 330"/>
+  <path d="M300 560 L296 546 L305 536 L300 528"/>
+  <path d="M75 300 L88 308 L80 322 L103 330"/>
+  <path d="M187 105 L196 114 L190 122 L201 129"/>
+  <path d="M412 105 L404 115 L410 122 L398 129"/>
+  <path d="M412 495 L405 486 L410 478 L398 471"/>
+  <path d="M187 495 L195 487 L190 479 L202 471"/>
+</g>
+<g id="gems" filter="url(#glowG)"></g>
+
+<!-- partículas subindo -->
+<g id="parts" clip-path="url(#ci)"></g>
+
+<!-- raios de luz e ondas de choque -->
+<g clip-path="url(#ci)"><g class="beams" id="beams"></g></g>
+<g clip-path="url(#ci)" fill="none" stroke="#7eeed9" stroke-width="2.5">
+  <circle class="wave" cx="300" cy="285" r="60" vector-effect="non-scaling-stroke"/>
+  <circle class="wave w2" cx="300" cy="285" r="60" vector-effect="non-scaling-stroke"/>
+</g>
+
+<!-- Livro aberto de cristal: Leitor Assíduo -->
+<defs>
+ <linearGradient id="pages" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffde8"/><stop offset=".45" stop-color="#9af5ed"/><stop offset="1" stop-color="#287c8d"/></linearGradient>
+ <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d5fff4"/><stop offset=".45" stop-color="#159b9c"/><stop offset="1" stop-color="#07364e"/></linearGradient>
+</defs>
+<ellipse cx="300" cy="406" rx="123" ry="12" fill="#40eacb" opacity=".35" filter="url(#glow)"/>
+<g class="float" stroke-linejoin="round" stroke-linecap="round">
+ <path d="M300 227 Q251 188 173 209 L169 367 Q250 348 300 392 Q350 348 431 367 L427 209 Q349 188 300 227Z" fill="url(#cover)" stroke="#d9fff3" stroke-width="5" filter="url(#glow)"/>
+ <path d="M300 236 Q252 205 186 223 L184 354 Q250 340 300 376Z" fill="url(#pages)" stroke="#ecfff9" stroke-width="3"/>
+ <path d="M300 236 Q348 205 414 223 L416 354 Q350 340 300 376Z" fill="url(#pages)" stroke="#ecfff9" stroke-width="3"/>
+ <path d="M300 236 L300 388" fill="none" stroke="#086278" stroke-width="7"/>
+ <path d="M300 241 Q254 220 198 232 M300 257 Q256 238 199 248 M300 274 Q255 256 200 265 M300 291 Q255 274 201 283 M300 308 Q258 292 203 300 M300 325 Q256 310 203 317" fill="none" stroke="#15798a" stroke-opacity=".65" stroke-width="3"/>
+ <path d="M300 241 Q346 220 402 232 M300 257 Q344 238 401 248 M300 274 Q345 256 400 265 M300 291 Q345 274 399 283 M300 308 Q342 292 397 300 M300 325 Q344 310 397 317" fill="none" stroke="#15798a" stroke-opacity=".65" stroke-width="3"/>
+ <path d="M185 355 Q255 343 300 385 Q345 343 415 355" fill="none" stroke="#d7fff6" stroke-width="5"/>
+ <path d="M322 241 L336 237 L336 309 L329 298 L322 309Z" fill="#e8bd6a" stroke="#fff1ba" stroke-width="1.5"/>
+ <circle cx="300" cy="204" r="6" fill="#faffd9" filter="url(#glowG)"/>
+ <path d="M300 175 V190 M276 186 L286 197 M324 186 L314 197" stroke="#e7fff5" stroke-width="3" filter="url(#glowG)"/>
+</g>
+
+<!-- coroa e nome PBH preservados na base -->
+<g filter="url(#glowG)">
+  <path d="M280 452 L276 432 L290 442 L300 426 L310 442 L324 432 L320 452 Z" fill="url(#gold)" stroke="#14545a" stroke-width="1"/>
+  <circle cx="276" cy="430" r="2.5" fill="#ffffff"/><circle cx="300" cy="424" r="2.5" fill="#ffffff"/><circle cx="324" cy="430" r="2.5" fill="#ffffff"/>
+</g>
+<text x="300" y="498" text-anchor="middle" font-family="Cinzel, Georgia, serif" font-weight="900" font-size="42" letter-spacing="5" fill="url(#gold)" stroke="#14545a" stroke-width=".8" filter="url(#glowG)">PBH</text>
+
+<!-- brilho de platina -->
+<g clip-path="url(#co)"><rect class="sheen" x="150" y="0" width="120" height="600" fill="url(#shn)" transform="skewX(-18)"/></g>
+</svg>
+</div>
+
+<section class="card">
+  <h1>Leitor Assíduo</h1>
+  <p class="tag">Troféu lendário · Leitor Assíduo</p>
+  <p>Transforme cada página em conhecimento. A leitura constante abre portas para novos universos.</p>
+</section>
+</main>
+
+<script>
+(function(){
+  var NS="http://www.w3.org/2000/svg";
+  function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+  // feixes de luz atrás do livro
+  var bm=document.getElementById("beams");
+  for(var i=0;i<12;i++){
+    var a=i*30*Math.PI/180,w=.1;
+    el("polygon",{points:"300,285 "+(300+260*Math.cos(a-w))+","+(285+260*Math.sin(a-w))+" "+(300+260*Math.cos(a+w))+","+(285+260*Math.sin(a+w)),fill:"url(#beam)"},bm);
+  }
+  // gemas e marcas de ciclo ao longo da moldura
+  var O=[[300,40],[525,170],[525,430],[300,560],[75,430],[75,170]],
+      I=[[300,72],[497,186],[497,414],[300,528],[103,414],[103,186]],
+      M=O.map(function(p,i){return[(p[0]+I[i][0])/2,(p[1]+I[i][1])/2]}),
+      g=document.getElementById("gems");
+  for(var i2=0;i2<6;i2++){
+    var A=M[i2],B=M[(i2+1)%6];
+    [0.16,0.32,0.68,0.84].forEach(function(t){
+      var x=A[0]+(B[0]-A[0])*t,y=A[1]+(B[1]-A[1])*t;
+      el("rect",{x:x-3,y:y-3,width:6,height:6,fill:"#7eeed9",transform:"rotate(45 "+x+" "+y+")"},g);
+    });
+    el("circle",{cx:A[0],cy:A[1],r:7,fill:"url(#gold)",stroke:"#ffffff","stroke-width":1.5},g);
+  }
+  // brasas subindo
+  var P=document.getElementById("parts");
+  for(var j=0;j<30;j++){
+    var c=el("circle",{cx:130+Math.random()*340,cy:430+Math.random()*90,r:1+Math.random()*2.2,fill:Math.random()>.5?"#7eeed9":"#ba8cf7","class":"p"},P);
+    c.style.animationDuration=(5+Math.random()*6)+"s";
+    c.style.animationDelay=(-Math.random()*10)+"s";
+  }
+})();
+</script>
+</body>
+</html>

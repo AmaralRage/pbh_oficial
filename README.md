@@ -216,3 +216,15 @@ flutter build apk `
 O Vercel continua servindo a versão web sem alterações no endereço. Para compilar ou publicar o app iOS é necessário abrir o projeto em um Mac com Xcode; a pasta iOS já está criada. O build iOS recebe as mesmas variáveis `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`. No iOS, também é necessário assinar o app com uma conta Apple para instalar em aparelhos físicos.
 
 Os lembretes nativos são agendados localmente e atualizados quando o app abre a rotina ou quando a pessoa marca/desmarca tarefas. Como o sistema operacional executa o aviso, ele pode aparecer com o app fechado. Enquanto o aparelho estiver sem abrir o app, ele não consegue consultar mudanças novas na conta PBH; ao voltar a abrir, sincroniza tarefas e atualiza os próximos avisos. A versão web permanece usando o push do navegador descrito acima.
+
+Nos dispositivos móveis, a expansão dos selos usa a arte renderizada dos HTMLs
+com animação nativa de flutuação, escala e brilho. Ela não inicializa um WebView
+nem executa os filtros SVG do HTML ao abrir o diálogo. A imagem permanece fora
+das reconstruções da animação, e a opção de reduzir movimento é respeitada.
+Na versão web, a expansão continua exibindo o HTML com seus efeitos internos.
+
+Os selos de 50 desafios, Corpo de ferro, Foco inabalável, Leitor assíduo e
+Madrugador usam suas próprias artes HTML e miniaturas renderizadas. O primeiro
+exige pelo menos 50 desafios concluídos. Os demais exigem a conclusão de
+`iron_body`, `digital_fast`, `daily_reading` e `wake_5`, respectivamente.
+Todos usam animação nativa no mobile e HTML na web, sem concessão manual.
