@@ -62,15 +62,25 @@ Veja o [guia de mudanças do Development Mode](https://developer.spotify.com/doc
 
 ### Spotify no Android e iOS
 
-O player mobile usa OAuth com PKCE e Spotify Connect. O áudio é reproduzido pelo
-aplicativo oficial Spotify; o PBH mostra capa, progresso e letras e envia comandos
-de pausa, avanço, retorno, busca, reprodução aleatória e repetição. É necessário
-Spotify instalado, conta Premium e acesso autorizado ao app no Spotify Dashboard.
-Abra o Spotify no celular e inicie uma música antes de controlar pelo PBH. Sem um
-celular disponível no Connect, o PBH abre a faixa/playlist no Spotify e orienta a
-iniciar a reprodução e retornar. As consultas param em segundo plano e retomam ao
-voltar ao PBH; o áudio continua sob responsabilidade do Spotify. Se houver vários
-celulares na conta, o player prefere o smartphone ativo no Spotify Connect.
+O player mobile mantém OAuth com PKCE para conectar a conta e consultar a playlist.
+No Android, o SDK oficial Spotify App Remote inicia e controla o Spotify como
+serviço em segundo plano, mantendo o player do PBH aberto. A primeira conexão
+pode mostrar a autorização do Spotify; reproduzir não abre links externos.
+Capa, progresso e estado vêm do SDK; letras continuam sendo consultadas pela faixa.
+Pausa, avanço, retorno, busca, reprodução aleatória e repetição usam o SDK.
+É necessário Spotify instalado, usuário conectado e permissões da conta; os
+controles completos exigem Premium. No iOS, permanece o controle via Spotify
+Connect, sem redirecionamento automático; App Remote iOS ainda não foi integrado.
+As consultas param quando o PBH fica em segundo plano; o áudio continua no Spotify.
+
+No Dashboard, habilite Android e cadastre o pacote `com.amaralstudios.pbh_oficial`
+com o SHA-1 do certificado que assina o APK. Para o APK de teste desta máquina:
+`2F:E3:93:94:75:04:3C:D0:E0:1E:2F:55:94:D3:ED:1F:D6:79:8E:5B`.
+Se a chave de assinatura mudar, registre também sua nova impressão digital.
+
+O AAR oficial 0.8.0 e a licença estão em `android/app/libs/`, obtidos do repositório
+`spotify/android-sdk`, revisão `5aa4d62465f61a0677081ae9a3108177d0365fc3`.
+SHA-256 do AAR: `B5A6DD880EAF01F63A871CBA9EF7AF77C341F8A94FFC8FDF2E9021F9A9D4C198`.
 
 No mesmo app do Spotify Developer Dashboard usado na web, cadastre exatamente
 `pbh-oficial://spotify-callback` em **Redirect URIs**. O Client ID público mobile

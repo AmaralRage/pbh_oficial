@@ -13,6 +13,7 @@ import '../core/config/spotify_playlist.dart';
 import '../models/spotify_track.dart';
 import 'lyrics_service.dart';
 import 'spotify_mobile_api.dart';
+import 'spotify_app_remote.dart';
 
 /// Controls Spotify on the phone; the official Spotify app renders the audio.
 class SpotifyPlaybackController extends ChangeNotifier
@@ -28,6 +29,10 @@ class SpotifyPlaybackController extends ChangeNotifier
   );
   static const redirectUri = 'pbh-oficial://spotify-callback';
   final _api = SpotifyMobileApi(clientId: clientId);
+  final _remote = SpotifyAppRemote(
+    clientId: clientId,
+    redirectUri: redirectUri,
+  );
   Timer? _poll;
   Timer? _ticker;
   bool _polling = false;
@@ -130,6 +135,8 @@ class SpotifyPlaybackController extends ChangeNotifier
       }
       await _api.authorize(code, verifier, redirectUri);
       if (generation != _generation) return;
+      if (Platform.isAndroid) await _remote.connect(authorize: true);
+      if (generation != _generation) return;
       _startUpdates();
       await _refreshPlayback();
     } catch (exception) {
@@ -184,7 +191,13 @@ class SpotifyPlaybackController extends ChangeNotifier
     _polling = true;
     final generation = _generation;
     try {
-      final data = await _api.request('/me/player');
+      final Map<String, dynamic>? data;
+      if (Platform.isAndroid) {
+        await _remote.connect();
+        data = await _remote.state();
+      } else {
+        data = await _api.request('/me/player');
+      }
       if (generation != _generation) return;
       _deviceId = (data?['device'] as Map?)?['id'] as String?;
       isPlaying = data?['is_playing'] == true;
@@ -305,13 +318,26 @@ class SpotifyPlaybackController extends ChangeNotifier
     bool rethrowError = false,
   }) async {
     await _command(() async {
+      if (Platform.isAndroid) {
+        await _remote.connect();
+        if (selectedTrack?.playlistPosition != null) {
+          await _remote.play(
+            'spotify:playlist:$playlistId',
+            index: selectedTrack!.playlistPosition,
+          );
+        } else {
+          await _remote.play(
+            selectedTrack?.uri ?? 'spotify:playlist:$playlistId',
+          );
+        }
+        opened = true;
+        expanded = true;
+        return;
+      }
       _deviceId = await _phoneDevice();
       if (_deviceId == null) {
-        await _launchSpotify(
-          selectedTrack?.uri ?? 'spotify:playlist:$playlistId',
-        );
         throw const SpotifyMobileException(
-          'Toque em reproduzir no Spotify e volte ao PBH para usar os controles.',
+          'O Spotify deste celular ainda não está disponível para reprodução. Ative-o pelo botão “Abrir playlist no Spotify” e volte ao player do PBH.',
         );
       }
       await _api.request(
@@ -359,6 +385,32 @@ class SpotifyPlaybackController extends ChangeNotifier
     String method = 'PUT',
     Map<String, String> query = const {},
   }) => _command(() async {
+    if (Platform.isAndroid) {
+      await _remote.connect();
+      switch (path) {
+        case 'play':
+          await _remote.command('resume');
+        case 'pause':
+          await _remote.command('pause');
+        case 'next':
+          await _remote.command('next');
+        case 'previous':
+          await _remote.command('previous');
+        case 'seek':
+          await _remote.command('seek', {
+            'position': int.parse(query['position_ms']!),
+          });
+        case 'shuffle':
+          await _remote.command('shuffle', {
+            'enabled': query['state'] == 'true',
+          });
+        case 'repeat':
+          await _remote.command('repeat', {
+            'mode': const {'off': 0, 'context': 1, 'track': 2}[query['state']],
+          });
+      }
+      return;
+    }
     await _api.request(
       '/me/player/$path',
       method: method,
@@ -429,7 +481,10 @@ class SpotifyPlaybackController extends ChangeNotifier
 
   Future<void> _launchSpotify(String uri) async {
     try {
-      if (await launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication)) {
+      if (await launchUrl(
+        Uri.parse(uri),
+        mode: LaunchMode.externalApplication,
+      )) {
         return;
       }
     } on PlatformException catch (_) {
@@ -475,6 +530,8 @@ class SpotifyPlaybackController extends ChangeNotifier
 
   void disconnect() {
     _generation++;
+    if (Platform.isAndroid)
+      unawaited(_remote.disconnect().catchError((Object _) {}));
     _stopUpdates();
     _api.clear();
     _deviceId = null;
