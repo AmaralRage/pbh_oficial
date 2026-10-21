@@ -362,6 +362,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     if (activeIndex >= 0 && activeIndex != _lastAutoScrolledIndex && activeIndex < _lineKeys.length) {
       _lastAutoScrolledIndex = activeIndex;
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || activeIndex >= _lineKeys.length) return;
         final lineContext = _lineKeys[activeIndex].currentContext;
         if (mounted && lineContext != null) {
           final renderObject = lineContext.findRenderObject();

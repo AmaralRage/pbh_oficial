@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/challenge_model.dart';
+import 'auth_service.dart';
 
 const _expandedChallengeCatalog = <Map<String, dynamic>>[
   {'id': '7day_focus', 'title': 'Foco por 7 dias', 'description': 'Uma semana para reduzir distrações e cumprir suas prioridades.', 'total_days': 7, 'level': 'iniciante', 'icon_key': 'flag'},
@@ -76,9 +77,10 @@ class ChallengeService {
     }
     catalog.sort((a, b) => (a['title'] as String).compareTo(b['title'] as String));
     final userId = _userId;
+    final leaderCompleted = AuthService.isProjectLeader(_client.auth.currentUser);
     final joined = <String>{};
     final counts = <String, int>{};
-    if (userId != null) {
+    if (userId != null && !leaderCompleted) {
       final joinedRows = await _client.from('user_challenges').select('challenge_id').eq('user_id', userId);
       joined.addAll(joinedRows.map((row) => row['challenge_id'] as String));
       final completionRows = await _client.from('challenge_day_completions').select('challenge_id').eq('user_id', userId);
@@ -90,8 +92,8 @@ class ChallengeService {
     return catalog.map((row) {
       final id = row['id'] as String;
       final days = row['total_days'] as int;
-      final count = counts[id] ?? 0;
-      final status = !joined.contains(id)
+      final count = leaderCompleted ? days : counts[id] ?? 0;
+      final status = leaderCompleted ? ChallengeStatus.completed : !joined.contains(id)
           ? ChallengeStatus.notStarted
           : count >= days
               ? ChallengeStatus.completed

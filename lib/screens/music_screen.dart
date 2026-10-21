@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../core/config/spotify_playlist.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/spotify_playback_controller.dart';
@@ -55,6 +58,26 @@ class MusicScreen extends StatelessWidget {
               error: player.error,
             ),
             const SizedBox(height: 24),
+            if (!kIsWeb) ...[
+              Text(
+                'No celular, o áudio toca pelo aplicativo Spotify. Abra o Spotify neste aparelho, inicie uma música e volte ao PBH para usar o player e as letras. Os controles exigem Spotify Premium.',
+                style: AppTextStyles.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    if (await launchUrl(Uri.parse('spotify:playlist:$officialSpotifyPlaylistId'), mode: LaunchMode.externalApplication)) return;
+                  } catch (_) {
+                    // The web playlist remains accessible without the native app.
+                  }
+                  await launchUrl(Uri.parse(officialSpotifyPlaylistUrl), mode: LaunchMode.externalApplication);
+                },
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Abrir playlist no Spotify'),
+              ),
+              const SizedBox(height: 20),
+            ],
             Text('Sua música, no ritmo do PBH', style: AppTextStyles.titleMedium),
             const SizedBox(height: 12),
             const _FeatureRow(
@@ -231,7 +254,7 @@ class _PlaylistCard extends StatelessWidget {
                   if (!isConfigured) ...[
                     const SizedBox(height: 10),
                     Text(
-                      'Falta configurar SPOTIFY_CLIENT_ID no build web e cadastrar a URL do app como Redirect URI no Spotify Developer Dashboard.',
+                      'O Spotify ainda não foi configurado nesta versão do aplicativo.',
                       style: AppTextStyles.statLabel,
                     ),
                   ],

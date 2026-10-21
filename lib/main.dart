@@ -3,16 +3,29 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/launch_screen.dart';
+import 'screens/app_startup_screen.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  if (SupabaseConfig.isConfigured) {
-    await Supabase.initialize(
-      url: SupabaseConfig.url,
-      publishableKey: SupabaseConfig.publishableKey,
-    );
-  }
   runApp(const PbhOficialApp());
+}
+
+Future<void> initializeApp() async {
+  if (SupabaseConfig.isConfigured) {
+    try {
+      await Supabase.initialize(
+        url: SupabaseConfig.url,
+        publishableKey: SupabaseConfig.publishableKey,
+      );
+    } catch (_) {
+      // Clean up a partially initialized client before another attempt.
+      // The persisted session is kept on the device.
+      if (Supabase.instance.isInitialized) {
+        await Supabase.instance.dispose();
+      }
+      rethrow;
+    }
+  }
 }
 
 class PbhOficialApp extends StatelessWidget {
@@ -24,7 +37,10 @@ class PbhOficialApp extends StatelessWidget {
       title: 'PBH Oficial',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      home: const LaunchScreen(),
+      home: const AppStartupScreen(
+        initialize: initializeApp,
+        child: LaunchScreen(),
+      ),
     );
   }
 }

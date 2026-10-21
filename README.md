@@ -1,5 +1,18 @@
 # PBH Oficial
 
+## Executar no navegador
+
+Se `flutter run -d chrome` encerrar com `WipError -32000 Cannot find context with
+specified id`, inicie o servidor web e abra o endereço manualmente. Isso evita
+a etapa de conexão automática ao depurador do Chrome:
+
+```powershell
+flutter run -d web-server --web-hostname=127.0.0.1 --web-port=7357 --dart-define=SPOTIFY_CLIENT_ID=59ea8a21516947b1936233d03ea53f31
+```
+
+Abra `http://127.0.0.1:7357/`. Para testar também o login Spotify nesse endereço,
+cadastre `http://127.0.0.1:7357/` nas Redirect URIs do Spotify Dashboard.
+
 ## Autenticação Supabase
 
 O app usa Supabase Auth com e-mail e senha. Ative a confirmação de e-mail nas
@@ -47,7 +60,77 @@ e se destina a testes e uso pessoal não comercial. Para disponibilizar o player
 para a comunidade inteira do PBH, será necessário obter acesso ampliado do Spotify.
 Veja o [guia de mudanças do Development Mode](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide).
 
+### Spotify no Android e iOS
+
+O player mobile usa OAuth com PKCE e Spotify Connect. O áudio é reproduzido pelo
+aplicativo oficial Spotify; o PBH mostra capa, progresso e letras e envia comandos
+de pausa, avanço, retorno, busca, reprodução aleatória e repetição. É necessário
+Spotify instalado, conta Premium e acesso autorizado ao app no Spotify Dashboard.
+Abra o Spotify no celular e inicie uma música antes de controlar pelo PBH. Sem um
+celular disponível no Connect, o PBH abre a faixa/playlist no Spotify e orienta a
+iniciar a reprodução e retornar. As consultas param em segundo plano e retomam ao
+voltar ao PBH; o áudio continua sob responsabilidade do Spotify. Se houver vários
+celulares na conta, o player prefere o smartphone ativo no Spotify Connect.
+
+No mesmo app do Spotify Developer Dashboard usado na web, cadastre exatamente
+`pbh-oficial://spotify-callback` em **Redirect URIs**. O Client ID público mobile
+já está configurado e pode ser substituído com `--dart-define=SPOTIFY_CLIENT_ID=...`.
+Não use Client Secret no aplicativo. Os tokens são mantidos apenas na memória
+durante a sessão; ao encerrar o processo será preciso conectar novamente.
+Desconectar remove a sessão Spotify do PBH, sem deslogar o aplicativo Spotify.
+
+Para gerar o APK de testes: `flutter build apk --debug --build-number=3`.
+As restrições de usuários em Development Mode e de leitura de playlists também se
+aplicam ao mobile. Android e iOS têm o retorno OAuth configurado no projeto; a
+compilação e validação em aparelho iOS dependem de Mac/Xcode.
+
 ## Dados persistentes
+
+### Selos animados no perfil
+
+O perfil destaca os principais selos já conquistados, com os maiores marcos de
+rotina, desafios e comunidade. Ao tocar, a arte e a descrição abrem ampliadas.
+O selo de meditação **Ascensão suprema** usa a arte animada local
+`assets/images/trofeu_supremo_meditacao.png` como miniatura e exibe o HTML
+original com seus efeitos na visualização ampliada, tanto no mobile quanto na web.
+Ele pertence ao criador do projeto e só é concedido a outras contas manualmente.
+
+Para habilitar a concessão, aplique
+`supabase/migrations/20261021000100_profile_achievement_awards.sql` no Supabase,
+após as migrations anteriores. A conta confirmada do líder pode então usar
+**Perfil > Selos de dedicação > Conceder selo supremo**, escolhendo o selo e informando o e-mail
+confirmado da pessoa. O servidor valida o líder; outras contas não podem gravar
+concessões diretamente. A pessoa recebe o selo ao recarregar/abrir o perfil.
+Sem a migration, o perfil continua exibindo as conquistas existentes e o líder
+já vê seu selo; as concessões a outras pessoas dependem da instalação da migration.
+
+O selo de treino **Força suprema** usa `assets/images/Troféu supremo de treino.html`
+na expansão e uma miniatura da própria arte no perfil. Ele segue a mesma regra de
+concessão manual e já pertence ao líder. A migration
+`20261021000200_supreme_training_seal.sql` adiciona esse selo à lista permitida
+sem modificar as concessões existentes de meditação.
+
+O selo **Sabedoria suprema**, de leitura, usa o HTML original
+`assets/images/Troféu supremo de leitura.html`, com páginas luminosas e runas.
+Segue a concessão manual e já pertence ao líder. A migration
+`20261021000300_supreme_reading_seal.sql` habilita sua concessão, preservando os
+selos de treino e meditação já concedidos.
+
+O selo **Mente limpa**, do desafio sem pornô, usa
+`assets/images/Troféu supremo sem pornô.html`, com o cristal azul e suas animações.
+Também pertence ao líder e é concedido manualmente às demais contas. A migration
+`20261021000400_supreme_porn_free_seal.sql` habilita essa concessão preservando
+os três selos anteriores.
+
+A **Platina PBH** usa `assets/images/Trofeu_Platina_PBH.html` na visualização
+ampliada e sua própria miniatura no perfil e no card de conquistas. Ela permanece
+vinculada à conclusão de todos os desafios do catálogo, sem concessão manual.
+
+O marco de **2000 dias de dedicação** usa `assets/images/Trofeu_2000_completo.html`
+com a chama e os efeitos âmbar originais na expansão. A miniatura é exibida no selo
+de constância quando o marco de 2000 dias for o maior já alcançado. O critério de
+dias permanece o mesmo: sequência da rotina para membros e dias de projeto para
+o líder, sem concessão manual desse marco.
 
 Depois das migrations existentes, aplique também `20261019000300_community_access_performance.sql`. Ela corrige a leitura segura necessária para salvar curtidas e reduz consultas repetidas no feed e nos comentários.
 

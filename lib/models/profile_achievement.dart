@@ -1,0 +1,228 @@
+import 'package:flutter/material.dart';
+
+class ProfileAchievement {
+  const ProfileAchievement({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.icon,
+    this.color = const Color(0xFFFF5A1F),
+    this.artAsset,
+    this.htmlAsset,
+    this.category,
+    this.artCaption,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final String? artAsset;
+  final String? htmlAsset;
+  final String? category;
+  final String? artCaption;
+
+  static const dedication2000 = ProfileAchievement(
+    id: 'streak',
+    title: '2000 dias de dedicação',
+    description:
+        'Um marco de 2000 dias de dedicação ao PBH. Uma conquista extraordinária de constância, disciplina e superação.',
+    icon: Icons.local_fire_department_rounded,
+    color: Color(0xFFF4B34C),
+    artAsset: 'assets/images/trofeu_2000_dias.png',
+    htmlAsset: 'assets/images/Trofeu_2000_completo.html',
+    category: 'CONSTÂNCIA',
+    artCaption: '2000 DIAS • DEDICAÇÃO AO PBH',
+  );
+
+  static const platinum = ProfileAchievement(
+    id: 'platinum',
+    title: 'Platina PBH',
+    description:
+        'Todos os troféus de desafios do catálogo foram conquistados. Um símbolo de dedicação, excelência e superação no PBH.',
+    icon: Icons.workspace_premium_rounded,
+    color: Color(0xFFE4F4FF),
+    artAsset: 'assets/images/trofeu_platina_pbh.png',
+    htmlAsset: 'assets/images/Trofeu_Platina_PBH.html',
+    category: 'PLATINA',
+  );
+
+  static const supremeSeals = [
+    ProfileAchievement(
+      id: 'supreme_meditation',
+      title: 'Ascensão suprema',
+      description:
+          'Troféu supremo de meditação. Um selo de dedicação à calma, à presença e à evolução interior.',
+      icon: Icons.self_improvement_rounded,
+      color: Color(0xFFC58CFF),
+      artAsset: 'assets/images/trofeu_supremo_meditacao.png',
+      htmlAsset: 'assets/images/Troféu supremo PBH.html',
+      category: 'MEDITAÇÃO',
+    ),
+    ProfileAchievement(
+      id: 'supreme_training',
+      title: 'Força suprema',
+      description:
+          'Troféu supremo de treino. A força é construída a cada compromisso cumprido. A disciplina agora é parte de você.',
+      icon: Icons.fitness_center_rounded,
+      color: Color(0xFFFF7050),
+      artAsset: 'assets/images/trofeu_supremo_treino.png',
+      htmlAsset: 'assets/images/Troféu supremo de treino.html',
+      category: 'TREINO',
+    ),
+    ProfileAchievement(
+      id: 'supreme_reading',
+      title: 'Sabedoria suprema',
+      description:
+          'Troféu supremo de leitura. Cada página transforma a sua jornada. O conhecimento agora é parte de você.',
+      icon: Icons.auto_stories_rounded,
+      color: Color(0xFF6CEBD5),
+      artAsset: 'assets/images/trofeu_supremo_leitura.png',
+      htmlAsset: 'assets/images/Troféu supremo de leitura.html',
+      category: 'LEITURA',
+    ),
+    ProfileAchievement(
+      id: 'supreme_porn_free',
+      title: 'Mente limpa',
+      description:
+          'Troféu supremo do desafio sem pornô. Um selo de dedicação às suas escolhas, ao foco e à liberdade pessoal.',
+      icon: Icons.shield_outlined,
+      color: Color(0xFF76CFFF),
+      artAsset: 'assets/images/trofeu_supremo_sem_porno.png',
+      htmlAsset: 'assets/images/Troféu supremo sem pornô.html',
+      category: 'SEM PORNÔ',
+    ),
+  ];
+
+  static List<ProfileAchievement> earned({
+    required bool isAuthenticated,
+    required bool isProjectLeader,
+    required int streak,
+    required int completedChallenges,
+    required int totalChallenges,
+    required int followers,
+    required Set<String> completedIds,
+    Set<String> manualAwards = const {},
+  }) {
+    if (!isAuthenticated) return const [];
+    final badges = <ProfileAchievement>[];
+    for (final seal in supremeSeals) {
+      if (isProjectLeader || manualAwards.contains(seal.id)) badges.add(seal);
+    }
+    if (totalChallenges > 0 && completedChallenges == totalChallenges) {
+      badges.add(platinum);
+    }
+    for (final days in [
+      5000,
+      3650,
+      3000,
+      2500,
+      2000,
+      1825,
+      1500,
+      1200,
+      1000,
+      900,
+      730,
+      600,
+      500,
+      400,
+      365,
+      300,
+      250,
+      200,
+      180,
+      150,
+      120,
+      100,
+      90,
+      75,
+      60,
+      45,
+      30,
+      21,
+      14,
+      7,
+    ]) {
+      if (streak < days) continue;
+      if (days == 2000) {
+        badges.add(dedication2000);
+        break;
+      }
+      badges.add(
+        ProfileAchievement(
+          id: 'streak',
+          title: '$days dias de dedicação',
+          description: isProjectLeader
+              ? 'Um marco de $days dias na história do líder e criador do PBH Oficial.'
+              : 'Uma sequência de $days dias de compromisso com a sua rotina. A constância constrói a evolução.',
+          icon: Icons.local_fire_department_rounded,
+        ),
+      );
+      break;
+    }
+    for (final count in [50, 30, 20, 10, 5, 3, 1]) {
+      if (completedChallenges < count) continue;
+      badges.add(
+        ProfileAchievement(
+          id: 'challenges',
+          title:
+              '$count ${count == 1 ? 'desafio concluído' : 'desafios concluídos'}',
+          description:
+              'Você conquistou $count ${count == 1 ? 'troféu de desafio' : 'troféus de desafios'}. Cada compromisso cumprido faz parte da sua história no PBH.',
+          icon: Icons.emoji_events_rounded,
+          color: const Color(0xFFFFB547),
+        ),
+      );
+      break;
+    }
+    const special = <String, ProfileAchievement>{
+      'digital_fast': ProfileAchievement(
+        id: 'digital_fast',
+        title: 'Foco inabalável',
+        description:
+            'Desafio de jejum digital concluído. Você escolheu presença e foco para cuidar da sua atenção.',
+        icon: Icons.self_improvement_rounded,
+      ),
+      'iron_body': ProfileAchievement(
+        id: 'iron_body',
+        title: 'Corpo de ferro',
+        description:
+            'Desafio Corpo de Ferro concluído. Um selo de disciplina e compromisso com o movimento.',
+        icon: Icons.fitness_center_rounded,
+      ),
+      'daily_reading': ProfileAchievement(
+        id: 'daily_reading',
+        title: 'Leitor assíduo',
+        description:
+            'Desafio de leitura diária concluído. Conhecimento cultivado uma página de cada vez.',
+        icon: Icons.menu_book_rounded,
+      ),
+      'wake_5': ProfileAchievement(
+        id: 'wake_5',
+        title: 'Madrugador',
+        description:
+            'Desafio de acordar cedo concluído. Você criou espaço para começar o dia com intenção.',
+        icon: Icons.wb_twilight_rounded,
+      ),
+    };
+    for (final entry in special.entries) {
+      if (completedIds.contains(entry.key)) badges.add(entry.value);
+    }
+    for (final count in [50, 25, 10, 5, 1]) {
+      if (followers < count) continue;
+      badges.add(
+        ProfileAchievement(
+          id: 'community',
+          title: 'Inspira $count ${count == 1 ? 'pessoa' : 'pessoas'}',
+          description:
+              '$count ${count == 1 ? 'pessoa acompanha' : 'pessoas acompanham'} sua jornada. Sua dedicação também inspira a comunidade.',
+          icon: Icons.groups_rounded,
+        ),
+      );
+      break;
+    }
+    return badges;
+  }
+}

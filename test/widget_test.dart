@@ -1,30 +1,74 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:pbh_oficial/main.dart';
+import 'package:pbh_oficial/screens/app_startup_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('shows a first frame while initialization is pending', (
+    tester,
+  ) async {
+    final startup = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppStartupScreen(
+          initialize: () => startup.future,
+          child: const Text('App pronto'),
+        ),
+      ),
+    );
+    expect(find.text('Abrindo PBH Oficial…'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('App pronto'), findsNothing);
+    startup.complete();
     await tester.pump();
+    expect(find.text('App pronto'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('startup failure is visible and retry reaches the app', (
+    tester,
+  ) async {
+    var attempts = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppStartupScreen(
+          initialize: () async {
+            if (++attempts == 1) throw StateError('Storage unavailable');
+          },
+          child: const Text('App pronto'),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Não foi possível iniciar o PBH'), findsOneWidget);
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pump();
+    expect(attempts, 2);
+    expect(find.text('App pronto'), findsOneWidget);
+  });
+
+  testWidgets('slow startup still completes without duplicate initialization', (
+    tester,
+  ) async {
+    final startup = Completer<void>();
+    var attempts = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppStartupScreen(
+          initialize: () {
+            attempts++;
+            return startup.future;
+          },
+          child: const Text('App pronto'),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 16));
+    expect(find.textContaining('A abertura está demorando'), findsOneWidget);
+    startup.complete();
+    await tester.pump();
+    expect(find.text('App pronto'), findsOneWidget);
+    expect(attempts, 1);
   });
 }

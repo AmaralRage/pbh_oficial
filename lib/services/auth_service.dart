@@ -2,9 +2,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
   AuthService({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _client = client ?? Supabase.instance.client;
 
   static const adminEmail = 'amaralaragao31@gmail.com';
+
+  static bool isProjectLeader(User? user) =>
+      user?.emailConfirmedAt != null &&
+      user?.email?.trim().toLowerCase() == adminEmail;
 
   final SupabaseClient _client;
 

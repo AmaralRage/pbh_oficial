@@ -4,11 +4,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/challenge_model.dart';
+import '../models/profile_achievement.dart';
+import '../services/auth_service.dart';
+import '../services/profile_achievement_service.dart';
 import '../services/challenge_service.dart';
 import '../services/community_service.dart';
 import '../services/habit_service.dart';
 import '../widgets/animated_entry.dart';
 import '../widgets/stat_card.dart';
+import '../widgets/profile_achievement_seals.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
@@ -217,6 +221,8 @@ class _ProfileProgress extends StatefulWidget {
 class _ProfileProgressState extends State<_ProfileProgress> {
   int _streak = 0;
   int _completedChallenges = 0;
+  int _totalChallenges = 0;
+  Set<String> _manualAwards = {};
   int _followers = 0;
   Set<String> _completedChallengeIds = {};
   bool _loading = true;
@@ -233,6 +239,7 @@ class _ProfileProgressState extends State<_ProfileProgress> {
         HabitService().streak(),
         ChallengeService().fetchChallenges(),
         CommunityService().followerCount(),
+        ProfileAchievementService().manualAwards(),
       ]);
       if (!mounted) return;
       final challenges = values[1] as List<ChallengeModel>;
@@ -244,6 +251,8 @@ class _ProfileProgressState extends State<_ProfileProgress> {
             ? DateTime.utc(today.year, today.month, today.day).difference(DateTime.utc(2021, 1, 1)).inDays + 1
             : values[0] as int;
         _completedChallenges = completed.length;
+        _totalChallenges = challenges.length;
+        _manualAwards = values[3] as Set<String>;
         _completedChallengeIds = completed.map((challenge) => challenge.id).toSet();
         _followers = values[2] as int;
         _loading = false;
@@ -255,20 +264,14 @@ class _ProfileProgressState extends State<_ProfileProgress> {
 
   @override
   Widget build(BuildContext context) {
-    final isProjectLeader = Supabase.instance.client.auth.currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com';
+    final isProjectLeader = AuthService.isProjectLeader(Supabase.instance.client.auth.currentUser);
     final isAuthenticated = Supabase.instance.client.auth.currentUser != null;
-    final achievements = <({IconData icon, String label, bool unlocked})>[
-      for (final days in <int>[7, 14, 21, 30, 45, 60, 75, 90, 100, 120, 150, 180, 200, 250, 300, 365, 400, 500, 600, 730, 900, 1000, 1200, 1500, 1825, 2000, 2500, 3000, 3650, 5000])
-        (icon: Icons.local_fire_department, label: '$days dias', unlocked: _streak >= days),
-      for (final count in <int>[1, 3, 5, 10, 20, 30, 50])
-        (icon: Icons.flag, label: '$count desafios', unlocked: _completedChallenges >= count),
-      for (final count in <int>[1, 5, 10, 25, 50])
-        (icon: Icons.groups, label: '$count seguidores', unlocked: _followers >= count),
-      (icon: Icons.self_improvement, label: 'Jejum digital', unlocked: _completedChallengeIds.contains('digital_fast')),
-      (icon: Icons.fitness_center, label: 'Corpo de ferro', unlocked: _completedChallengeIds.contains('iron_body')),
-      (icon: Icons.menu_book, label: 'Leitor assíduo', unlocked: _completedChallengeIds.contains('daily_reading')),
-      (icon: Icons.wb_twilight, label: 'Madrugador', unlocked: _completedChallengeIds.contains('wake_5')),
-    ];
+    final achievements = ProfileAchievement.earned(
+      isAuthenticated: isAuthenticated, isProjectLeader: isProjectLeader,
+      streak: _streak, completedChallenges: _completedChallenges,
+      totalChallenges: _totalChallenges, followers: _followers,
+      completedIds: _completedChallengeIds, manualAwards: _manualAwards,
+    );
     if (_loading) return const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator()));
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
@@ -278,29 +281,24 @@ class _ProfileProgressState extends State<_ProfileProgress> {
         ],
         StatCard(icon: Icons.flag, value: '$_completedChallenges', label: 'Desafios\nconcluídos'),
         const SizedBox(width: 12),
-        StatCard(icon: Icons.emoji_events, value: '${achievements.where((item) => item.unlocked).length}', label: 'Conquistas'),
+        StatCard(icon: Icons.emoji_events, value: '${achievements.length}', label: 'Selos\nconquistados'),
       ]),
       const SizedBox(height: 26),
-      Text('Conquistas', style: AppTextStyles.titleMedium),
+      Row(children: [
+        Expanded(child: Text('Selos de dedicação', style: AppTextStyles.titleMedium)),
+        if (isProjectLeader) IconButton(
+          tooltip: 'Conceder selo supremo',
+          icon: const Icon(Icons.add_moderator_outlined, color: AppColors.orange),
+          onPressed: () async {
+            await showDialog<void>(context: context, builder: (_) => const GrantProfileSealDialog());
+            if (mounted) _load();
+          },
+        ),
+      ]),
+      const SizedBox(height: 4),
+      Text('Sua dedicação deixa marcas. Toque em um selo para conhecer sua história.', style: AppTextStyles.bodySmall),
       const SizedBox(height: 14),
-      GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: achievements.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: .85),
-        itemBuilder: (context, index) {
-          final achievement = achievements[index];
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: achievement.unlocked ? AppColors.orange.withOpacity(.4) : AppColors.borderSubtle)),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(achievement.icon, size: 26, color: achievement.unlocked ? AppColors.orange : AppColors.textTertiary),
-              const SizedBox(height: 10),
-              Text(achievement.label, textAlign: TextAlign.center, style: AppTextStyles.statLabel.copyWith(color: achievement.unlocked ? AppColors.textPrimary : AppColors.textTertiary, fontWeight: FontWeight.w700)),
-            ]),
-          );
-        },
-      ),
+      ProfileAchievementSeals(achievements: achievements),
     ]);
   }
 }
