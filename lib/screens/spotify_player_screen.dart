@@ -34,7 +34,12 @@ class SpotifyPlayerScreen extends StatelessWidget {
             title: Column(
               children: [
                 Text('Tocando da playlist', style: AppTextStyles.statLabel),
-                Text('PROJETO BOM HOMEM', style: AppTextStyles.eyebrow.copyWith(color: AppColors.textPrimary)),
+                Text(
+                  'PROJETO BOM HOMEM',
+                  style: AppTextStyles.eyebrow.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
               ],
             ),
             centerTitle: true,
@@ -42,9 +47,14 @@ class SpotifyPlayerScreen extends StatelessWidget {
               IconButton(
                 tooltip: 'Ver músicas da playlist',
                 onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const SpotifyPlaylistTracksScreen()),
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SpotifyPlaylistTracksScreen(),
+                  ),
                 ),
-                icon: const Icon(Icons.queue_music_rounded, color: AppColors.orange),
+                icon: const Icon(
+                  Icons.queue_music_rounded,
+                  color: AppColors.orange,
+                ),
               ),
               IconButton(
                 tooltip: 'Abrir faixa no Spotify',
@@ -60,6 +70,8 @@ class SpotifyPlayerScreen extends StatelessWidget {
                     isReady: player.isReady,
                     error: player.error,
                     onPlay: () => player.startPlaylist(),
+                    onReconnect: () => player.connect(forceConsent: true),
+                    isBusy: player.isBusy,
                   )
                 : _TrackView(player: player, track: track),
           ),
@@ -77,9 +89,14 @@ class _TrackView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxImageSize = (MediaQuery.of(context).size.width - 48).clamp(0.0, 430.0).toDouble();
+    final maxImageSize = (MediaQuery.of(context).size.width - 48)
+        .clamp(0.0, 430.0)
+        .toDouble();
     final totalMs = player.duration.inMilliseconds;
-    final currentMs = player.position.inMilliseconds.clamp(0, totalMs > 0 ? totalMs : 0);
+    final currentMs = player.position.inMilliseconds.clamp(
+      0,
+      totalMs > 0 ? totalMs : 0,
+    );
 
     return Stack(
       fit: StackFit.expand,
@@ -122,184 +139,261 @@ class _TrackView extends StatelessWidget {
         ListView(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
           children: [
-        Center(
-          child: Container(
-            width: maxImageSize,
-            height: maxImageSize,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [BoxShadow(color: AppColors.orange.withOpacity(.08), blurRadius: 34, spreadRadius: 2)],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 360),
-                    transitionBuilder: (child, animation) => FadeTransition(
-                      opacity: animation,
-                      child: ScaleTransition(
-                        scale: Tween<double>(begin: .97, end: 1).animate(animation),
-                        child: child,
-                      ),
+            Center(
+              child: Container(
+                width: maxImageSize,
+                height: maxImageSize,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.orange.withOpacity(.08),
+                      blurRadius: 34,
+                      spreadRadius: 2,
                     ),
-                    child: track.imageUrl.isEmpty
-                        ? const Center(
-                            key: ValueKey('no-album-art'),
-                            child: Icon(Icons.music_note_rounded, color: AppColors.orange, size: 90),
-                          )
-                        : Image.network(
-                            track.imageUrl,
-                            key: ValueKey(track.imageUrl),
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Center(
-                              key: ValueKey('album-art-error'),
-                              child: Icon(Icons.music_note_rounded, color: AppColors.orange, size: 90),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 360),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: Tween<double>(
+                        begin: .97,
+                        end: 1,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: track.imageUrl.isEmpty
+                      ? const Center(
+                          key: ValueKey('no-album-art'),
+                          child: Icon(
+                            Icons.music_note_rounded,
+                            color: AppColors.orange,
+                            size: 90,
+                          ),
+                        )
+                      : Image.network(
+                          track.imageUrl,
+                          key: ValueKey(track.imageUrl),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Center(
+                            key: ValueKey('album-art-error'),
+                            child: Icon(
+                              Icons.music_note_rounded,
+                              color: AppColors.orange,
+                              size: 90,
                             ),
                           ),
+                        ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.headline.copyWith(fontSize: 24),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        track.artists,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      if (track.album.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          track.album,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.statLabel,
+                        ),
+                      ],
+                    ],
                   ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                IconButton(
+                  tooltip: 'Abrir no Spotify',
+                  onPressed: player.openCurrentTrack,
+                  icon: const Icon(
+                    Icons.open_in_new_rounded,
+                    color: AppColors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+              ),
+              child: Slider(
+                min: 0,
+                max: totalMs > 0 ? totalMs.toDouble() : 1,
+                value: totalMs > 0 ? currentMs.toDouble() : 0,
+                activeColor: AppColors.orange,
+                inactiveColor: AppColors.inactive,
+                onChanged: totalMs <= 0
+                    ? null
+                    : (value) =>
+                          player.seek(Duration(milliseconds: value.round())),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(track.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.headline.copyWith(fontSize: 24)),
-                  const SizedBox(height: 4),
-                  Text(track.artists, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
-                  if (track.album.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(track.album, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.statLabel),
-                  ],
+                  Text(_time(player.position), style: AppTextStyles.statLabel),
+                  Text(_time(player.duration), style: AppTextStyles.statLabel),
                 ],
               ),
             ),
-            IconButton(
-              tooltip: 'Abrir no Spotify',
-              onPressed: player.openCurrentTrack,
-              icon: const Icon(Icons.open_in_new_rounded, color: AppColors.orange),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 76,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        tooltip: player.shuffleEnabled
+                            ? 'Desativar reprodução aleatória'
+                            : 'Ativar reprodução aleatória',
+                        onPressed: () =>
+                            player.setShuffle(!player.shuffleEnabled),
+                        color: player.shuffleEnabled
+                            ? AppColors.orange
+                            : AppColors.textPrimary,
+                        icon: const Icon(Icons.shuffle_rounded),
+                      ),
+                      IconButton(
+                        onPressed: player.previousTrack,
+                        icon: const Icon(Icons.skip_previous_rounded, size: 34),
+                      ),
+                      const SizedBox(width: 76),
+                      IconButton(
+                        onPressed: player.nextTrack,
+                        icon: const Icon(Icons.skip_next_rounded, size: 34),
+                      ),
+                      IconButton(
+                        tooltip: player.repeatMode == 0
+                            ? 'Ativar repetição da playlist'
+                            : player.repeatMode == 1
+                            ? 'Repetir faixa atual'
+                            : 'Desativar repetição',
+                        onPressed: () =>
+                            player.setRepeatMode((player.repeatMode + 1) % 3),
+                        color: player.repeatMode == 0
+                            ? AppColors.textPrimary
+                            : AppColors.orange,
+                        icon: Icon(
+                          player.repeatMode == 2
+                              ? Icons.repeat_one_rounded
+                              : Icons.repeat_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    width: 76,
+                    height: 76,
+                    child: FilledButton(
+                      onPressed: player.togglePlayback,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.orange,
+                        foregroundColor: Colors.white,
+                        shape: const CircleBorder(),
+                        padding: EdgeInsets.zero,
+                        alignment: Alignment.center,
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (child, animation) =>
+                            ScaleTransition(scale: animation, child: child),
+                        child: player.isPlaying
+                            ? const SizedBox(
+                                key: ValueKey('pause'),
+                                width: 76,
+                                height: 76,
+                                child: Stack(
+                                  children: [
+                                    Positioned(
+                                      left: 29,
+                                      top: 26,
+                                      child: _PauseBar(),
+                                    ),
+                                    Positioned(
+                                      left: 41,
+                                      top: 26,
+                                      child: _PauseBar(),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : const Icon(
+                                Icons.play_arrow_rounded,
+                                key: ValueKey('play'),
+                                size: 40,
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-          ),
-          child: Slider(
-            min: 0,
-            max: totalMs > 0 ? totalMs.toDouble() : 1,
-            value: totalMs > 0 ? currentMs.toDouble() : 0,
-            activeColor: AppColors.orange,
-            inactiveColor: AppColors.inactive,
-            onChanged: totalMs <= 0 ? null : (value) => player.seek(Duration(milliseconds: value.round())),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(_time(player.position), style: AppTextStyles.statLabel),
-              Text(_time(player.duration), style: AppTextStyles.statLabel),
+            if (player.error != null) ...[
+              const SizedBox(height: 14),
+              Text(
+                player.error!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.orangeLight,
+                ),
+              ),
             ],
-          ),
-        ),
-        const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 76,
-            child: Stack(
-              alignment: Alignment.center,
+            const SizedBox(height: 24),
+            Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      tooltip: player.shuffleEnabled ? 'Desativar reprodução aleatória' : 'Ativar reprodução aleatória',
-                      onPressed: () => player.setShuffle(!player.shuffleEnabled),
-                      color: player.shuffleEnabled ? AppColors.orange : AppColors.textPrimary,
-                      icon: const Icon(Icons.shuffle_rounded),
-                    ),
-                    IconButton(onPressed: player.previousTrack, icon: const Icon(Icons.skip_previous_rounded, size: 34)),
-                    const SizedBox(width: 76),
-                    IconButton(onPressed: player.nextTrack, icon: const Icon(Icons.skip_next_rounded, size: 34)),
-                    IconButton(
-                      tooltip: player.repeatMode == 0
-                          ? 'Ativar repetição da playlist'
-                          : player.repeatMode == 1
-                              ? 'Repetir faixa atual'
-                              : 'Desativar repetição',
-                      onPressed: () => player.setRepeatMode((player.repeatMode + 1) % 3),
-                      color: player.repeatMode == 0 ? AppColors.textPrimary : AppColors.orange,
-                      icon: Icon(player.repeatMode == 2 ? Icons.repeat_one_rounded : Icons.repeat_rounded),
-                    ),
-                  ],
+                const Icon(
+                  Icons.music_note_rounded,
+                  size: 18,
+                  color: AppColors.orange,
                 ),
-              SizedBox(
-                width: 76,
-                height: 76,
-                child: FilledButton(
-                  onPressed: player.togglePlayback,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.orange,
-                    foregroundColor: Colors.white,
-                    shape: const CircleBorder(),
-                    padding: EdgeInsets.zero,
-                    alignment: Alignment.center,
-                  ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
-                    child: player.isPlaying
-                        ? const SizedBox(
-                            key: ValueKey('pause'),
-                            width: 76,
-                            height: 76,
-                            child: Stack(
-                              children: [
-                                Positioned(
-                                  left: 29,
-                                  top: 26,
-                                  child: _PauseBar(),
-                                ),
-                                Positioned(
-                                  left: 41,
-                                  top: 26,
-                                  child: _PauseBar(),
-                                ),
-                              ],
-                            ),
-                          )
-                        : const Icon(
-                            Icons.play_arrow_rounded,
-                            key: ValueKey('play'),
-                            size: 40,
-                          ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'REPRODUÇÃO PELO SPOTIFY',
+                    style: AppTextStyles.eyebrow,
                   ),
                 ),
-              ),
-            ],
-              ),
+                TextButton(
+                  onPressed: player.openCurrentTrack,
+                  child: const Text('Spotify'),
+                ),
+              ],
             ),
-        if (player.error != null) ...[
-          const SizedBox(height: 14),
-          Text(player.error!, textAlign: TextAlign.center, style: AppTextStyles.bodySmall.copyWith(color: AppColors.orangeLight)),
-        ],
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            const Icon(Icons.music_note_rounded, size: 18, color: AppColors.orange),
-            const SizedBox(width: 8),
-            Expanded(child: Text('REPRODUÇÃO PELO SPOTIFY', style: AppTextStyles.eyebrow)),
-            TextButton(onPressed: player.openCurrentTrack, child: const Text('Spotify')),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _LyricsPanel(player: player),
+            const SizedBox(height: 12),
+            _LyricsPanel(player: player),
           ],
         ),
       ],
@@ -312,13 +406,13 @@ class _PauseBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 6,
-        height: 24,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(3),
-        ),
-      );
+    width: 6,
+    height: 24,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(3),
+    ),
+  );
 }
 
 class _LyricsPanel extends StatefulWidget {
@@ -349,17 +443,22 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       _lineKeys = List.generate(lines.length, (_) => GlobalKey());
     }
 
-    final signature = lines.map((line) => '${line.timestamp?.inMilliseconds}:${line.text}').join('|');
+    final signature = lines
+        .map((line) => '${line.timestamp?.inMilliseconds}:${line.text}')
+        .join('|');
     if (_linesSignature != signature) {
       _linesSignature = signature;
       _lastAutoScrolledIndex = -1;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _scrollController.hasClients) _scrollController.jumpTo(0);
+        if (mounted && _scrollController.hasClients)
+          _scrollController.jumpTo(0);
       });
     }
 
     final activeIndex = player.activeLyricIndex;
-    if (activeIndex >= 0 && activeIndex != _lastAutoScrolledIndex && activeIndex < _lineKeys.length) {
+    if (activeIndex >= 0 &&
+        activeIndex != _lastAutoScrolledIndex &&
+        activeIndex < _lineKeys.length) {
       _lastAutoScrolledIndex = activeIndex;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || activeIndex >= _lineKeys.length) return;
@@ -371,7 +470,9 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             final position = _scrollController.position;
             final target = viewport.getOffsetToReveal(renderObject, .45).offset;
             _scrollController.animateTo(
-              target.clamp(position.minScrollExtent, position.maxScrollExtent).toDouble(),
+              target
+                  .clamp(position.minScrollExtent, position.maxScrollExtent)
+                  .toDouble(),
               duration: const Duration(milliseconds: 320),
               curve: Curves.easeOutCubic,
             );
@@ -393,14 +494,29 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         children: [
           Row(
             children: [
-              const Icon(Icons.lyrics_outlined, color: AppColors.orange, size: 19),
+              const Icon(
+                Icons.lyrics_outlined,
+                color: AppColors.orange,
+                size: 19,
+              ),
               const SizedBox(width: 8),
-              Text('LETRA', style: AppTextStyles.eyebrow.copyWith(color: AppColors.orange)),
+              Text(
+                'LETRA',
+                style: AppTextStyles.eyebrow.copyWith(color: AppColors.orange),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           if (player.lyricsLoading)
-            const Center(child: Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(color: AppColors.orange, strokeWidth: 2)))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(10),
+                child: CircularProgressIndicator(
+                  color: AppColors.orange,
+                  strokeWidth: 2,
+                ),
+              ),
+            )
           else if (player.lyrics != null)
             SizedBox(
               height: 220,
@@ -410,69 +526,93 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   controller: _scrollController,
                   child: Column(
                     children: List.generate(lines.length, (index) {
-                    final line = lines[index];
-                    final isActive = player.lyricsAreSynced && index == activeIndex;
-                    final isPast = player.lyricsAreSynced && activeIndex > index;
-                    if (line.text == '\u266a') {
+                      final line = lines[index];
+                      final isActive =
+                          player.lyricsAreSynced && index == activeIndex;
+                      final isPast =
+                          player.lyricsAreSynced && activeIndex > index;
+                      if (line.text == '\u266a') {
+                        return Padding(
+                          key: _lineKeys[index],
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            alignment: Alignment.centerLeft,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? AppColors.orangeDim
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.music_note_rounded,
+                              color: isActive
+                                  ? AppColors.orange
+                                  : AppColors.textTertiary,
+                              size: isActive ? 24 : 20,
+                            ),
+                          ),
+                        );
+                      }
                       return Padding(
                         key: _lineKeys[index],
-                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.symmetric(vertical: 2),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 4,
+                            horizontal: 8,
+                          ),
                           decoration: BoxDecoration(
-                            color: isActive ? AppColors.orangeDim : Colors.transparent,
+                            color: isActive
+                                ? AppColors.orangeDim
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Icon(
-                            Icons.music_note_rounded,
-                            color: isActive ? AppColors.orange : AppColors.textTertiary,
-                            size: isActive ? 24 : 20,
+                          child: AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 220),
+                            style: AppTextStyles.body.copyWith(
+                              color: isActive
+                                  ? AppColors.textPrimary
+                                  : isPast
+                                  ? AppColors.textSecondary.withOpacity(.62)
+                                  : AppColors.textSecondary,
+                              fontWeight: isActive
+                                  ? FontWeight.w700
+                                  : FontWeight.normal,
+                              height: 1.5,
+                              fontSize: isActive ? 16 : 15,
+                            ),
+                            child: Text(line.text),
                           ),
                         ),
                       );
-                    }
-                    return Padding(
-                      key: _lineKeys[index],
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                        decoration: BoxDecoration(
-                          color: isActive ? AppColors.orangeDim : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 220),
-                          style: AppTextStyles.body.copyWith(
-                            color: isActive
-                                ? AppColors.textPrimary
-                                : isPast
-                                    ? AppColors.textSecondary.withOpacity(.62)
-                                    : AppColors.textSecondary,
-                            fontWeight: isActive ? FontWeight.w700 : FontWeight.normal,
-                            height: 1.5,
-                            fontSize: isActive ? 16 : 15,
-                          ),
-                          child: Text(line.text),
-                        ),
-                      ),
-                    );
                     }),
                   ),
                 ),
               ),
             )
-          else if (player.lyricsError == 'A letra desta faixa não está disponível.')
+          else if (player.lyricsError ==
+              'A letra desta faixa não está disponível.')
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.music_note_rounded, color: AppColors.orange, size: 28),
+                    Icon(
+                      Icons.music_note_rounded,
+                      color: AppColors.orange,
+                      size: 28,
+                    ),
                     SizedBox(height: 8),
-                    Text('Sem letra disponível para esta faixa.', textAlign: TextAlign.center),
+                    Text(
+                      'Sem letra disponível para esta faixa.',
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
               ),
@@ -482,7 +622,8 @@ class _LyricsPanelState extends State<_LyricsPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  player.lyricsError ?? 'As letras desta faixa serão buscadas automaticamente.',
+                  player.lyricsError ??
+                      'As letras desta faixa serão buscadas automaticamente.',
                   style: AppTextStyles.bodySmall,
                 ),
                 if (player.lyricsError != null) ...[
@@ -501,43 +642,83 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     );
   }
 }
+
 class _NoTrackState extends StatelessWidget {
-  const _NoTrackState({required this.isReady, required this.error, required this.onPlay});
+  const _NoTrackState({
+    required this.isReady,
+    required this.error,
+    required this.onPlay,
+    required this.onReconnect,
+    required this.isBusy,
+  });
   final bool isReady;
   final String? error;
   final VoidCallback onPlay;
+  final VoidCallback onReconnect;
+  final bool isBusy;
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
-                child: const Icon(Icons.graphic_eq_rounded, size: 74, color: AppColors.orange),
-              ),
-              const SizedBox(height: 24),
-              Text('Pronto para tocar', style: AppTextStyles.headline),
-              const SizedBox(height: 8),
-              Text(
-                error ?? (isReady ? 'Inicie a playlist oficial para abrir o player.' : 'Conectando ao Spotify…'),
-                style: AppTextStyles.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton.icon(
-                onPressed: onPlay,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Tocar playlist oficial'),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.graphic_eq_rounded,
+              size: 74,
+              color: AppColors.orange,
+            ),
           ),
-        ),
-      );
+          const SizedBox(height: 24),
+          Text(
+            isBusy
+                ? 'Aguardando Spotify…'
+                : error == null
+                ? 'Pronto para tocar'
+                : 'Conexão com Spotify',
+            style: AppTextStyles.headline,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error ??
+                (isReady
+                    ? 'Inicie a playlist oficial para abrir o player.'
+                    : 'Conectando ao Spotify…'),
+            style: AppTextStyles.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 18),
+          ElevatedButton.icon(
+            onPressed: isBusy ? null : onPlay,
+            icon: isBusy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.play_arrow_rounded),
+            label: Text(
+              isBusy ? 'Aguardando resposta…' : 'Tocar playlist oficial',
+            ),
+          ),
+          if (error != null)
+            TextButton.icon(
+              onPressed: isBusy ? null : onReconnect,
+              icon: const Icon(Icons.link_rounded),
+              label: const Text('Reconectar Spotify'),
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 String _time(Duration value) {

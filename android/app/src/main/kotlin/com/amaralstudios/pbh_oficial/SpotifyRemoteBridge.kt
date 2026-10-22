@@ -1,6 +1,9 @@
 package com.amaralstudios.pbh_oficial
 
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
+import java.util.concurrent.atomic.AtomicBoolean
 import com.spotify.android.appremote.api.ConnectionParams
 import com.spotify.android.appremote.api.Connector
 import com.spotify.android.appremote.api.SpotifyAppRemote
@@ -14,7 +17,10 @@ class SpotifyRemoteBridge(private val activity: Activity) {
     private var generation = 0
     private var connecting = false
 
-    fun handle(call: MethodCall, result: MethodChannel.Result) {
+    fun handle(call: MethodCall, rawResult: MethodChannel.Result) {
+        val result = TimedResult(rawResult, if (call.method == "connect") 45000L else 10000L) {
+            if (call.method == "connect") close()
+        }
         when (call.method) {
             "connect" -> connect(call, result)
             "disconnect" -> { close(); result.success(null) }
@@ -60,11 +66,15 @@ class SpotifyRemoteBridge(private val activity: Activity) {
         val clientId = call.argument<String>("clientId") ?: return result.error("CONFIGURATION", "Client ID ausente.", null)
         val redirect = call.argument<String>("redirectUri") ?: return result.error("CONFIGURATION", "Redirect URI ausente.", null)
         val requestGeneration = generation
+        var replied = false
         connecting = true
         val params = ConnectionParams.Builder(clientId).setRedirectUri(redirect)
             .showAuthView(call.argument<Boolean>("authorize") == true).build()
-        SpotifyAppRemote.connect(activity, params, object : Connector.ConnectionListener {
+        val sdkContext = SpotifyAuthorizationContext(activity, call.argument<Boolean>("authorize") == true)
+        SpotifyAppRemote.connect(sdkContext, params, object : Connector.ConnectionListener {
             override fun onConnected(appRemote: SpotifyAppRemote) {
+                if (replied) { SpotifyAppRemote.disconnect(appRemote); return }
+                replied = true
                 if (requestGeneration != generation) {
                     SpotifyAppRemote.disconnect(appRemote)
                     result.error("CANCELED", "Conexão encerrada.", null)
@@ -75,8 +85,28 @@ class SpotifyRemoteBridge(private val activity: Activity) {
                 result.success(null)
             }
             override fun onFailure(throwable: Throwable) {
-                if (requestGeneration == generation) connecting = false
-                result.error("REMOTE_AUTH", "Não foi possível ativar o Spotify em segundo plano. Desconecte e conecte sua conta novamente no PBH para autorizar o controle da reprodução.", null)
+                if (requestGeneration == generation) {
+                    connecting = false
+                    remote = null
+                }
+                // onFailure may also arrive after a successful connection.
+                if (replied) return
+                replied = true
+                val names = generateSequence(throwable) { it.cause }.take(8)
+                    .map { it.javaClass.simpleName }.toSet()
+                val failure = when {
+                    "UserNotAuthorizedException" in names && call.argument<Boolean>("authorize") == true -> "AUTH_NOT_RECOGNIZED" to "O Spotify não reconheceu a autorização solicitada para este aplicativo. Isso não significa que você recusou a permissão. Código: AUTH_NOT_RECOGNIZED."
+                    "UserNotAuthorizedException" in names -> "AUTH_REQUIRED" to "O Spotify ainda não disponibilizou o controle para o PBH. Código: AUTH_REQUIRED."
+                    "AuthenticationFailedException" in names -> "APP_AUTH_FAILED" to "O Spotify não reconheceu a configuração deste aplicativo. Código: APP_AUTH_FAILED."
+                    "NotLoggedInException" in names -> "NOT_LOGGED_IN" to "Entre na sua conta no aplicativo Spotify e tente novamente no PBH."
+                    "CouldNotFindSpotifyApp" in names -> "NOT_INSTALLED" to "Instale o Spotify neste celular para usar a reprodução."
+                    "OfflineModeException" in names -> "OFFLINE" to "Desative o modo offline do Spotify e verifique a internet."
+                    "UnsupportedFeatureVersionException" in names -> "UPDATE_SPOTIFY" to "Atualize o aplicativo Spotify e tente novamente."
+                    "SpotifyRemoteServiceException" in names -> "SERVICE_UNAVAILABLE" to "O Android impediu a conexão com o serviço do Spotify. Mantenha o PBH aberto e permita a atividade em segundo plano do Spotify. Código: SERVICE_UNAVAILABLE."
+                    "SpotifyDisconnectedException" in names || "SpotifyConnectionTerminatedException" in names -> "DISCONNECTED" to "A conexão com o Spotify foi interrompida. Tente reproduzir novamente."
+                    else -> "REMOTE_CONNECTION_FAILED" to "Não foi possível conectar ao serviço do Spotify. Código: REMOTE_CONNECTION_FAILED."
+                }
+                result.error(failure.first, failure.second, null)
             }
         })
     }
@@ -111,4 +141,30 @@ class SpotifyRemoteBridge(private val activity: Activity) {
         remote?.let { SpotifyAppRemote.disconnect(it) }
         remote = null
     }
+}
+
+// SDK callbacks can be late, duplicated, or absent. Every Flutter call completes once.
+private class TimedResult(
+    private val delegate: MethodChannel.Result,
+    timeoutMs: Long,
+    onTimeout: () -> Unit
+) : MethodChannel.Result {
+    private val handler = Handler(Looper.getMainLooper())
+    private val completed = AtomicBoolean(false)
+    private val deadline = Runnable {
+        if (completed.compareAndSet(false, true)) {
+            onTimeout()
+            delegate.error("TIMEOUT", "O Spotify não respondeu a tempo. Tente novamente. Código: TIMEOUT.", null)
+        }
+    }
+    init { handler.postDelayed(deadline, timeoutMs) }
+    private fun finish(action: () -> Unit) {
+        if (completed.compareAndSet(false, true)) {
+            handler.removeCallbacks(deadline)
+            handler.post { action() }
+        }
+    }
+    override fun success(result: Any?) = finish { delegate.success(result) }
+    override fun error(code: String, message: String?, details: Any?) = finish { delegate.error(code, message, details) }
+    override fun notImplemented() = finish { delegate.notImplemented() }
 }

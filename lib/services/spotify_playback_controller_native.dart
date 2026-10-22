@@ -105,7 +105,7 @@ class SpotifyPlaybackController extends ChangeNotifier
           sha256.convert(utf8.encode(verifier)).bytes,
         ).replaceAll('=', ''),
         'scope':
-            'user-read-playback-state user-modify-playback-state playlist-read-private',
+            'user-read-playback-state user-modify-playback-state playlist-read-private app-remote-control',
         if (forceConsent) 'show_dialog': 'true',
       });
       final callback = Uri.parse(
@@ -302,7 +302,7 @@ class SpotifyPlaybackController extends ChangeNotifier
   ]) async {
     if (!isAuthenticated) {
       await connect();
-      return;
+      if (!isAuthenticated || error != null) return;
     }
     await _play(playlistId);
   }
@@ -319,7 +319,7 @@ class SpotifyPlaybackController extends ChangeNotifier
   }) async {
     await _command(() async {
       if (Platform.isAndroid) {
-        await _remote.connect();
+        await _remote.connectForPlayback();
         if (selectedTrack?.playlistPosition != null) {
           await _remote.play(
             'spotify:playlist:$playlistId',
@@ -386,7 +386,7 @@ class SpotifyPlaybackController extends ChangeNotifier
     Map<String, String> query = const {},
   }) => _command(() async {
     if (Platform.isAndroid) {
-      await _remote.connect();
+      await _remote.connectForPlayback();
       switch (path) {
         case 'play':
           await _remote.command('resume');
