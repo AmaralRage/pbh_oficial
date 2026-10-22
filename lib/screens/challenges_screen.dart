@@ -36,6 +36,15 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
   bool _loading = true;
   String? _error;
   List<ChallengeModel> _challenges = const [];
+  bool? _tabActive;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active = TickerMode.valuesOf(context).enabled;
+    if (active && _tabActive == false) _load();
+    _tabActive = active;
+  }
 
   static const _filters = [
     'Todos',
@@ -963,7 +972,13 @@ class _AchievementCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _TrophyMedallion(tier: tier, size: 54, locked: !unlocked),
+              _TrophyMedallion(
+                tier: tier,
+                size: tier == _TrophyTier.gold || tier == _TrophyTier.silver
+                    ? 64
+                    : 54,
+                locked: !unlocked,
+              ),
               const SizedBox(width: 13),
               Expanded(
                 child: Column(
@@ -1053,6 +1068,33 @@ class _TrophyMedallion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = tier.color;
+    final artwork = switch (tier) {
+      _TrophyTier.gold => 'assets/images/trofeu_ouro_pbh.png',
+      _TrophyTier.silver => 'assets/images/trofeu_prata_pbh.png',
+      _ => null,
+    };
+    if (artwork != null) {
+      return RepaintBoundary(
+        child: Opacity(
+          opacity: locked ? .35 : 1,
+          child: SizedBox.square(
+            dimension: size,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(size * .2),
+              child: Image.asset(
+                artwork,
+                fit: BoxFit.contain,
+                cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
+                semanticLabel: locked
+                    ? 'Troféu de ${tier.label.toLowerCase()} PBH bloqueado'
+                    : 'Troféu de ${tier.label.toLowerCase()} PBH',
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Opacity(
       opacity: locked ? .35 : 1,
       child: Container(

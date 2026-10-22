@@ -240,3 +240,79 @@ Madrugador usam suas próprias artes HTML e miniaturas renderizadas. O primeiro
 exige pelo menos 50 desafios concluídos. Os demais exigem a conclusão de
 `iron_body`, `digital_fast`, `daily_reading` e `wake_5`, respectivamente.
 Todos exibem os efeitos dos HTMLs no mobile e na web, sem concessão manual.
+
+### Confiabilidade e desempenho
+
+As abas são inicializadas na primeira visita e preservam seu estado ao alternar.
+As animações das abas ocultas ficam desativadas; início, desafios e progresso do
+perfil atualizam os dados ao retornar. Se uma atualização do perfil falhar, os
+últimos dados permanecem visíveis, com opção de tentar novamente.
+
+O feed cria os cards conforme entram na área visível. Os horários relativos
+compartilham um relógio, ativo apenas enquanto houver cards visíveis. Os
+comentários carregam em páginas de 30, dos mais recentes aos mais antigos.
+
+Na rotina autenticada, marcações e desmarcações são persistidas no aparelho
+antes do envio. Sem conexão, ficam numa fila separada por conta, e a interface
+informa que existem alterações pendentes. A sincronização é tentada ao abrir
+ou retomar a rotina/início e pelo botão **Sincronizar**. Leituras offline usam
+dados consultados anteriormente; a primeira consulta ainda exige conexão.
+Limpar os dados do app remove o cache e as alterações ainda não enviadas.
+O resumo semanal consulta os sete dias em uma única requisição.
+
+A migration `20261022000100_challenge_completion_counts.sql` agrega as
+conclusões de desafios no banco, restringindo a consulta ao usuário autenticado.
+Em ambientes sem essa função, o cliente usa paginação para não truncar o histórico.
+
+O workflow `ci.yml` executa análise, testes e compilações web e Android debug.
+O deploy web depende dessa validação. Para verificar localmente:
+
+```powershell
+flutter analyze --no-fatal-infos
+flutter test
+flutter build web --release
+flutter build apk --debug
+```
+
+Os testes cobrem preservação das abas, paginação, relógio compartilhado,
+contagem de históricos extensos e persistência/reenvio offline, incluindo
+isolamento entre contas e proteção contra respostas antigas. Reprodução real
+do Spotify e fluidez das animações ainda precisam de validação em aparelho.
+
+### Personalização do perfil
+
+Em **Perfil → Editar perfil**, cada membro pode escolher foto, biografia,
+capa, moldura, um título conquistado e até três selos para sua vitrine.
+A ordem de seleção define a ordem dos destaques; os demais selos continuam
+disponíveis na coleção. As escolhas são salvas nos metadados da conta.
+
+As molduras Bronze, Prata e Ouro exigem 1, 10 e 30 desafios concluídos.
+A moldura Platina exige a conquista Platina PBH. As capas Constância e
+Excelência exigem 1 e 30 desafios, respectivamente. O título de fundador,
+a moldura e a capa Legado PBH são exclusivos do líder confirmado; sua foto
+padrão é `assets/images/perfil.png`. Títulos de conquistas exigem o selo
+correspondente, e a personalização não concede troféus nem permissões.
+
+A migration `20261022000200_profile_avatar_uploads.sql` configura o bucket
+`profile-avatars`. Cada conta pode enviar e excluir somente arquivos da
+própria pasta; as fotos têm URL pública e limite de 5 MB (PNG, JPEG ou WebP).
+O seletor redimensiona a foto para até 1024 pixels. Depois de salvar, a
+foto também aparece na comunidade conforme a visibilidade do perfil.
+Arquivos substituídos são removidos após salvar os metadados; se esse
+salvamento falhar, a foto recém-enviada é removida e a anterior permanece.
+As capas são desenhadas no Flutter, e a foto é decodificada com tamanho
+limitado para reduzir o custo de renderização no celular.
+
+Também é possível enviar uma capa horizontal própria (PNG, JPEG ou WebP,
+até 5 MB), ajustada ao centro da área de capa. A seleção de uma capa do PBH
+restaura o visual do projeto; a substituição só é persistida ao salvar.
+A migration `20261022000300_profile_cover_uploads.sql` configura o bucket
+`profile-covers`, com as mesmas restrições por conta das fotos. O editor
+redimensiona capas para até 1600 × 900 pixels e remove uploads substituídos
+apenas depois do salvamento bem-sucedido.
+
+As capas do projeto têm brilhos discretos; Legado PBH inclui estrelas
+cadentes ocasionais. A moldura da foto tem um brilho que percorre o contorno.
+Os efeitos usam pintura isolada no Flutter, sem reconstruir a foto e os textos
+a cada quadro. Param quando o cabeçalho sai da tela, outra rota ou aba está
+ativa, o app vai para segundo plano ou o sistema solicita reduzir movimento.

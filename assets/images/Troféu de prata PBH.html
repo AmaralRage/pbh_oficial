@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Troféu de prata PBH</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Spectral:wght@400;500&display=swap">
+<style>
+:root{--bg:#f1f4f8;--fg:#161b24;--muted:#5a6577;--card:#ffffff;--line:#d3dbe6;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#06080b;--fg:#eef3fa;--muted:#aab6c8;--card:#0f131a;--line:#2b3544;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#06080b;--fg:#eef3fa;--muted:#aab6c8;--card:#0f131a;--line:#2b3544;color-scheme:dark}
+*{box-sizing:border-box}
+html{height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-family:"Spectral",Georgia,serif;display:flex;justify-content:center;padding:24px 16px}
+main{width:100%;max-width:560px}
+.stage{background:#04060a;border-radius:20px;overflow:hidden;box-shadow:0 0 60px rgba(170,200,240,.3)}
+svg{display:block;width:100%;height:auto}
+.card{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+h1{font-family:"Cinzel",Georgia,serif;font-weight:900;font-size:1.6rem;margin:0 0 6px;letter-spacing:.02em}
+.tag{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:.85rem;color:#7a889d;margin:0 0 10px}
+p{margin:0;line-height:1.55;color:var(--muted);font-size:1.05rem}
+.float{animation:float 5s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.beams{transform-origin:300px 300px;animation:spin 80s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.aura{transform-origin:300px 320px;animation:aura 4.5s ease-in-out infinite}
+@keyframes aura{0%,100%{transform:scale(.96);opacity:.75}50%{transform:scale(1.05);opacity:1}}
+.sheen{animation:sheen 5s ease-in-out infinite}
+@keyframes sheen{0%,50%{transform:translateX(-250px) skewX(-18deg)}100%{transform:translateX(850px) skewX(-18deg)}}
+.sp{transform-box:fill-box;transform-origin:center;animation:sp 2.8s ease-in-out infinite}
+@keyframes sp{0%,100%{transform:scale(.2);opacity:0}50%{transform:scale(1);opacity:1}}
+.p{transform-box:fill-box;animation:rise linear infinite}
+@keyframes rise{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-420px);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+<div class="stage">
+<svg viewBox="0 0 600 660" role="img" aria-label="Troféu de prata no estilo dos troféus de jogos: taça prateada com duas alças, coroa e as letras PBH gravadas no corpo">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="48%" r="65%"><stop offset="0" stop-color="#2c333f"/><stop offset=".55" stop-color="#0d1016"/><stop offset="1" stop-color="#030406"/></radialGradient>
+  <radialGradient id="glowc" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#cfe0f5" stop-opacity=".55"/><stop offset=".6" stop-color="#8fa6c4" stop-opacity=".16"/><stop offset="1" stop-color="#8fa6c4" stop-opacity="0"/></radialGradient>
+  <linearGradient id="gH" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4f5766"/><stop offset=".12" stop-color="#a9b4c4"/><stop offset=".3" stop-color="#eef3fa"/><stop offset=".45" stop-color="#ffffff"/><stop offset=".62" stop-color="#c9d3e0"/><stop offset=".82" stop-color="#7f8a9b"/><stop offset="1" stop-color="#3f4552"/></linearGradient>
+  <linearGradient id="gV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f9fd"/><stop offset=".45" stop-color="#b4bfce"/><stop offset="1" stop-color="#5d6676"/></linearGradient>
+  <linearGradient id="gD" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6f9fd"/><stop offset=".4" stop-color="#b4bfce"/><stop offset=".75" stop-color="#8a95a6"/><stop offset="1" stop-color="#4f5766"/></linearGradient>
+  <linearGradient id="inner" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a303b"/><stop offset="1" stop-color="#9aa6b8"/></linearGradient>
+  <linearGradient id="shn" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".6"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+  <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <path id="body" d="M158 132 C150 240 190 345 262 392 L338 392 C410 345 450 240 442 132 Z"/>
+  <path id="rim" d="M150 106 H450 Q458 106 458 114 V138 Q458 146 450 146 H150 Q142 146 142 138 V114 Q142 106 150 106 Z"/>
+  <path id="neck" d="M262 388 H338 C334 418 326 436 330 458 H270 C274 436 266 418 262 388 Z"/>
+  <path id="collar" d="M256 454 H344 Q352 454 352 462 V472 Q352 480 344 480 H256 Q248 480 248 472 V462 Q248 454 256 454 Z"/>
+  <path id="stem" d="M268 478 H332 C334 522 354 560 392 584 H208 C246 560 266 522 268 478 Z"/>
+  <path id="foot" d="M192 580 H408 Q420 598 406 614 Q300 626 194 614 Q180 598 192 580 Z"/>
+  <path id="hl" d="M160 120 C108 92 52 96 40 150 C28 210 80 300 140 350 C160 366 176 380 178 408 L168 408 C164 386 140 366 118 346 C70 300 56 220 74 170 C86 138 120 128 160 148 Z"/>
+  <clipPath id="cupclip">
+    <use href="#body"/><use href="#rim"/><use href="#neck"/><use href="#collar"/><use href="#stem"/><use href="#foot"/>
+    <use href="#hl"/><use href="#hl" transform="translate(600 0) scale(-1 1)"/>
+  </clipPath>
+  <clipPath id="bodyclip"><use href="#body"/></clipPath>
+  <clipPath id="stemclip"><use href="#stem"/><use href="#neck"/></clipPath>
+</defs>
+
+<rect width="600" height="660" fill="url(#bg)"/>
+<circle class="aura" cx="300" cy="320" r="310" fill="url(#glowc)"/>
+<g class="beams" id="beams" opacity=".9"></g>
+<g id="parts"></g>
+<ellipse cx="300" cy="632" rx="190" ry="12" fill="#9fc0ee" opacity=".45" filter="url(#glow)"/>
+
+<g class="float">
+  <!-- alças -->
+  <use href="#hl" fill="url(#gD)" stroke="#3f4552" stroke-width="1.5"/>
+  <use href="#hl" fill="url(#gD)" stroke="#3f4552" stroke-width="1.5" transform="translate(600 0) scale(-1 1)"/>
+  <path d="M150 112 C104 92 66 100 54 142" fill="none" stroke="#ffffff" stroke-opacity=".75" stroke-width="4" stroke-linecap="round" filter="url(#blur)"/>
+  <path d="M450 112 C496 92 534 100 546 142" fill="none" stroke="#ffffff" stroke-opacity=".75" stroke-width="4" stroke-linecap="round" filter="url(#blur)"/>
+
+  <!-- corpo -->
+  <use href="#body" fill="url(#gH)" stroke="#3f4552" stroke-width="1.5"/>
+  <g clip-path="url(#bodyclip)">
+    <ellipse cx="206" cy="240" rx="13" ry="96" fill="#ffffff" opacity=".55" filter="url(#blur)"/>
+    <ellipse cx="410" cy="230" rx="8" ry="80" fill="#f6f9fd" opacity=".35" filter="url(#blur)"/>
+    <ellipse cx="300" cy="150" rx="120" ry="8" fill="#3f4552" opacity=".35" filter="url(#blur)"/>
+  </g>
+
+  <!-- boca da taça e aro -->
+  <ellipse cx="300" cy="106" rx="150" ry="13" fill="url(#inner)" stroke="#f6f9fd" stroke-width="2"/>
+  <use href="#rim" fill="url(#gV)" stroke="#3f4552" stroke-width="1.5"/>
+  <ellipse cx="300" cy="118" rx="110" ry="5" fill="#ffffff" opacity=".8" filter="url(#blur)"/>
+
+  <!-- haste, anel e base -->
+  <use href="#neck" fill="url(#gH)" stroke="#3f4552" stroke-width="1.5"/>
+  <use href="#collar" fill="url(#gV)" stroke="#3f4552" stroke-width="1.5"/>
+  <use href="#stem" fill="url(#gH)" stroke="#3f4552" stroke-width="1.5"/>
+  <use href="#foot" fill="url(#gV)" stroke="#3f4552" stroke-width="1.5"/>
+  <g clip-path="url(#stemclip)"><ellipse cx="300" cy="530" rx="9" ry="46" fill="#ffffff" opacity=".6" filter="url(#blur)"/></g>
+  <ellipse cx="300" cy="598" rx="74" ry="5" fill="#ffffff" opacity=".7" filter="url(#blur)"/>
+
+  <!-- gravação: coroa e PBH -->
+  <g transform="translate(1.6 1.6)" fill="#f6f9fd" opacity=".6">
+    <path d="M276 214 L272 192 L286 202 L300 186 L314 202 L328 192 L324 214 Z"/>
+    <text x="300" y="276" text-anchor="middle" font-family="Cinzel, Georgia, serif" font-weight="900" font-size="58" letter-spacing="5">PBH</text>
+  </g>
+  <g fill="#5d6676" opacity=".92">
+    <path d="M276 214 L272 192 L286 202 L300 186 L314 202 L328 192 L324 214 Z"/>
+    <text x="300" y="276" text-anchor="middle" font-family="Cinzel, Georgia, serif" font-weight="900" font-size="58" letter-spacing="5">PBH</text>
+  </g>
+
+  <!-- brilho passando -->
+  <g clip-path="url(#cupclip)"><rect class="sheen" x="0" y="0" width="90" height="660" fill="url(#shn)"/></g>
+</g>
+
+<g id="sparks" fill="#ffffff" filter="url(#glow)"></g>
+</svg>
+</div>
+
+<section class="card">
+  <h1>Troféu de prata</h1>
+  <p class="tag">Conquista de prata · PBH</p>
+  <p>Grande avanço! Mais um pouco de constância e o ouro será seu.</p>
+</section>
+</main>
+
+<script>
+(function(){
+  var NS="http://www.w3.org/2000/svg";
+  function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+  // raios de luz atrás da taça
+  var bm=document.getElementById("beams");
+  for(var i=0;i<14;i++){
+    var a=i*(360/14)*Math.PI/180,w=.07;
+    el("polygon",{points:"300,300 "+(300+380*Math.cos(a-w))+","+(300+380*Math.sin(a-w))+" "+(300+380*Math.cos(a+w))+","+(300+380*Math.sin(a+w)),fill:"#cfe0f5","fill-opacity":.09},bm);
+  }
+  // brilhos em estrela
+  var S=document.getElementById("sparks");
+  [[118,86,0],[484,120,.9],[548,340,1.8],[70,330,.5],[300,40,1.4],[470,500,2.2],[130,520,.2]].forEach(function(p){
+    var g=el("g",{transform:"translate("+p[0]+" "+p[1]+")"},S),s=el("path",{d:"M0 -15 L3.4 -3.4 L15 0 L3.4 3.4 L0 15 L-3.4 3.4 L-15 0 L-3.4 -3.4 Z","class":"sp"},g);
+    s.style.animationDelay=p[2]+"s";
+  });
+  // partículas douradas subindo
+  var P=document.getElementById("parts");
+  for(var j=0;j<26;j++){
+    var c=el("circle",{cx:80+Math.random()*440,cy:520+Math.random()*120,r:1+Math.random()*2.2,fill:Math.random()>.5?"#dbe8fa":"#ffffff","class":"p"},P);
+    c.style.animationDuration=(5+Math.random()*6)+"s";
+    c.style.animationDelay=(-Math.random()*10)+"s";
+  }
+})();
+</script>
+</body>
+</html>

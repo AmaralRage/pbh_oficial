@@ -31,8 +31,11 @@ class CommunityComment {
 }
 
 class CommunityStats {
-  const CommunityStats(
-      {required this.posts, required this.comments, required this.likes});
+  const CommunityStats({
+    required this.posts,
+    required this.comments,
+    required this.likes,
+  });
   final int posts;
   final int comments;
   final int likes;
@@ -40,18 +43,19 @@ class CommunityStats {
 
 class CommunityService {
   CommunityService({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _client = client ?? Supabase.instance.client;
   final SupabaseClient _client;
 
   String? get _userId => _client.auth.currentUser?.id;
   String? get currentUserId => _userId;
 
-  Future<List<CommunityPostModel>> fetchPosts(
-      {int filterIndex = 0,
-      int offset = 0,
-      int limit = 20,
-      String search = '',
-      String? topic}) async {
+  Future<List<CommunityPostModel>> fetchPosts({
+    int filterIndex = 0,
+    int offset = 0,
+    int limit = 20,
+    String search = '',
+    String? topic,
+  }) async {
     var query = _client.from('community_feed').select();
     final userId = _userId;
     var followingIds = <String>[];
@@ -72,12 +76,13 @@ class CommunityService {
     final term = search.trim().replaceAll(RegExp(r'[,.*()"%_]'), ' ').trim();
     if (term.isNotEmpty)
       query = query.or(
-          'content.ilike.%$term%,author_name.ilike.%$term%,topic.ilike.%$term%');
+        'content.ilike.%$term%,author_name.ilike.%$term%,topic.ilike.%$term%',
+      );
     if (topic != null && topic.isNotEmpty) query = query.eq('topic', topic);
     final orderedQuery = filterIndex == 3
         ? query
-            .order('likes_count', ascending: false)
-            .order('created_at', ascending: false)
+              .order('likes_count', ascending: false)
+              .order('created_at', ascending: false)
         : query.order('created_at', ascending: false);
     final auxiliaryDataFuture = userId == null
         ? null
@@ -99,8 +104,9 @@ class CommunityService {
     return rows.map((row) {
       final post = CommunityPostModel.fromMap(row);
       return post.copyWith(
-          isFollowing: followingIds.contains(post.userId),
-          isSaved: savedIds.contains(post.id));
+        isFollowing: followingIds.contains(post.userId),
+        isSaved: savedIds.contains(post.id),
+      );
     }).toList();
   }
 
@@ -114,7 +120,8 @@ class CommunityService {
   }
 
   Future<Map<String, dynamic>> fetchSamplePostInteraction(
-      String samplePostKey) async {
+    String samplePostKey,
+  ) async {
     final row = await _client
         .from('community_sample_post_feed')
         .select('likes_count, liked_by_me, comments_count')
@@ -142,19 +149,27 @@ class CommunityService {
   Future<List<CommunityComment>> fetchComments(
     String postId, {
     bool isSample = false,
+    int offset = 0,
+    int limit = 30,
   }) async {
     final query = isSample
         ? _client
-            .from('community_sample_comment_feed')
-            .select()
-            .eq('sample_post_key', postId)
+              .from('community_sample_comment_feed')
+              .select()
+              .eq('sample_post_key', postId)
         : _client.from('community_comment_feed').select().eq('post_id', postId);
-    final rows = await query.order('created_at');
+    final rows = await query
+        .order('created_at', ascending: false)
+        .order('id', ascending: false)
+        .range(offset, offset + limit - 1);
     return rows.map((row) => CommunityComment.fromMap(row)).toList();
   }
 
-  Future<void> createPost(String content,
-      {String? achievementTag, String? topic}) async {
+  Future<void> createPost(
+    String content, {
+    String? achievementTag,
+    String? topic,
+  }) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para publicar.');
     await _client.from('community_posts').insert({
@@ -174,8 +189,9 @@ class CommunityService {
   }) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para curtir.');
-    final table =
-        isSample ? 'community_sample_post_likes' : 'community_post_likes';
+    final table = isSample
+        ? 'community_sample_post_likes'
+        : 'community_post_likes';
     final postColumn = isSample ? 'sample_post_key' : 'post_id';
     if (currentlyLiked) {
       await _client
@@ -184,11 +200,13 @@ class CommunityService {
           .eq(postColumn, postId)
           .eq('user_id', userId);
     } else {
-      await _client.from(table).upsert(
-        {postColumn: postId, 'user_id': userId},
-        onConflict: '$postColumn,user_id',
-        ignoreDuplicates: true,
-      );
+      await _client
+          .from(table)
+          .upsert(
+            {postColumn: postId, 'user_id': userId},
+            onConflict: '$postColumn,user_id',
+            ignoreDuplicates: true,
+          );
     }
   }
 
@@ -243,18 +261,21 @@ class CommunityService {
           .eq('user_id', userId)
           .eq('post_id', postId);
     } else {
-      await _client
-          .from('community_saved_posts')
-          .insert({'user_id': userId, 'post_id': postId});
+      await _client.from('community_saved_posts').insert({
+        'user_id': userId,
+        'post_id': postId,
+      });
     }
   }
 
   Future<void> report(String postId, {required String reason}) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para denunciar.');
-    await _client
-        .from('community_reports')
-        .insert({'reporter_id': userId, 'post_id': postId, 'reason': reason});
+    await _client.from('community_reports').insert({
+      'reporter_id': userId,
+      'post_id': postId,
+      'reason': reason,
+    });
   }
 
   Future<void> blockMember(String userId) async {
@@ -263,9 +284,13 @@ class CommunityService {
       throw StateError('Entre na sua conta para bloquear membros.');
     if (blockerId == userId)
       throw StateError('Você não pode bloquear a própria conta.');
-    await _client.from('community_blocks').upsert(
-        {'blocker_id': blockerId, 'blocked_id': userId},
-        onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true);
+    await _client
+        .from('community_blocks')
+        .upsert(
+          {'blocker_id': blockerId, 'blocked_id': userId},
+          onConflict: 'blocker_id,blocked_id',
+          ignoreDuplicates: true,
+        );
   }
 
   Future<void> unblockMember(String userId) async {
@@ -313,9 +338,10 @@ class CommunityService {
           .eq('follower_id', followerId)
           .eq('followed_id', userId);
     } else {
-      await _client
-          .from('community_follows')
-          .insert({'follower_id': followerId, 'followed_id': userId});
+      await _client.from('community_follows').insert({
+        'follower_id': followerId,
+        'followed_id': userId,
+      });
     }
   }
 

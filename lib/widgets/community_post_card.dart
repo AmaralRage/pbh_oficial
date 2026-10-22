@@ -8,6 +8,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/community_post_model.dart';
 import '../services/community_service.dart';
+import '../services/minute_clock.dart';
 
 class CommunityPostCard extends StatefulWidget {
   const CommunityPostCard({
@@ -39,7 +40,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   bool _showBurst = false;
   bool _busy = false;
   DateTime _now = DateTime.now();
-  Timer? _timer;
+  bool _listeningToClock = false;
   late final AnimationController _likeController;
   late final Animation<double> _likeScale;
   late final Animation<double> _likeRotation;
@@ -53,20 +54,31 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     _saved = widget.post.isSaved;
     _following = widget.post.isFollowing;
     _likeController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 620));
+      vsync: this,
+      duration: const Duration(milliseconds: 620),
+    );
     _likeScale = TweenSequence<double>([
       TweenSequenceItem(
-          tween: Tween(begin: 1.0, end: 1.45)
-              .chain(CurveTween(curve: Curves.easeOutBack)),
-          weight: 40),
+        tween: Tween(
+          begin: 1.0,
+          end: 1.45,
+        ).chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 40,
+      ),
       TweenSequenceItem(
-          tween: Tween(begin: 1.45, end: .9)
-              .chain(CurveTween(curve: Curves.easeInOut)),
-          weight: 25),
+        tween: Tween(
+          begin: 1.45,
+          end: .9,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 25,
+      ),
       TweenSequenceItem(
-          tween: Tween(begin: .9, end: 1.0)
-              .chain(CurveTween(curve: Curves.elasticOut)),
-          weight: 35),
+        tween: Tween(
+          begin: .9,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 35,
+      ),
     ]).animate(_likeController);
     _likeRotation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: -.12), weight: 30),
@@ -77,10 +89,25 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       if (status == AnimationStatus.completed && mounted)
         setState(() => _showBurst = false);
     });
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
-    });
     if (widget.post.isSample) unawaited(_loadSampleInteraction());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible =
+        TickerMode.of(context) && (ModalRoute.isCurrentOf(context) ?? true);
+    if (visible && !_listeningToClock) {
+      MinuteClock.shared.addListener(_updateTime);
+      _now = MinuteClock.shared.now;
+    } else if (!visible && _listeningToClock) {
+      MinuteClock.shared.removeListener(_updateTime);
+    }
+    _listeningToClock = visible;
+  }
+
+  void _updateTime() {
+    if (mounted) setState(() => _now = MinuteClock.shared.now);
   }
 
   @override
@@ -119,7 +146,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
 
   @override
   void dispose() {
-    _timer?.cancel();
+    if (_listeningToClock) MinuteClock.shared.removeListener(_updateTime);
     _likeController.dispose();
     _commentController.dispose();
     super.dispose();
@@ -162,8 +189,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
 
   Future<void> _loadSampleInteraction() async {
     try {
-      final interaction =
-          await _service.fetchSamplePostInteraction(widget.post.id);
+      final interaction = await _service.fetchSamplePostInteraction(
+        widget.post.id,
+      );
       if (!mounted) return;
       setState(() {
         _likeCount = (interaction['likes_count'] as num?)?.toInt() ?? 0;
@@ -179,28 +207,44 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     final comments = <CommunityComment>[];
     var isLoading = true;
     var loadStarted = false;
+    var loadingMore = false;
+    var loadFailed = false;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, refreshSheet) {
+        builder: (context, setSheetState) {
+          void refreshSheet(VoidCallback update) {
+            if (context.mounted) setSheetState(update);
+          }
+
           if (!loadStarted) {
             loadStarted = true;
             WidgetsBinding.instance.addPostFrameCallback((_) async {
-              final loadedComments = await _loadComments();
-              if (!context.mounted) return;
-              refreshSheet(() {
-                comments
-                  ..clear()
-                  ..addAll(loadedComments);
-                isLoading = false;
-              });
+              try {
+                final loadedComments = await _loadComments();
+                refreshSheet(() {
+                  comments
+                    ..clear()
+                    ..addAll(loadedComments);
+                  isLoading = false;
+                });
+              } catch (_) {
+                refreshSheet(() {
+                  loadFailed = true;
+                  isLoading = false;
+                });
+              }
             });
           }
           return Padding(
             padding: EdgeInsets.fromLTRB(
-                20, 18, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
+              20,
+              18,
+              20,
+              MediaQuery.viewInsetsOf(context).bottom + 20,
+            ),
             child: SafeArea(
               top: false,
               child: Column(
@@ -208,107 +252,196 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
-                      child: Container(
-                          width: 36,
-                          height: 4,
-                          decoration: BoxDecoration(
-                              color: AppColors.borderSubtle,
-                              borderRadius: BorderRadius.circular(4)))),
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.borderSubtle,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 18),
-                  Text('Comentários (${comments.length})',
-                      style: AppTextStyles.titleMedium),
+                  Text(
+                    'Comentários ($_commentCount)',
+                    style: AppTextStyles.titleMedium,
+                  ),
                   const SizedBox(height: 12),
+                  if (!isLoading && _commentCount > comments.length)
+                    TextButton(
+                      onPressed: loadingMore
+                          ? null
+                          : () async {
+                              refreshSheet(() => loadingMore = true);
+                              try {
+                                final page = await _service.fetchComments(
+                                  widget.post.id,
+                                  isSample: widget.post.isSample,
+                                  offset: comments.length,
+                                );
+                                if (!context.mounted) return;
+                                refreshSheet(() {
+                                  final known = comments
+                                      .map((c) => c.id)
+                                      .toSet();
+                                  comments.addAll(
+                                    page.where((c) => !known.contains(c.id)),
+                                  );
+                                  if (page.isEmpty)
+                                    _commentCount = comments.length;
+                                });
+                              } catch (error) {
+                                if (mounted) _showError(error);
+                              } finally {
+                                if (context.mounted)
+                                  refreshSheet(() => loadingMore = false);
+                              }
+                            },
+                      child: Text(
+                        loadingMore
+                            ? 'Carregando…'
+                            : 'Carregar mais comentários',
+                      ),
+                    ),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 360),
                     child: isLoading
                         ? const SizedBox(
                             height: 96,
                             child: Center(
-                                child: CircularProgressIndicator(
-                                    color: AppColors.orange, strokeWidth: 2)))
-                        : comments.isEmpty
-                            ? Center(
-                                child: Padding(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Text(
-                                        'Seja a primeira pessoa a comentar.',
-                                        style: AppTextStyles.bodySmall)))
-                            : ListView.builder(
-                                shrinkWrap: true,
-                                itemCount: comments.length,
-                                itemBuilder: (_, index) {
-                                  final comment = comments[index];
-                                  return ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: _commentAvatar(
-                                        comment.author, comment.avatarUrl),
-                                    title: Row(children: [
-                                      Expanded(
-                                          child: Text(comment.author,
-                                              style: AppTextStyles.titleMedium
-                                                  .copyWith(fontSize: 13))),
-                                      Text(_formatElapsed(comment.createdAt),
-                                          style: AppTextStyles.statLabel)
-                                    ]),
-                                    subtitle: Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Text(comment.content,
-                                            style: AppTextStyles.bodySmall)),
-                                    trailing: widget.isAuthenticated &&
-                                            comment.userId ==
-                                                _service.currentUserId
-                                        ? IconButton(
-                                            tooltip: 'Excluir meu comentário',
-                                            onPressed: _busy
-                                                ? null
-                                                : () => _deleteComment(comment,
-                                                    comments, refreshSheet),
-                                            icon: const Icon(
-                                                Icons.delete_outline_rounded,
-                                                color: AppColors.textTertiary,
-                                                size: 20),
-                                          )
-                                        : null,
-                                  );
-                                },
+                              child: CircularProgressIndicator(
+                                color: AppColors.orange,
+                                strokeWidth: 2,
                               ),
+                            ),
+                          )
+                        : loadFailed
+                        ? TextButton.icon(
+                            onPressed: () => refreshSheet(() {
+                              loadFailed = false;
+                              loadStarted = false;
+                              isLoading = true;
+                            }),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text(
+                              'Não foi possível carregar. Tentar novamente',
+                            ),
+                          )
+                        : comments.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                'Seja a primeira pessoa a comentar.',
+                                style: AppTextStyles.bodySmall,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: comments.length,
+                            itemBuilder: (_, index) {
+                              final comment = comments[index];
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: _commentAvatar(
+                                  comment.author,
+                                  comment.avatarUrl,
+                                ),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        comment.author,
+                                        style: AppTextStyles.titleMedium
+                                            .copyWith(fontSize: 13),
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatElapsed(comment.createdAt),
+                                      style: AppTextStyles.statLabel,
+                                    ),
+                                  ],
+                                ),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    comment.content,
+                                    style: AppTextStyles.bodySmall,
+                                  ),
+                                ),
+                                trailing:
+                                    widget.isAuthenticated &&
+                                        comment.userId == _service.currentUserId
+                                    ? IconButton(
+                                        tooltip: 'Excluir meu comentário',
+                                        onPressed: _busy
+                                            ? null
+                                            : () => _deleteComment(
+                                                comment,
+                                                comments,
+                                                refreshSheet,
+                                              ),
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: AppColors.textTertiary,
+                                          size: 20,
+                                        ),
+                                      )
+                                    : null,
+                              );
+                            },
+                          ),
                   ),
                   const SizedBox(height: 12),
                   if (widget.isAuthenticated)
-                    Row(children: [
-                      Expanded(
+                    Row(
+                      children: [
+                        Expanded(
                           child: TextField(
-                              controller: _commentController,
-                              maxLength: 1000,
-                              textInputAction: TextInputAction.send,
-                              onSubmitted: (_) =>
-                                  _addComment(comments, refreshSheet),
-                              decoration: InputDecoration(
-                                  counterText: '',
-                                  hintText: 'Escreva um comentário...',
-                                  filled: true,
-                                  fillColor: AppColors.background,
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                      borderSide: BorderSide.none),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 10)))),
-                      IconButton(
+                            controller: _commentController,
+                            maxLength: 1000,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) =>
+                                _addComment(comments, refreshSheet),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              hintText: 'Escreva um comentário...',
+                              filled: true,
+                              fillColor: AppColors.background,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
                           onPressed: _busy
                               ? null
                               : () => _addComment(comments, refreshSheet),
-                          icon: const Icon(Icons.send_rounded,
-                              color: AppColors.orange)),
-                    ])
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: AppColors.orange,
+                          ),
+                        ),
+                      ],
+                    )
                   else
                     SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                            onPressed: () {
-                              Navigator.pop(sheetContext);
-                              widget.onRequireLogin();
-                            },
-                            child: const Text('Entre para comentar'))),
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          widget.onRequireLogin();
+                        },
+                        child: const Text('Entre para comentar'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -320,27 +453,39 @@ class _CommunityPostCardState extends State<CommunityPostCard>
 
   Future<List<CommunityComment>> _loadComments() async {
     try {
-      return await _service.fetchComments(widget.post.id,
-          isSample: widget.post.isSample);
+      return await _service.fetchComments(
+        widget.post.id,
+        isSample: widget.post.isSample,
+      );
     } catch (error) {
       if (mounted) _showError(error);
-      return const [];
+      rethrow;
     }
   }
 
   Future<void> _addComment(
-      List<CommunityComment> comments, StateSetter refreshSheet) async {
+    List<CommunityComment> comments,
+    StateSetter refreshSheet,
+  ) async {
     final content = _commentController.text.trim();
     if (content.isEmpty) return;
     setState(() => _busy = true);
     try {
-      await _service.addComment(widget.post.id, content,
-          isSample: widget.post.isSample);
+      await _service.addComment(
+        widget.post.id,
+        content,
+        isSample: widget.post.isSample,
+      );
       _commentController.clear();
+      final visibleLimit = comments.length < 30 ? 30 : comments.length + 1;
+      final refreshed = await _service.fetchComments(
+        widget.post.id,
+        isSample: widget.post.isSample,
+        limit: visibleLimit,
+      );
       comments
         ..clear()
-        ..addAll(await _service.fetchComments(widget.post.id,
-            isSample: widget.post.isSample));
+        ..addAll(refreshed);
       if (mounted) setState(() => _commentCount++);
       refreshSheet(() {});
       if (!widget.post.isSample) unawaited(widget.onChanged());
@@ -361,14 +506,17 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       builder: (context) => AlertDialog(
         title: const Text('Excluir comentário?'),
         content: const Text(
-            'Você poderá remover somente um comentário escrito por você.'),
+          'Você poderá remover somente um comentário escrito por você.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Excluir')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
         ],
       ),
     );
@@ -376,13 +524,19 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     setState(() => _busy = true);
     try {
       await _service.deleteComment(comment.id, isSample: widget.post.isSample);
+      final visibleLimit = comments.length < 30 ? 30 : comments.length;
+      final refreshed = await _service.fetchComments(
+        widget.post.id,
+        isSample: widget.post.isSample,
+        limit: visibleLimit,
+      );
       comments
         ..clear()
-        ..addAll(await _service.fetchComments(widget.post.id,
-            isSample: widget.post.isSample));
+        ..addAll(refreshed);
       if (mounted) {
         setState(
-            () => _commentCount = _commentCount > 0 ? _commentCount - 1 : 0);
+          () => _commentCount = _commentCount > 0 ? _commentCount - 1 : 0,
+        );
       }
       refreshSheet(() {});
       if (!widget.post.isSample) unawaited(widget.onChanged());
@@ -398,33 +552,44 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       context: context,
       backgroundColor: AppColors.surface,
       builder: (context) => SafeArea(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(
-            leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
-            title: Text(_saved ? 'Remover dos salvos' : 'Salvar publicação'),
-            onTap: () => Navigator.pop(context, 'save')),
-        ListTile(
-            leading: const Icon(Icons.copy_outlined),
-            title: const Text('Copiar texto'),
-            onTap: () => Navigator.pop(context, 'copy')),
-        ListTile(
-            leading: const Icon(Icons.flag_outlined),
-            title: const Text('Denunciar publicação'),
-            onTap: () => Navigator.pop(context, 'report')),
-        if (widget.isAuthenticated &&
-            widget.post.userId != _service.currentUserId)
-          ListTile(
-              leading: const Icon(Icons.block_outlined),
-              title: const Text('Bloquear este membro'),
-              onTap: () => Navigator.pop(context, 'block')),
-        if (widget.isAuthenticated &&
-            widget.post.userId == _service.currentUserId)
-          ListTile(
-              leading:
-                  const Icon(Icons.delete_outline, color: AppColors.orange),
-              title: const Text('Excluir minha publicação'),
-              onTap: () => Navigator.pop(context, 'delete')),
-      ])),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
+              title: Text(_saved ? 'Remover dos salvos' : 'Salvar publicação'),
+              onTap: () => Navigator.pop(context, 'save'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_outlined),
+              title: const Text('Copiar texto'),
+              onTap: () => Navigator.pop(context, 'copy'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('Denunciar publicação'),
+              onTap: () => Navigator.pop(context, 'report'),
+            ),
+            if (widget.isAuthenticated &&
+                widget.post.userId != _service.currentUserId)
+              ListTile(
+                leading: const Icon(Icons.block_outlined),
+                title: const Text('Bloquear este membro'),
+                onTap: () => Navigator.pop(context, 'block'),
+              ),
+            if (widget.isAuthenticated &&
+                widget.post.userId == _service.currentUserId)
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.orange,
+                ),
+                title: const Text('Excluir minha publicação'),
+                onTap: () => Navigator.pop(context, 'delete'),
+              ),
+          ],
+        ),
+      ),
     );
     if (!mounted || action == null) return;
     try {
@@ -436,7 +601,8 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         await _service.toggleSaved(widget.post.id, _saved);
         setState(() => _saved = !_saved);
         _showMessage(
-            _saved ? 'Publicação salva.' : 'Publicação removida dos salvos.');
+          _saved ? 'Publicação salva.' : 'Publicação removida dos salvos.',
+        );
       } else if (action == 'copy') {
         await Clipboard.setData(ClipboardData(text: widget.post.content));
         _showMessage('Texto copiado.');
@@ -455,14 +621,17 @@ class _CommunityPostCardState extends State<CommunityPostCard>
           builder: (dialogContext) => AlertDialog(
             title: const Text('Bloquear membro?'),
             content: const Text(
-                'As publicações deste membro deixarão de aparecer para você.'),
+              'As publicações deste membro deixarão de aparecer para você.',
+            ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancelar')),
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
               ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Bloquear')),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Bloquear'),
+              ),
             ],
           ),
         );
@@ -476,14 +645,17 @@ class _CommunityPostCardState extends State<CommunityPostCard>
           builder: (dialogContext) => AlertDialog(
             title: const Text('Excluir publicação?'),
             content: const Text(
-                'Esta ação remove sua publicação e seus comentários associados.'),
+              'Esta ação remove sua publicação e seus comentários associados.',
+            ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancelar')),
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
               ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Excluir')),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Excluir'),
+              ),
             ],
           ),
         );
@@ -498,31 +670,37 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   }
 
   Future<String?> _chooseReportReason() => showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Por que você está denunciando?'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            for (final reason in <({String id, String label})>[
-              (id: 'spam', label: 'Spam'),
-              (id: 'harassment', label: 'Assédio'),
-              (id: 'inappropriate', label: 'Conteúdo inadequado'),
-              (id: 'other', label: 'Outro motivo'),
-            ])
-              ListTile(
-                  title: Text(reason.label),
-                  onTap: () => Navigator.pop(context, reason.id)),
-          ]),
-        ),
-      );
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Por que você está denunciando?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final reason in <({String id, String label})>[
+            (id: 'spam', label: 'Spam'),
+            (id: 'harassment', label: 'Assédio'),
+            (id: 'inappropriate', label: 'Conteúdo inadequado'),
+            (id: 'other', label: 'Outro motivo'),
+          ])
+            ListTile(
+              title: Text(reason.label),
+              onTap: () => Navigator.pop(context, reason.id),
+            ),
+        ],
+      ),
+    ),
+  );
 
-  Future<void> _sharePost() async =>
-      Share.share('${widget.post.authorName}: ${widget.post.content}',
-          subject: 'Publicação de ${widget.post.authorName}');
+  Future<void> _sharePost() async => Share.share(
+    '${widget.post.authorName}: ${widget.post.content}',
+    subject: 'Publicação de ${widget.post.authorName}',
+  );
 
   void _showError(Object error) =>
       _showMessage(error.toString().replaceFirst('Exception: ', ''));
-  void _showMessage(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  void _showMessage(String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
 
   String _formatElapsed(DateTime date) {
     final elapsed = _now.difference(date);
@@ -542,25 +720,33 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       'chad' => 'assets/images/chad.png',
       _ => null,
     };
-    final placeholder = Text(_initials(author),
-        style: const TextStyle(color: AppColors.orange, fontSize: 12));
+    final placeholder = Text(
+      _initials(author),
+      style: const TextStyle(color: AppColors.orange, fontSize: 12),
+    );
     return CircleAvatar(
       backgroundColor: AppColors.orangeDim,
       child: image == null
           ? avatarUrl == null || avatarUrl.isEmpty
-              ? placeholder
-              : ClipOval(
-                  child: Image.network(avatarUrl,
+                ? placeholder
+                : ClipOval(
+                    child: Image.network(
+                      avatarUrl,
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(child: placeholder)))
+                      errorBuilder: (_, __, ___) => Center(child: placeholder),
+                    ),
+                  )
           : ClipOval(
-              child: Image.asset(image,
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Center(child: placeholder))),
+              child: Image.asset(
+                image,
+                width: 40,
+                height: 40,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Center(child: placeholder),
+              ),
+            ),
     );
   }
 
@@ -573,13 +759,13 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   }
 
   String _topicLabel(String topic) => switch (topic) {
-        'disciplina' => 'Disciplina',
-        'treino' => 'Treino',
-        'leitura' => 'Leitura',
-        'proposito' => 'Propósito',
-        'reflexao' => 'Reflexão',
-        _ => topic,
-      };
+    'disciplina' => 'Disciplina',
+    'treino' => 'Treino',
+    'leitura' => 'Leitura',
+    'proposito' => 'Propósito',
+    'reflexao' => 'Reflexão',
+    _ => topic,
+  };
 
   Widget _postAvatar(CommunityPostModel post) {
     final placeholder = Text(
@@ -620,134 +806,199 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.borderSubtle)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.orangeDim,
-            child: _postAvatar(post),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-              child: Column(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.orangeDim,
+                child: _postAvatar(post),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text(post.authorName,
-                    style: AppTextStyles.titleMedium.copyWith(fontSize: 14)),
-                Text(
-                    post.isSample
-                        ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
-                        : _formatElapsed(post.createdAt),
-                    style: AppTextStyles.statLabel)
-              ])),
-          if (!post.isSample &&
-              widget.isAuthenticated &&
-              post.userId != _service.currentUserId)
-            IconButton(
-                tooltip: _following ? 'Deixar de seguir' : 'Seguir',
-                onPressed: _toggleFollow,
-                icon: Icon(
+                    Text(
+                      post.authorName,
+                      style: AppTextStyles.titleMedium.copyWith(fontSize: 14),
+                    ),
+                    Text(
+                      post.isSample
+                          ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
+                          : _formatElapsed(post.createdAt),
+                      style: AppTextStyles.statLabel,
+                    ),
+                  ],
+                ),
+              ),
+              if (!post.isSample &&
+                  widget.isAuthenticated &&
+                  post.userId != _service.currentUserId)
+                IconButton(
+                  tooltip: _following ? 'Deixar de seguir' : 'Seguir',
+                  onPressed: _toggleFollow,
+                  icon: Icon(
                     _following
                         ? Icons.person_remove_alt_1_rounded
                         : Icons.person_add_alt_1_rounded,
                     size: 19,
                     color: _following
                         ? AppColors.orange
-                        : AppColors.textTertiary)),
-          if (!post.isSample)
-            IconButton(
-                tooltip: 'Mais opções',
-                onPressed: _showPostMenu,
-                icon: const Icon(Icons.more_horiz,
-                    color: AppColors.textTertiary)),
-        ]),
-        if (post.achievementTag != null) ...[
-          const SizedBox(height: 12),
-          Container(
+                        : AppColors.textTertiary,
+                  ),
+                ),
+              if (!post.isSample)
+                IconButton(
+                  tooltip: 'Mais opções',
+                  onPressed: _showPostMenu,
+                  icon: const Icon(
+                    Icons.more_horiz,
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+            ],
+          ),
+          if (post.achievementTag != null) ...[
+            const SizedBox(height: 12),
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                  color: AppColors.orangeDim,
-                  borderRadius: BorderRadius.circular(8)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.emoji_events,
-                    size: 13, color: AppColors.orange),
-                const SizedBox(width: 6),
-                Text(post.achievementTag!,
+                color: AppColors.orangeDim,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.emoji_events,
+                    size: 13,
+                    color: AppColors.orange,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    post.achievementTag!,
                     style: AppTextStyles.chip.copyWith(
-                        color: AppColors.orange, fontWeight: FontWeight.w700))
-              ])),
-        ],
-        if (post.topic != null) ...[
-          const SizedBox(height: 8),
-          Container(
+                      color: AppColors.orange,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (post.topic != null) ...[
+            const SizedBox(height: 8),
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
-                  color: AppColors.backgroundElevated,
-                  borderRadius: BorderRadius.circular(8)),
-              child: Text(_topicLabel(post.topic!),
-                  style: AppTextStyles.chip
-                      .copyWith(color: AppColors.textSecondary))),
-        ],
-        const SizedBox(height: 12),
-        Text(post.content,
-            style: AppTextStyles.body
-                .copyWith(color: AppColors.textPrimary, height: 1.5)),
-        const SizedBox(height: 16),
-        Row(children: [
-          Semantics(
-              button: true,
-              toggled: _liked,
-              label: 'Curtir publicação, $_likeCount curtidas',
-              child: GestureDetector(
+                color: AppColors.backgroundElevated,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _topicLabel(post.topic!),
+                style: AppTextStyles.chip.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            post.content,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.textPrimary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Semantics(
+                button: true,
+                toggled: _liked,
+                label: 'Curtir publicação, $_likeCount curtidas',
+                child: GestureDetector(
                   onTap: _busy ? null : _toggleLike,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    AnimatedBuilder(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedBuilder(
                         animation: _likeController,
                         builder: (_, child) => Transform.rotate(
-                            angle: _likeRotation.value,
-                            child: Transform.scale(
-                                scale: _likeScale.value, child: child)),
+                          angle: _likeRotation.value,
+                          child: Transform.scale(
+                            scale: _likeScale.value,
+                            child: child,
+                          ),
+                        ),
                         child: Icon(
-                            _liked
-                                ? Icons.local_fire_department
-                                : Icons.local_fire_department_outlined,
-                            size: 19,
-                            color: _liked
-                                ? AppColors.orange
-                                : AppColors.textSecondary)),
-                    const SizedBox(width: 6),
-                    Text('$_likeCount', style: AppTextStyles.bodySmall),
-                    if (_showBurst)
-                      Padding(
+                          _liked
+                              ? Icons.local_fire_department
+                              : Icons.local_fire_department_outlined,
+                          size: 19,
+                          color: _liked
+                              ? AppColors.orange
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('$_likeCount', style: AppTextStyles.bodySmall),
+                      if (_showBurst)
+                        Padding(
                           padding: const EdgeInsets.only(left: 5),
-                          child: Text('+1',
-                              style: AppTextStyles.chip.copyWith(
-                                  color: AppColors.orange,
-                                  fontWeight: FontWeight.w800))),
-                  ]))),
-          const SizedBox(width: 20),
-          Semantics(
-              button: true,
-              label: 'Ver $_commentCount comentários',
-              child: GestureDetector(
+                          child: Text(
+                            '+1',
+                            style: AppTextStyles.chip.copyWith(
+                              color: AppColors.orange,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Semantics(
+                button: true,
+                label: 'Ver $_commentCount comentários',
+                child: GestureDetector(
                   onTap: _showComments,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.chat_bubble_outline,
-                        size: 18, color: AppColors.textSecondary),
-                    const SizedBox(width: 6),
-                    Text('$_commentCount', style: AppTextStyles.bodySmall)
-                  ]))),
-          const Spacer(),
-          IconButton(
-              tooltip: 'Compartilhar publicação',
-              onPressed: _sharePost,
-              icon: const Icon(Icons.share_outlined,
-                  size: 18, color: AppColors.textTertiary)),
-        ]),
-      ]),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.chat_bubble_outline,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text('$_commentCount', style: AppTextStyles.bodySmall),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Compartilhar publicação',
+                onPressed: _sharePost,
+                icon: const Icon(
+                  Icons.share_outlined,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

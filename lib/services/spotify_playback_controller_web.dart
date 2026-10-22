@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:html' as html;
-import 'dart:js_util' as js;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
+import 'package:web/web.dart' as web;
 
 import 'package:flutter/foundation.dart';
 
@@ -10,25 +11,37 @@ import 'lyrics_service.dart';
 
 class SpotifyPlaybackController extends ChangeNotifier {
   SpotifyPlaybackController._() {
-    html.window.on['pbh-spotify-config'].listen((event) {
-      isConfigured = _detail(event)['configured'] == true;
-      notifyListeners();
-    });
-    html.window.on['pbh-spotify-auth'].listen((event) {
-      isAuthenticated = _detail(event)['authenticated'] == true;
-      isBusy = false;
-      notifyListeners();
-    });
-    html.window.on['pbh-spotify-ready'].listen((event) {
-      isReady = _detail(event)['ready'] == true;
-      notifyListeners();
-    });
-    html.window.on['pbh-spotify-state'].listen(_onPlaybackState);
-    html.window.on['pbh-spotify-error'].listen((event) {
-      error = _detail(event)['message'] as String?;
-      isBusy = false;
-      notifyListeners();
-    });
+    web.window.addEventListener(
+      'pbh-spotify-config',
+      ((web.Event event) {
+        isConfigured = _detail(event)['configured'] == true;
+        notifyListeners();
+      }).toJS,
+    );
+    web.window.addEventListener(
+      'pbh-spotify-auth',
+      ((web.Event event) {
+        isAuthenticated = _detail(event)['authenticated'] == true;
+        isBusy = false;
+        notifyListeners();
+      }).toJS,
+    );
+    web.window.addEventListener(
+      'pbh-spotify-ready',
+      ((web.Event event) {
+        isReady = _detail(event)['ready'] == true;
+        notifyListeners();
+      }).toJS,
+    );
+    web.window.addEventListener('pbh-spotify-state', _onPlaybackState.toJS);
+    web.window.addEventListener(
+      'pbh-spotify-error',
+      ((web.Event event) {
+        error = _detail(event)['message'] as String?;
+        isBusy = false;
+        notifyListeners();
+      }).toJS,
+    );
 
     isConfigured = clientId.isNotEmpty;
     if (isConfigured) {
@@ -36,7 +49,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
     }
   }
 
-  static final SpotifyPlaybackController instance = SpotifyPlaybackController._();
+  static final SpotifyPlaybackController instance =
+      SpotifyPlaybackController._();
   static const clientId = String.fromEnvironment('SPOTIFY_CLIENT_ID');
 
   bool isConfigured = false;
@@ -70,32 +84,43 @@ class SpotifyPlaybackController extends ChangeNotifier {
     return activeIndex;
   }
 
-  Map<String, dynamic> _detail(html.Event event) {
-    final detail = (event as html.CustomEvent).detail;
+  Map<String, dynamic> _detail(web.Event event) {
+    final detail = (event as web.CustomEvent).detail.dartify();
     if (detail is String) return jsonDecode(detail) as Map<String, dynamic>;
-    return detail is Map ? Map<String, dynamic>.from(detail) : <String, dynamic>{};
+    return detail is Map
+        ? Map<String, dynamic>.from(detail)
+        : <String, dynamic>{};
   }
 
-  Future<void> _invoke(String method, [List<dynamic> arguments = const []]) async {
-    final result = js.callMethod<dynamic>(html.window, method, arguments);
-    if (result != null && js.hasProperty(result, 'then')) {
-      await js.promiseToFuture<dynamic>(result);
-    }
+  Future<void> _invoke(
+    String method, [
+    List<dynamic> arguments = const [],
+  ]) async {
+    await _invokeValue(method, arguments);
   }
 
-  Future<dynamic> _invokeValue(String method, [List<dynamic> arguments = const []]) async {
-    final result = js.callMethod<dynamic>(html.window, method, arguments);
-    if (result != null && js.hasProperty(result, 'then')) {
-      return js.promiseToFuture<dynamic>(result);
+  Future<dynamic> _invokeValue(
+    String method, [
+    List<dynamic> arguments = const [],
+  ]) async {
+    final result = web.window.callMethodVarArgs<JSAny?>(
+      method.toJS,
+      arguments.map<JSAny?>((argument) => argument.jsify()).toList(),
+    );
+    if (result != null && result.isA<JSPromise>()) {
+      return (await (result as JSPromise<JSAny?>).toDart).dartify();
     }
-    return result;
+    return result.dartify();
   }
 
   Future<List<SpotifyTrack>> loadPlaylistTracks([
     String playlistId = officialSpotifyPlaylistId,
   ]) async {
-    if (!isAuthenticated) throw StateError('Conecte o Spotify para ver a playlist.');
-    final result = await _invokeValue('pbhSpotifyGetPlaylistTracks', [playlistId]);
+    if (!isAuthenticated)
+      throw StateError('Conecte o Spotify para ver a playlist.');
+    final result = await _invokeValue('pbhSpotifyGetPlaylistTracks', [
+      playlistId,
+    ]);
     final decoded = jsonDecode(result.toString()) as List<dynamic>;
     return decoded
         .whereType<Map<String, dynamic>>()
@@ -107,7 +132,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
     SpotifyTrack selectedTrack, [
     String playlistId = officialSpotifyPlaylistId,
   ]) async {
-    if (!isAuthenticated) throw StateError('Conecte o Spotify antes de tocar uma música.');
+    if (!isAuthenticated)
+      throw StateError('Conecte o Spotify antes de tocar uma música.');
     if (!isReady) throw StateError('O player Spotify ainda está conectando.');
     error = null;
     isBusy = true;
@@ -129,11 +155,13 @@ class SpotifyPlaybackController extends ChangeNotifier {
     }
   }
 
-  void _onPlaybackState(html.Event event) {
+  void _onPlaybackState(web.Event event) {
     final data = _detail(event);
     isPlaying = data['isPlaying'] == true;
     shuffleEnabled = data['shuffleEnabled'] == true;
-    repeatMode = ((data['repeatMode'] as num?)?.toInt() ?? 0).clamp(0, 2).toInt();
+    repeatMode = ((data['repeatMode'] as num?)?.toInt() ?? 0)
+        .clamp(0, 2)
+        .toInt();
     position = Duration(milliseconds: (data['position'] as num?)?.round() ?? 0);
     duration = Duration(milliseconds: (data['duration'] as num?)?.round() ?? 0);
     final trackData = data['track'];
@@ -149,7 +177,9 @@ class SpotifyPlaybackController extends ChangeNotifier {
       lyricsError = null;
       lyricsLoading = false;
     }
-    if (nextTrack != null && duration > Duration.zero && _lyricsTrackUri != nextTrack.uri) {
+    if (nextTrack != null &&
+        duration > Duration.zero &&
+        _lyricsTrackUri != nextTrack.uri) {
       _loadLyricsForCurrentTrack();
     }
     if (nextTrack != null) opened = true;
@@ -167,7 +197,9 @@ class SpotifyPlaybackController extends ChangeNotifier {
       lyricsLoading = false;
       return;
     }
-    if (_lyricsTrackUri == selectedTrack.uri && (lyrics != null || lyricsLoading || lyricsError != null)) return;
+    if (_lyricsTrackUri == selectedTrack.uri &&
+        (lyrics != null || lyricsLoading || lyricsError != null))
+      return;
     _lyricsTrackUri = selectedTrack.uri;
     lyrics = null;
     lyricLines = const [];
@@ -176,12 +208,16 @@ class SpotifyPlaybackController extends ChangeNotifier {
     lyricsLoading = true;
     notifyListeners();
     try {
-      final result = await LyricsService.instance.lyricsFor(selectedTrack, duration);
+      final result = await LyricsService.instance.lyricsFor(
+        selectedTrack,
+        duration,
+      );
       if (track?.uri != selectedTrack.uri) return;
       lyrics = result?.plainText;
       lyricLines = result?.lines ?? const [];
       lyricsAreSynced = result?.isSynced ?? false;
-      if (result == null) lyricsError = 'A letra desta faixa não está disponível.';
+      if (result == null)
+        lyricsError = 'A letra desta faixa não está disponível.';
     } on LyricsUnavailableException catch (exception) {
       if (track?.uri != selectedTrack.uri) return;
       lyricsError = exception.message;
@@ -219,7 +255,9 @@ class SpotifyPlaybackController extends ChangeNotifier {
     }
   }
 
-  Future<void> startPlaylist([String playlistId = officialSpotifyPlaylistId]) async {
+  Future<void> startPlaylist([
+    String playlistId = officialSpotifyPlaylistId,
+  ]) async {
     if (!isAuthenticated) {
       await connect();
       return;
@@ -242,21 +280,26 @@ class SpotifyPlaybackController extends ChangeNotifier {
   Future<void> togglePlayback() => _invoke('pbhSpotifyToggle');
   Future<void> nextTrack() => _invoke('pbhSpotifyNext');
   Future<void> previousTrack() => _invoke('pbhSpotifyPrevious');
-  Future<void> seek(Duration value) => _invoke('pbhSpotifySeek', [value.inMilliseconds]);
+  Future<void> seek(Duration value) =>
+      _invoke('pbhSpotifySeek', [value.inMilliseconds]);
 
   Future<void> setShuffle(bool enabled) => _setPlaybackOption(
-        'pbhSpotifySetShuffle',
-        enabled,
-        () => shuffleEnabled = enabled,
-      );
+    'pbhSpotifySetShuffle',
+    enabled,
+    () => shuffleEnabled = enabled,
+  );
 
   Future<void> setRepeatMode(int mode) => _setPlaybackOption(
-        'pbhSpotifySetRepeat',
-        mode,
-        () => repeatMode = mode.clamp(0, 2).toInt(),
-      );
+    'pbhSpotifySetRepeat',
+    mode,
+    () => repeatMode = mode.clamp(0, 2).toInt(),
+  );
 
-  Future<void> _setPlaybackOption(String method, dynamic value, VoidCallback update) async {
+  Future<void> _setPlaybackOption(
+    String method,
+    dynamic value,
+    VoidCallback update,
+  ) async {
     try {
       await _invoke(method, [value]);
       update();
@@ -288,7 +331,8 @@ class SpotifyPlaybackController extends ChangeNotifier {
   }
 
   void openTrack(SpotifyTrack selectedTrack) {
-    if (selectedTrack.uri.isNotEmpty) _invoke('pbhSpotifyOpenTrack', [selectedTrack.uri]);
+    if (selectedTrack.uri.isNotEmpty)
+      _invoke('pbhSpotifyOpenTrack', [selectedTrack.uri]);
   }
 
   void disconnect() {

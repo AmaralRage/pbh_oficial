@@ -64,7 +64,6 @@ class ChallengeCard extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _IconBadge extends StatelessWidget {
@@ -83,7 +82,9 @@ class _IconBadge extends StatelessWidget {
         color: isCompleted ? AppColors.orangeDim : AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isCompleted ? AppColors.orange.withOpacity(0.5) : AppColors.border,
+          color: isCompleted
+              ? AppColors.orange.withOpacity(0.5)
+              : AppColors.border,
         ),
       ),
       child: Icon(
@@ -97,9 +98,7 @@ class _IconBadge extends StatelessWidget {
 
 class _Tag extends StatelessWidget {
   final String label;
-  final IconData? icon;
-
-  const _Tag({required this.label, this.icon});
+  const _Tag({required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -113,10 +112,6 @@ class _Tag extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: AppColors.textTertiary),
-            const SizedBox(width: 4),
-          ],
           Text(label, style: AppTextStyles.chip.copyWith(fontSize: 11)),
         ],
       ),
@@ -133,9 +128,17 @@ class _TrailingIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (challenge.status) {
       case ChallengeStatus.completed:
-        return const Icon(Icons.check_circle, color: AppColors.orange, size: 22);
+        return const Icon(
+          Icons.check_circle,
+          color: AppColors.orange,
+          size: 22,
+        );
       case ChallengeStatus.active:
-        return const Icon(Icons.chevron_right, color: AppColors.textTertiary, size: 22);
+        return const Icon(
+          Icons.chevron_right,
+          color: AppColors.textTertiary,
+          size: 22,
+        );
       case ChallengeStatus.notStarted:
         return Container(
           width: 34,

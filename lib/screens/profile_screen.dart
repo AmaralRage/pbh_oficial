@@ -5,6 +5,8 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/challenge_model.dart';
 import '../models/profile_achievement.dart';
+import '../models/profile_style.dart';
+import '../widgets/profile_identity_card.dart';
 import '../services/auth_service.dart';
 import '../services/profile_achievement_service.dart';
 import '../services/challenge_service.dart';
@@ -34,15 +36,8 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onOpenPrivacy;
   final VoidCallback? onOpenHelp;
 
-
   @override
   Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
-    final metadata = user?.userMetadata ?? const <String, dynamic>{};
-    final name = (metadata['display_name'] as String?)?.trim();
-    final bio = (metadata['bio'] as String?)?.trim();
-    final displayName = isAdmin ? 'Amaral' : (name?.isNotEmpty == true ? name! : 'Sua conta');
-
     return SafeArea(
       bottom: false,
       child: ListView(
@@ -61,151 +56,94 @@ class ProfileScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.visibility_outlined, color: AppColors.orange),
+                  const Icon(
+                    Icons.visibility_outlined,
+                    color: AppColors.orange,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Modo visitante', style: AppTextStyles.titleMedium),
+                        Text(
+                          'Modo visitante',
+                          style: AppTextStyles.titleMedium,
+                        ),
                         const SizedBox(height: 4),
-                        Text('Você pode explorar o app sem uma conta.', style: AppTextStyles.bodySmall),
+                        Text(
+                          'Você pode explorar o app sem uma conta.',
+                          style: AppTextStyles.bodySmall,
+                        ),
                       ],
                     ),
                   ),
-                  TextButton(onPressed: onOpenSignIn, child: const Text('Entrar')),
+                  TextButton(
+                    onPressed: onOpenSignIn,
+                    child: const Text('Entrar'),
+                  ),
                 ],
               ),
             ),
           ],
-          AnimatedEntry(
-            delayMs: 60,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Row(
+          _ProfileProgress(onEdit: onEditProfile),
+          const SizedBox(height: 26),
+          if (isAuthenticated)
+            AnimatedEntry(
+              delayMs: 220,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.orange, width: 2),
-                      boxShadow: [BoxShadow(color: AppColors.orange.withOpacity(.2), blurRadius: 20)],
-                    ),
-                    child: ClipOval(
-                      child: isAuthenticated
-                          ? Image.asset(
-                              'assets/images/profile_photo.png',
-                              fit: BoxFit.cover,
-                              alignment: Alignment.topCenter,
-                              errorBuilder: (_, __, ___) => const _DefaultProfileAvatar(),
-                            )
-                          : const _DefaultProfileAvatar(),
-                    ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.tune_rounded,
+                        color: AppColors.orange,
+                        size: 19,
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Configurações', style: AppTextStyles.titleMedium),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.borderSubtle),
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          displayName,
-                          style: AppTextStyles.titleLarge,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        _SettingsRow(
+                          icon: Icons.person_outline,
+                          label: 'Editar perfil',
+                          subtitle: 'Foto, capa, moldura e selos em destaque',
+                          onTap: onEditProfile,
                         ),
-                        if (bio?.isNotEmpty == true) ...[
-                          const SizedBox(height: 4),
-                          Text(bio!, style: AppTextStyles.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        ],
-                        if (!isAuthenticated) ...[
-                          const SizedBox(height: 4),
-                          Text('Visitante', style: AppTextStyles.bodySmall),
-                        ] else if (isAdmin) ...[
-                          const SizedBox(height: 7),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                            decoration: BoxDecoration(color: AppColors.orangeDim, borderRadius: BorderRadius.circular(20)),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.workspace_premium_rounded, color: AppColors.orange, size: 13),
-                                const SizedBox(width: 5),
-                                Text('LÍDER DO PROJETO', style: AppTextStyles.eyebrow.copyWith(fontSize: 9, letterSpacing: .7)),
-                              ],
-                            ),
-                          ),
-                        ] else ...[
-                          const SizedBox(height: 4),
-                          Text('Membro da comunidade', style: AppTextStyles.bodySmall),
-                        ],
+                        _SettingsRow(
+                          icon: Icons.notifications_none_rounded,
+                          label: 'Notificações',
+                          subtitle: 'Alertas e som do app',
+                          onTap: onOpenNotificationSettings,
+                        ),
+                        _SettingsRow(
+                          icon: Icons.lock_outline_rounded,
+                          label: 'Privacidade',
+                          subtitle: 'Dados da conta e segurança',
+                          onTap: onOpenPrivacy,
+                        ),
+                        _SettingsRow(
+                          icon: Icons.help_outline_rounded,
+                          label: 'Ajuda e suporte',
+                          subtitle: 'Respostas e opções de contato',
+                          isLast: true,
+                          onTap: onOpenHelp,
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const _ProfileProgress(),
-          const SizedBox(height: 26),
-          if (isAuthenticated) AnimatedEntry(
-            delayMs: 220,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.tune_rounded, color: AppColors.orange, size: 19),
-                    const SizedBox(width: 8),
-                    Text('Configurações', style: AppTextStyles.titleMedium),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.borderSubtle),
-                  ),
-                  child: Column(
-                    children: [
-                      _SettingsRow(
-                        icon: Icons.person_outline,
-                        label: 'Editar perfil',
-                        subtitle: 'Nome e descrição da sua conta',
-                        onTap: onEditProfile,
-                      ),
-                      _SettingsRow(
-                        icon: Icons.notifications_none_rounded,
-                        label: 'Notificações',
-                        subtitle: 'Alertas e som do app',
-                        onTap: onOpenNotificationSettings,
-                      ),
-                      _SettingsRow(
-                        icon: Icons.lock_outline_rounded,
-                        label: 'Privacidade',
-                        subtitle: 'Dados da conta e segurança',
-                        onTap: onOpenPrivacy,
-                      ),
-                      _SettingsRow(
-                        icon: Icons.help_outline_rounded,
-                        label: 'Ajuda e suporte',
-                        subtitle: 'Respostas e opções de contato',
-                        isLast: true,
-                        onTap: onOpenHelp,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -213,7 +151,8 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _ProfileProgress extends StatefulWidget {
-  const _ProfileProgress();
+  const _ProfileProgress({this.onEdit});
+  final VoidCallback? onEdit;
   @override
   State<_ProfileProgress> createState() => _ProfileProgressState();
 }
@@ -226,6 +165,18 @@ class _ProfileProgressState extends State<_ProfileProgress> {
   int _followers = 0;
   Set<String> _completedChallengeIds = {};
   bool _loading = true;
+  bool _hasProgress = false;
+  bool _refreshing = false;
+  bool _loadFailed = false;
+  bool? _tabActive;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active = TickerMode.valuesOf(context).enabled;
+    if (active && _tabActive == false) _load();
+    _tabActive = active;
+  }
 
   @override
   void initState() {
@@ -234,6 +185,11 @@ class _ProfileProgressState extends State<_ProfileProgress> {
   }
 
   Future<void> _load() async {
+    if (_refreshing) return;
+    setState(() {
+      _refreshing = true;
+      _loadFailed = false;
+    });
     try {
       final values = await Future.wait([
         HabitService().streak(),
@@ -243,79 +199,194 @@ class _ProfileProgressState extends State<_ProfileProgress> {
       ]);
       if (!mounted) return;
       final challenges = values[1] as List<ChallengeModel>;
-      final completed = challenges.where((challenge) => challenge.status == ChallengeStatus.completed).toList();
+      final completed = challenges
+          .where((challenge) => challenge.status == ChallengeStatus.completed)
+          .toList();
       setState(() {
-        final isProjectLeader = Supabase.instance.client.auth.currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com';
+        final isProjectLeader = AuthService.isProjectLeader(
+          Supabase.instance.client.auth.currentUser,
+        );
         final today = DateTime.now();
         _streak = isProjectLeader
-            ? DateTime.utc(today.year, today.month, today.day).difference(DateTime.utc(2021, 1, 1)).inDays + 1
+            ? DateTime.utc(
+                    today.year,
+                    today.month,
+                    today.day,
+                  ).difference(DateTime.utc(2021, 1, 1)).inDays +
+                  1
             : values[0] as int;
         _completedChallenges = completed.length;
         _totalChallenges = challenges.length;
         _manualAwards = values[3] as Set<String>;
-        _completedChallengeIds = completed.map((challenge) => challenge.id).toSet();
+        _completedChallengeIds = completed
+            .map((challenge) => challenge.id)
+            .toSet();
         _followers = values[2] as int;
         _loading = false;
+        _hasProgress = true;
       });
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _loadFailed = true;
+        });
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isProjectLeader = AuthService.isProjectLeader(Supabase.instance.client.auth.currentUser);
+    final isProjectLeader = AuthService.isProjectLeader(
+      Supabase.instance.client.auth.currentUser,
+    );
     final isAuthenticated = Supabase.instance.client.auth.currentUser != null;
     final achievements = ProfileAchievement.earned(
-      isAuthenticated: isAuthenticated, isProjectLeader: isProjectLeader,
-      streak: _streak, completedChallenges: _completedChallenges,
-      totalChallenges: _totalChallenges, followers: _followers,
-      completedIds: _completedChallengeIds, manualAwards: _manualAwards,
+      isAuthenticated: isAuthenticated,
+      isProjectLeader: isProjectLeader,
+      streak: _streak,
+      completedChallenges: _completedChallenges,
+      totalChallenges: _totalChallenges,
+      followers: _followers,
+      completedIds: _completedChallengeIds,
+      manualAwards: _manualAwards,
     );
-    if (_loading) return const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator()));
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        if (isAuthenticated) ...[
-          StatCard(icon: Icons.local_fire_department, value: '$_streak', label: isProjectLeader ? 'Dias do\nprojeto' : 'Dias de\nsequência'),
-          const SizedBox(width: 12),
+    final metadata =
+        Supabase.instance.client.auth.currentUser?.userMetadata ??
+        <String, dynamic>{};
+    final style = ProfileStyle.fromMetadata(metadata, founder: isProjectLeader)
+        .validated(
+          founder: isProjectLeader,
+          completed: _completedChallenges,
+          earned: achievements,
+        );
+    final name = (metadata['display_name'] as String?)?.trim();
+    final identity = ProfileIdentityCard(
+      name: isAuthenticated
+          ? (name?.isNotEmpty == true
+                ? name!
+                : isProjectLeader
+                ? 'Amaral'
+                : 'Sua conta')
+          : 'Visitante',
+      bio: metadata['bio'] as String? ?? '',
+      avatarUrl: metadata['avatar_url'] as String?,
+      coverUrl: metadata['cover_url'] as String?,
+      founder: isProjectLeader,
+      style: style,
+      earned: achievements,
+      onEdit: widget.onEdit,
+    );
+    if (_loading)
+      return Column(
+        children: [
+          identity,
+          const Padding(
+            padding: EdgeInsets.all(28),
+            child: CircularProgressIndicator(),
+          ),
         ],
-        StatCard(icon: Icons.flag, value: '$_completedChallenges', label: 'Desafios\nconcluídos'),
-        const SizedBox(width: 12),
-        StatCard(icon: Icons.emoji_events, value: '${achievements.length}', label: 'Selos\nconquistados'),
-      ]),
-      const SizedBox(height: 26),
-      Row(children: [
-        Expanded(child: Text('Selos de dedicação', style: AppTextStyles.titleMedium)),
-        if (isProjectLeader) IconButton(
-          tooltip: 'Conceder selo supremo',
-          icon: const Icon(Icons.add_moderator_outlined, color: AppColors.orange),
-          onPressed: () async {
-            await showDialog<void>(context: context, builder: (_) => const GrantProfileSealDialog());
-            if (mounted) _load();
-          },
-        ),
-      ]),
-      const SizedBox(height: 4),
-      Text('Sua dedicação deixa marcas. Toque em um selo para conhecer sua história.', style: AppTextStyles.bodySmall),
-      const SizedBox(height: 14),
-      ProfileAchievementSeals(achievements: achievements),
-    ]);
-  }
-}
-
-class _DefaultProfileAvatar extends StatelessWidget {
-  const _DefaultProfileAvatar();
-
-  @override
-  Widget build(BuildContext context) => Container(
-        color: AppColors.background,
-        alignment: Alignment.center,
-        child: const Icon(
-          Icons.person_outline_rounded,
-          color: AppColors.textTertiary,
-          size: 38,
-        ),
       );
+    final failureNotice = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        children: [
+          Text(
+            _refreshing
+                ? 'Atualizando seu progresso…'
+                : _hasProgress
+                ? 'Não foi possível atualizar seu progresso. Os últimos dados carregados continuam abaixo.'
+                : 'Não foi possível carregar seu progresso. Suas conquistas não foram apagadas.',
+            style: AppTextStyles.bodySmall,
+          ),
+          TextButton.icon(
+            onPressed: _refreshing ? null : _load,
+            icon: const Icon(Icons.refresh),
+            label: Text(_refreshing ? 'Atualizando…' : 'Tentar novamente'),
+          ),
+        ],
+      ),
+    );
+    if (!_hasProgress) return Column(children: [identity, failureNotice]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        identity,
+        const SizedBox(height: 22),
+        if (_loadFailed || _refreshing) failureNotice,
+        Row(
+          children: [
+            if (isAuthenticated) ...[
+              StatCard(
+                icon: Icons.local_fire_department,
+                value: '$_streak',
+                label: isProjectLeader
+                    ? 'Dias do\nprojeto'
+                    : 'Dias de\nsequência',
+              ),
+              const SizedBox(width: 12),
+            ],
+            StatCard(
+              icon: Icons.flag,
+              value: '$_completedChallenges',
+              label: 'Desafios\nconcluídos',
+            ),
+            const SizedBox(width: 12),
+            StatCard(
+              icon: Icons.emoji_events,
+              value: '${achievements.length}',
+              label: 'Selos\nconquistados',
+            ),
+          ],
+        ),
+        const SizedBox(height: 26),
+        if (style.highlights(achievements).isNotEmpty) ...[
+          Text('Selos em destaque', style: AppTextStyles.titleMedium),
+          const SizedBox(height: 6),
+          Text(
+            'Os marcos que você escolheu para contar sua história.',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: 14),
+          ProfileAchievementSeals(achievements: style.highlights(achievements)),
+          const SizedBox(height: 26),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Selos de dedicação',
+                style: AppTextStyles.titleMedium,
+              ),
+            ),
+            if (isProjectLeader)
+              IconButton(
+                tooltip: 'Conceder selo supremo',
+                icon: const Icon(
+                  Icons.add_moderator_outlined,
+                  color: AppColors.orange,
+                ),
+                onPressed: () async {
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => const GrantProfileSealDialog(),
+                  );
+                  if (mounted) _load();
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Sua dedicação deixa marcas. Toque em um selo para conhecer sua história.',
+          style: AppTextStyles.bodySmall,
+        ),
+        const SizedBox(height: 14),
+        ProfileAchievementSeals(achievements: achievements),
+      ],
+    );
+  }
 }
 
 class _SettingsRow extends StatelessWidget {
@@ -335,40 +406,57 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.borderSubtle)),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(18),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
-                    child: Icon(icon, size: 19, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textPrimary)),
-                        const SizedBox(height: 3),
-                        Text(subtitle, style: AppTextStyles.statLabel.copyWith(fontSize: 11)),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
-                ],
+    decoration: BoxDecoration(
+      border: isLast
+          ? null
+          : const Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 19, color: AppColors.textSecondary),
               ),
-            ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.statLabel.copyWith(fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textTertiary,
+                size: 20,
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 }

@@ -19,6 +19,7 @@ import 'widgets/pbh_app_drawer.dart';
 import 'widgets/pbh_app_header.dart';
 import 'widgets/pbh_bottom_nav.dart';
 import 'widgets/spotify_playback_dock.dart';
+import 'widgets/retained_tab_view.dart';
 
 /// Widget raiz que controla a navegação principal do app (bottom nav).
 /// Cada aba mantém seu próprio estado ao trocar de tela (IndexedStack).
@@ -47,11 +48,10 @@ class _MainNavigationState extends State<MainNavigation> {
     'Conteúdo',
     'Música',
     'Comunidade',
-    'Perfil'
+    'Perfil',
   ];
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _currentIndex;
-  int _previousIndex = 0;
   int _unreadNotifications = 0;
   int _notificationPulseKey = 0;
   int _habitMigrationGeneration = 0;
@@ -89,9 +89,12 @@ class _MainNavigationState extends State<MainNavigation> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-              'Não foi possível transferir seus hábitos de visitante. Eles continuam salvos neste dispositivo.'),
+            'Não foi possível transferir seus hábitos de visitante. Eles continuam salvos neste dispositivo.',
+          ),
           action: SnackBarAction(
-              label: 'Tentar', onPressed: _migrateGuestHabitHistory),
+            label: 'Tentar',
+            onPressed: _migrateGuestHabitHistory,
+          ),
         ),
       );
     }
@@ -102,7 +105,8 @@ class _MainNavigationState extends State<MainNavigation> {
     _refreshUnreadNotifications();
     _announcementChannel = Supabase.instance.client
         .channel(
-            'announcements-${Supabase.instance.client.auth.currentUser?.id ?? 'user'}')
+          'announcements-${Supabase.instance.client.auth.currentUser?.id ?? 'user'}',
+        )
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -171,8 +175,10 @@ class _MainNavigationState extends State<MainNavigation> {
     _refreshUnreadNotifications();
   }
 
-  Future<void> _openSettingsScreen(Widget screen,
-      {bool refreshNotifications = false}) async {
+  Future<void> _openSettingsScreen(
+    Widget screen, {
+    bool refreshNotifications = false,
+  }) async {
     await Navigator.of(context).push<void>(fadeSlideRoute<void>(screen));
     if (!mounted) return;
     if (refreshNotifications) {
@@ -185,7 +191,6 @@ class _MainNavigationState extends State<MainNavigation> {
   void _goTo(int index) {
     if (index == _currentIndex) return;
     setState(() {
-      _previousIndex = _currentIndex;
       _currentIndex = index;
     });
   }
@@ -193,23 +198,21 @@ class _MainNavigationState extends State<MainNavigation> {
   void _openMenu() => _scaffoldKey.currentState?.openDrawer();
 
   void _openHabits() {
-    Navigator.of(context).push(
-      fadeSlideRoute(_buildHabitsScreen()),
-    );
+    Navigator.of(context).push(fadeSlideRoute(_buildHabitsScreen()));
   }
 
   HabitsScreen _buildHabitsScreen() => HabitsScreen(
-        onNavigate: _goTo,
-        currentIndex: _currentIndex,
-        isAuthenticated: widget.isAuthenticated,
-        isAdmin: widget.isAdmin,
-        unreadNotifications: _unreadNotifications,
-        notificationPulseKey: _notificationPulseKey,
-        onLogoPressed: _returnToLaunch,
-        onAccountAction: _accountAction,
-        onNotificationsChanged: _refreshUnreadNotifications,
-        onRequireLogin: widget.onOpenSignIn,
-      );
+    onNavigate: _goTo,
+    currentIndex: _currentIndex,
+    isAuthenticated: widget.isAuthenticated,
+    isAdmin: widget.isAdmin,
+    unreadNotifications: _unreadNotifications,
+    notificationPulseKey: _notificationPulseKey,
+    onLogoPressed: _returnToLaunch,
+    onAccountAction: _accountAction,
+    onNotificationsChanged: _refreshUnreadNotifications,
+    onRequireLogin: widget.onOpenSignIn,
+  );
 
   void _returnToLaunch() {
     Navigator.of(context).pushAndRemoveUntil(
@@ -232,9 +235,10 @@ class _MainNavigationState extends State<MainNavigation> {
     final accountKey = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
     final screens = <Widget>[
       HomeScreen(
-          key: ValueKey('home-$accountKey-$_habitMigrationGeneration'),
-          onNavigate: _goTo,
-          onOpenHabits: _openHabits),
+        key: ValueKey('home-$accountKey-$_habitMigrationGeneration'),
+        onNavigate: _goTo,
+        onOpenHabits: _openHabits,
+      ),
       ChallengesScreen(
         key: ValueKey('challenges-$accountKey'),
         isAuthenticated: widget.isAuthenticated,
@@ -256,8 +260,10 @@ class _MainNavigationState extends State<MainNavigation> {
             ? () => _openSettingsScreen(const EditProfileScreen())
             : null,
         onOpenNotificationSettings: widget.isAuthenticated
-            ? () => _openSettingsScreen(const NotificationSettingsScreen(),
-                refreshNotifications: true)
+            ? () => _openSettingsScreen(
+                const NotificationSettingsScreen(),
+                refreshNotifications: true,
+              )
             : null,
         onOpenPrivacy: widget.isAuthenticated
             ? () => _openSettingsScreen(const PrivacySettingsScreen())
@@ -291,27 +297,10 @@ class _MainNavigationState extends State<MainNavigation> {
               showNotifications: widget.isAuthenticated,
             ),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 360),
-                reverseDuration: const Duration(milliseconds: 260),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeOutCubic,
-                transitionBuilder: (child, animation) {
-                  final isForward = _currentIndex >= _previousIndex;
-                  final offset = Tween<Offset>(
-                    begin: Offset(isForward ? 0.08 : -0.08, 0),
-                    end: Offset.zero,
-                  ).animate(animation);
-
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(position: offset, child: child),
-                  );
-                },
-                child: KeyedSubtree(
-                  key: ValueKey(_currentIndex),
-                  child: screens[_currentIndex],
-                ),
+              child: RetainedTabView(
+                key: ValueKey(accountKey),
+                index: _currentIndex,
+                children: screens,
               ),
             ),
             const SpotifyPlaybackDock(),
