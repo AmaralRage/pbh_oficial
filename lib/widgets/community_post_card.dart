@@ -9,6 +9,8 @@ import '../core/theme/app_text_styles.dart';
 import '../models/community_post_model.dart';
 import '../services/community_service.dart';
 import '../services/minute_clock.dart';
+import '../screens/public_member_profile_screen.dart';
+import '../core/navigation/app_transitions.dart';
 
 class CommunityPostCard extends StatefulWidget {
   const CommunityPostCard({
@@ -344,17 +346,25 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                               final comment = comments[index];
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
-                                leading: _commentAvatar(
-                                  comment.author,
-                                  comment.avatarUrl,
+                                leading: InkWell(
+                                  onTap: () => _openMember(comment.userId),
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: _commentAvatar(
+                                    comment.author,
+                                    comment.avatarUrl,
+                                  ),
                                 ),
                                 title: Row(
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        comment.author,
-                                        style: AppTextStyles.titleMedium
-                                            .copyWith(fontSize: 13),
+                                      child: InkWell(
+                                        onTap: () =>
+                                            _openMember(comment.userId),
+                                        child: Text(
+                                          comment.author,
+                                          style: AppTextStyles.titleMedium
+                                              .copyWith(fontSize: 13),
+                                        ),
                                       ),
                                     ),
                                     Text(
@@ -800,6 +810,12 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     return placeholder;
   }
 
+  void _openMember(String userId) {
+    Navigator.of(
+      context,
+    ).push(fadeSlideRoute<void>(PublicMemberProfileScreen(userId: userId)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
@@ -815,27 +831,34 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: context.pbhColors.orangeDim,
-                child: _postAvatar(post),
+              InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: post.isSample ? null : () => _openMember(post.userId),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: context.pbhColors.orangeDim,
+                  child: _postAvatar(post),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.authorName,
-                      style: AppTextStyles.titleMedium.copyWith(fontSize: 14),
-                    ),
-                    Text(
-                      post.isSample
-                          ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
-                          : _formatElapsed(post.createdAt),
-                      style: AppTextStyles.statLabel,
-                    ),
-                  ],
+                child: InkWell(
+                  onTap: post.isSample ? null : () => _openMember(post.userId),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.authorName,
+                        style: AppTextStyles.titleMedium.copyWith(fontSize: 14),
+                      ),
+                      Text(
+                        post.isSample
+                            ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
+                            : _formatElapsed(post.createdAt),
+                        style: AppTextStyles.statLabel,
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (!post.isSample &&

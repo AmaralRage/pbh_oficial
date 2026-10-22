@@ -214,6 +214,7 @@ class PrivacySettingsScreen extends StatefulWidget {
 
 class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
   bool _publicName = true;
+  bool _shareProgress = false;
   bool _loading = true;
   bool _saving = false;
   String? _visibilityError;
@@ -231,7 +232,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
         throw StateError('Entre novamente para alterar sua privacidade.');
       final profile = await Supabase.instance.client
           .from('profiles')
-          .select('is_public')
+          .select('is_public,share_progress')
           .eq('id', userId)
           .maybeSingle();
       if (profile == null)
@@ -239,6 +240,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
       if (mounted)
         setState(() {
           _publicName = profile['is_public'] as bool? ?? true;
+          _shareProgress = profile['share_progress'] as bool? ?? false;
           _loading = false;
           _visibilityError = null;
         });
@@ -270,6 +272,32 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
         setState(() {
           _publicName = previous;
           _visibilityError = error.toString().replaceFirst('Exception: ', '');
+        });
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _setShareProgress(bool value) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final previous = _shareProgress;
+    setState(() {
+      _shareProgress = value;
+      _saving = true;
+      _visibilityError = null;
+    });
+    try {
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'share_progress': value})
+          .eq('id', userId);
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _shareProgress = previous;
+          _visibilityError =
+              'Não foi possível salvar a visibilidade do progresso. Tente novamente.';
         });
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -359,7 +387,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Suas publicações e comentários são visíveis publicamente. Esta opção oculta seu nome e mostra “Membro” como autor.',
+                'Ao tornar o perfil privado, seu nome aparece como “Membro” no feed e outras pessoas não podem abrir seu perfil. Suas publicações e comentários continuam visíveis.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -368,16 +396,28 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
               else
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Mostrar meu nome'),
+                  title: const Text('Perfil público'),
                   subtitle: Text(
                     _publicName
-                        ? 'Seu nome de exibição aparece no feed.'
+                        ? 'Nome, foto, biografia e capa ficam visíveis no seu perfil.'
                         : 'Seu nome aparece como Membro.',
                   ),
                   value: _publicName,
                   onChanged: _saving || _visibilityError != null
                       ? null
                       : _setPublicName,
+                ),
+              if (!_loading)
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Compartilhar progresso e conquistas'),
+                  subtitle: const Text(
+                    'Permitir que outras pessoas vejam seus selos, títulos conquistados e números. Só aparece quando o perfil é público.',
+                  ),
+                  value: _shareProgress,
+                  onChanged: _saving || !_publicName || _visibilityError != null
+                      ? null
+                      : _setShareProgress,
                 ),
               if (_visibilityError != null) ...[
                 Text(
