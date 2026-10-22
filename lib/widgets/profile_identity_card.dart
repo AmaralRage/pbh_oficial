@@ -203,10 +203,11 @@ class ProfileIdentityCard extends StatelessWidget {
                   Positioned(
                     right: 12,
                     bottom: 0,
-                    child: TextButton.icon(
+                    child: IconButton(
                       onPressed: onEdit,
+                      tooltip: 'Editar perfil',
+                      color: context.pbhColors.orange,
                       icon: const Icon(Icons.edit_outlined, size: 17),
-                      label: const Text('Editar perfil'),
                     ),
                   ),
               ],

@@ -816,6 +816,22 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     ).push(fadeSlideRoute<void>(PublicMemberProfileScreen(userId: userId)));
   }
 
+  void _openPostAuthor() {
+    if (widget.post.isSample) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Este é um perfil de demonstração, sem conta vinculada. Você pode abrir os perfis de membros reais pela foto ou pelo nome.',
+          ),
+        ),
+      );
+      return;
+    }
+    _openMember(widget.post.userId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
@@ -833,7 +849,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
             children: [
               InkWell(
                 borderRadius: BorderRadius.circular(24),
-                onTap: post.isSample ? null : () => _openMember(post.userId),
+                onTap: _openPostAuthor,
                 child: CircleAvatar(
                   radius: 20,
                   backgroundColor: context.pbhColors.orangeDim,
@@ -843,7 +859,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
               const SizedBox(width: 12),
               Expanded(
                 child: InkWell(
-                  onTap: post.isSample ? null : () => _openMember(post.userId),
+                  onTap: _openPostAuthor,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
