@@ -17,11 +17,23 @@ class HabitItemCard extends StatelessWidget {
       curve: Curves.easeOutCubic,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: habit.completed ? AppColors.orange.withOpacity(.075) : AppColors.surface,
+        color: habit.completed
+            ? context.pbhColors.orange.withOpacity(.075)
+            : context.pbhColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: habit.completed ? AppColors.orange.withOpacity(.48) : AppColors.borderSubtle),
+        border: Border.all(
+          color: habit.completed
+              ? context.pbhColors.orange.withOpacity(.48)
+              : context.pbhColors.borderSubtle,
+        ),
         boxShadow: habit.completed
-            ? [BoxShadow(color: AppColors.orange.withOpacity(.08), blurRadius: 18, spreadRadius: 1)]
+            ? [
+                BoxShadow(
+                  color: context.pbhColors.orange.withOpacity(.08),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
+              ]
             : const [],
       ),
       child: Row(
@@ -31,7 +43,9 @@ class HabitItemCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: habit.completed ? AppColors.orangeDim : AppColors.backgroundElevated,
+              color: habit.completed
+                  ? context.pbhColors.orangeDim
+                  : context.pbhColors.backgroundElevated,
               borderRadius: BorderRadius.circular(12),
             ),
             child: AnimatedSwitcher(
@@ -43,7 +57,9 @@ class HabitItemCard extends StatelessWidget {
               child: Icon(
                 habit.icon,
                 key: ValueKey('${habit.key}-${habit.completed}'),
-                color: habit.completed ? AppColors.orange : AppColors.textSecondary,
+                color: habit.completed
+                    ? context.pbhColors.orange
+                    : context.pbhColors.textSecondary,
                 size: 20,
               ),
             ),
@@ -53,7 +69,10 @@ class HabitItemCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(habit.title, style: AppTextStyles.titleMedium.copyWith(fontSize: 15)),
+                Text(
+                  habit.title,
+                  style: AppTextStyles.titleMedium.copyWith(fontSize: 15),
+                ),
                 const SizedBox(height: 2),
                 Text(habit.subtitle, style: AppTextStyles.bodySmall),
               ],
@@ -63,12 +82,15 @@ class HabitItemCard extends StatelessWidget {
             button: true,
             toggled: habit.completed,
             enabled: onToggle != null,
-            label: '${habit.title}, ${habit.completed ? 'concluído' : 'não concluído'}',
+            label:
+                '${habit.title}, ${habit.completed ? 'concluído' : 'não concluído'}',
             child: GestureDetector(
-              onTap: onToggle == null ? null : () {
-                lightTapFeedback();
-                onToggle?.call(!habit.completed);
-              },
+              onTap: onToggle == null
+                  ? null
+                  : () {
+                      lightTapFeedback();
+                      onToggle?.call(!habit.completed);
+                    },
               child: AnimatedScale(
                 scale: habit.completed ? 1 : .88,
                 duration: const Duration(milliseconds: 320),
@@ -79,18 +101,32 @@ class HabitItemCard extends StatelessWidget {
                   height: 27,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: habit.completed ? AppColors.orange : Colors.transparent,
+                    color: habit.completed
+                        ? context.pbhColors.orange
+                        : Colors.transparent,
                     border: Border.all(
-                      color: habit.completed ? AppColors.orange : AppColors.border,
+                      color: habit.completed
+                          ? context.pbhColors.orange
+                          : context.pbhColors.border,
                       width: 1.5,
                     ),
                   ),
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
-                    transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
                     child: habit.completed
-                        ? const Icon(Icons.check_rounded, key: ValueKey('done'), size: 17, color: Colors.white)
-                        : const SizedBox(key: ValueKey('pending'), width: 17, height: 17),
+                        ? const Icon(
+                            Icons.check_rounded,
+                            key: ValueKey('done'),
+                            size: 17,
+                            color: Colors.white,
+                          )
+                        : const SizedBox(
+                            key: ValueKey('pending'),
+                            width: 17,
+                            height: 17,
+                          ),
                   ),
                 ),
               ),

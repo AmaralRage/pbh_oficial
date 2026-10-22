@@ -24,9 +24,9 @@ class ChallengeCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.pbhColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.borderSubtle, width: 1),
+          border: Border.all(color: context.pbhColors.borderSubtle, width: 1),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,17 +79,21 @@ class _IconBadge extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: isCompleted ? AppColors.orangeDim : AppColors.surfaceElevated,
+        color: isCompleted
+            ? context.pbhColors.orangeDim
+            : context.pbhColors.surfaceElevated,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isCompleted
-              ? AppColors.orange.withOpacity(0.5)
-              : AppColors.border,
+              ? context.pbhColors.orange.withOpacity(0.5)
+              : context.pbhColors.border,
         ),
       ),
       child: Icon(
         icon,
-        color: isCompleted ? AppColors.orange : AppColors.textSecondary,
+        color: isCompleted
+            ? context.pbhColors.orange
+            : context.pbhColors.textSecondary,
         size: 24,
       ),
     );
@@ -105,9 +109,9 @@ class _Tag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.backgroundElevated,
+        color: context.pbhColors.backgroundElevated,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: context.pbhColors.borderSubtle),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -128,23 +132,23 @@ class _TrailingIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (challenge.status) {
       case ChallengeStatus.completed:
-        return const Icon(
+        return Icon(
           Icons.check_circle,
-          color: AppColors.orange,
+          color: context.pbhColors.orange,
           size: 22,
         );
       case ChallengeStatus.active:
-        return const Icon(
+        return Icon(
           Icons.chevron_right,
-          color: AppColors.textTertiary,
+          color: context.pbhColors.textTertiary,
           size: 22,
         );
       case ChallengeStatus.notStarted:
         return Container(
           width: 34,
           height: 34,
-          decoration: const BoxDecoration(
-            color: AppColors.orange,
+          decoration: BoxDecoration(
+            color: context.pbhColors.orange,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.add, color: Colors.white, size: 18),

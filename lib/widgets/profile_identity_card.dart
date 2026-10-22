@@ -52,10 +52,10 @@ class ProfileIdentityCard extends StatelessWidget {
             cacheWidth: 256,
             errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 44),
           )
-        : const Icon(
+        : Icon(
             Icons.person_outline_rounded,
             size: 44,
-            color: AppColors.textSecondary,
+            color: context.pbhColors.textSecondary,
           );
     final image = photo != null
         ? Image.memory(photo!, fit: BoxFit.cover, cacheWidth: 256)
@@ -70,7 +70,7 @@ class ProfileIdentityCard extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.pbhColors.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: frame.withValues(alpha: .3)),
       ),
@@ -129,13 +129,20 @@ class ProfileIdentityCard extends StatelessWidget {
                               color: Colors.white.withValues(alpha: .06),
                             ),
                           ),
+                        ],
+                        if (style.coverEffect != 'none')
                           Positioned.fill(
                             child: ProfileOrnament(
-                              color: cover,
-                              founder: style.cover == 'founder',
+                              color: ProfileStyle.coverEffects
+                                  .firstWhere(
+                                    (o) => o.id == style.coverEffect,
+                                    orElse: () => ProfileStyle.coverEffects[1],
+                                  )
+                                  .color,
+                              effect: style.coverEffect,
+                              founder: founder,
                             ),
                           ),
-                        ],
                         if (coverPhoto == null && coverUrl?.isNotEmpty != true)
                           Positioned(
                             right: 24,
@@ -144,11 +151,15 @@ class ProfileIdentityCard extends StatelessWidget {
                               style.cover == 'founder'
                                   ? 'LEGADO\nPBH'
                                   : 'PROJETO\nBOM HOMEM',
-                              style: AppTextStyles.eyebrow.copyWith(
-                                color: Colors.white.withValues(alpha: .55),
-                                letterSpacing: 3,
-                                height: 1.6,
-                              ),
+                              style: AppTextStyles.eyebrow
+                                  .copyWith(
+                                    color: context.pbhColors.orangeLight,
+                                  )
+                                  .copyWith(
+                                    color: Colors.white.withValues(alpha: .55),
+                                    letterSpacing: 3,
+                                    height: 1.6,
+                                  ),
                             ),
                           ),
                       ],
@@ -164,28 +175,30 @@ class ProfileIdentityCard extends StatelessWidget {
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.surface,
+                      color: context.pbhColors.surface,
                       border: Border.all(color: frame, width: 3),
                     ),
                     child: ClipOval(
                       child: ColoredBox(
-                        color: AppColors.backgroundElevated,
+                        color: context.pbhColors.backgroundElevated,
                         child: image,
                       ),
                     ),
                   ),
                 ),
-                Positioned(
-                  left: 20,
-                  bottom: 0,
-                  width: 96,
-                  height: 96,
-                  child: ProfileOrnament(
-                    color: frame,
-                    frame: true,
-                    founder: founder,
+                if (style.frameEffect != 'none')
+                  Positioned(
+                    left: 20,
+                    bottom: 0,
+                    width: 96,
+                    height: 96,
+                    child: ProfileOrnament(
+                      color: frame,
+                      frame: true,
+                      founder: founder,
+                      effect: style.frameEffect,
+                    ),
                   ),
-                ),
                 if (onEdit != null)
                   Positioned(
                     right: 12,

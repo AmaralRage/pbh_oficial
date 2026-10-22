@@ -180,8 +180,8 @@ class _NotificationSettingsScreenState
                   _pushStatus!,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: _pushStatus!.startsWith('Notificações ativadas')
-                        ? AppColors.orange
-                        : AppColors.textSecondary,
+                        ? context.pbhColors.orange
+                        : context.pbhColors.textSecondary,
                   ),
                 ),
               ],
@@ -383,7 +383,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                 Text(
                   _visibilityError!,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.orange,
+                    color: context.pbhColors.orange,
                   ),
                 ),
                 TextButton(
@@ -453,7 +453,9 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
           onPressed: () => _requestAccountDeletion(context),
           icon: const Icon(Icons.delete_outline_rounded),
           label: const Text('Solicitar exclusão da conta'),
-          style: OutlinedButton.styleFrom(foregroundColor: AppColors.orange),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: context.pbhColors.orange,
+          ),
         ),
       ],
     );
@@ -568,7 +570,7 @@ class _SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.background,
+    backgroundColor: context.pbhColors.background,
     appBar: AppBar(title: Text(title)),
     body: ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -578,11 +580,11 @@ class _SettingsPage extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 20),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: AppColors.featuredGradient,
+              gradient: LinearGradient(
+                colors: context.pbhColors.featuredGradient,
               ),
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: context.pbhColors.borderSubtle),
             ),
             child: Row(
               children: [
@@ -590,10 +592,10 @@ class _SettingsPage extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: AppColors.orangeDim,
+                    color: context.pbhColors.orangeDim,
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: Icon(icon, color: AppColors.orange),
+                  child: Icon(icon, color: context.pbhColors.orange),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -624,9 +626,9 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: AppColors.surface,
+      color: context.pbhColors.surface,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.borderSubtle),
+      border: Border.all(color: context.pbhColors.borderSubtle),
     ),
     child: child,
   );
@@ -653,7 +655,7 @@ class _PreferenceSwitch extends StatelessWidget {
     opacity: onChanged == null ? .5 : 1,
     child: Row(
       children: [
-        Icon(icon, color: AppColors.orange, size: 22),
+        Icon(icon, color: context.pbhColors.orange, size: 22),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -688,7 +690,9 @@ class _AccountDataRow extends StatelessWidget {
       Expanded(
         child: Text(
           value,
-          style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.body.copyWith(
+            color: context.pbhColors.textPrimary,
+          ),
         ),
       ),
     ],

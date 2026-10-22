@@ -58,7 +58,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     final program = widget.program;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.pbhColors.background,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
@@ -73,7 +73,8 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
           IconButton(
             icon: const Icon(Icons.ios_share),
             tooltip: 'Compartilhar programa',
-            onPressed: () => Share.share('${program.title}\n${program.tagline}'),
+            onPressed: () =>
+                Share.share('${program.title}\n${program.tagline}'),
           ),
           const SizedBox(width: 8),
         ],
@@ -94,13 +95,21 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('PROGRAMA', style: AppTextStyles.eyebrow),
+                      Text(
+                        'PROGRAMA',
+                        style: AppTextStyles.eyebrow.copyWith(
+                          color: context.pbhColors.orangeLight,
+                        ),
+                      ),
                       const SizedBox(height: 14),
                       SizedBox(
                         width: 250,
                         child: Text(
                           program.title,
-                          style: AppTextStyles.displayLarge.copyWith(fontSize: 31, height: 1.04),
+                          style: AppTextStyles.displayLarge.copyWith(
+                            fontSize: 31,
+                            height: 1.04,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -116,9 +125,18 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         spacing: 10,
                         runSpacing: 10,
                         children: [
-                          _InfoChip(icon: Icons.view_module_outlined, label: '${program.modules} Módulos'),
-                          _InfoChip(icon: Icons.schedule_outlined, label: '${program.weeks} Semanas'),
-                          _InfoChip(icon: Icons.star_border, label: program.levelLabel),
+                          _InfoChip(
+                            icon: Icons.view_module_outlined,
+                            label: '${program.modules} Módulos',
+                          ),
+                          _InfoChip(
+                            icon: Icons.schedule_outlined,
+                            label: '${program.weeks} Semanas',
+                          ),
+                          _InfoChip(
+                            icon: Icons.star_border,
+                            label: program.levelLabel,
+                          ),
                         ],
                       ),
                     ],
@@ -132,35 +150,55 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('O que você vai desenvolver', style: AppTextStyles.titleMedium),
+                  Text(
+                    'O que você vai desenvolver',
+                    style: AppTextStyles.titleMedium,
+                  ),
                   const SizedBox(height: 14),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.72),
+                      color: context.pbhColors.surface.withOpacity(0.72),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.borderSubtle),
+                      border: Border.all(color: context.pbhColors.borderSubtle),
                     ),
                     child: Column(
                       children: List.generate(program.outcomes.length, (index) {
                         final isLast = index == program.outcomes.length - 1;
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 13,
+                          ),
                           decoration: BoxDecoration(
                             border: isLast
                                 ? null
-                                : const Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+                                : Border(
+                                    bottom: BorderSide(
+                                      color: context.pbhColors.borderSubtle,
+                                    ),
+                                  ),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.check_circle_outline, color: AppColors.orange, size: 18),
+                              Icon(
+                                Icons.check_circle_outline,
+                                color: context.pbhColors.orange,
+                                size: 18,
+                              ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   program.outcomes[index],
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: context.pbhColors.textPrimary,
+                                  ),
                                 ),
                               ),
-                              const Icon(Icons.chevron_right, color: AppColors.textTertiary, size: 18),
+                              Icon(
+                                Icons.chevron_right,
+                                color: context.pbhColors.textTertiary,
+                                size: 18,
+                              ),
                             ],
                           ),
                         );
@@ -178,13 +216,20 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                   ElevatedButton.icon(
                     onPressed: _startProgram,
                     icon: const Icon(Icons.play_arrow, size: 20),
-                    label: Text(_started ? 'Continuar programa' : 'Iniciar programa'),
+                    label: Text(
+                      _started ? 'Continuar programa' : 'Iniciar programa',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
                     onPressed: _toggleSaved,
-                    icon: Icon(_saved ? Icons.bookmark : Icons.bookmark_border, size: 18),
-                    label: Text(_saved ? 'Salvo para depois' : 'Salvar para depois'),
+                    icon: Icon(
+                      _saved ? Icons.bookmark : Icons.bookmark_border,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _saved ? 'Salvo para depois' : 'Salvar para depois',
+                    ),
                   ),
                 ],
               ),
@@ -207,14 +252,14 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: AppColors.surface.withOpacity(0.88),
+        color: context.pbhColors.surface.withOpacity(0.88),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: context.pbhColors.borderSubtle),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: AppColors.orange),
+          Icon(icon, size: 15, color: context.pbhColors.orange),
           const SizedBox(width: 6),
           Text(label, style: AppTextStyles.chip.copyWith(fontSize: 11)),
         ],

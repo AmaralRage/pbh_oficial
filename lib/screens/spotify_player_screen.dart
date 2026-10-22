@@ -20,9 +20,9 @@ class SpotifyPlayerScreen extends StatelessWidget {
       builder: (context, _) {
         final track = player.track;
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: context.pbhColors.background,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
+            backgroundColor: context.pbhColors.background,
             leading: IconButton(
               tooltip: 'Minimizar player',
               onPressed: () {
@@ -36,9 +36,9 @@ class SpotifyPlayerScreen extends StatelessWidget {
                 Text('Tocando da playlist', style: AppTextStyles.statLabel),
                 Text(
                   'PROJETO BOM HOMEM',
-                  style: AppTextStyles.eyebrow.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
+                  style: AppTextStyles.eyebrow
+                      .copyWith(color: context.pbhColors.orangeLight)
+                      .copyWith(color: context.pbhColors.textPrimary),
                 ),
               ],
             ),
@@ -51,9 +51,9 @@ class SpotifyPlayerScreen extends StatelessWidget {
                     builder: (_) => const SpotifyPlaylistTracksScreen(),
                   ),
                 ),
-                icon: const Icon(
+                icon: Icon(
                   Icons.queue_music_rounded,
-                  color: AppColors.orange,
+                  color: context.pbhColors.orange,
                 ),
               ),
               IconButton(
@@ -144,11 +144,11 @@ class _TrackView extends StatelessWidget {
                 width: maxImageSize,
                 height: maxImageSize,
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.pbhColors.surface,
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.orange.withOpacity(.08),
+                      color: context.pbhColors.orange.withOpacity(.08),
                       blurRadius: 34,
                       spreadRadius: 2,
                     ),
@@ -168,11 +168,11 @@ class _TrackView extends StatelessWidget {
                     ),
                   ),
                   child: track.imageUrl.isEmpty
-                      ? const Center(
+                      ? Center(
                           key: ValueKey('no-album-art'),
                           child: Icon(
                             Icons.music_note_rounded,
-                            color: AppColors.orange,
+                            color: context.pbhColors.orange,
                             size: 90,
                           ),
                         )
@@ -180,11 +180,11 @@ class _TrackView extends StatelessWidget {
                           track.imageUrl,
                           key: ValueKey(track.imageUrl),
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
+                          errorBuilder: (_, __, ___) => Center(
                             key: ValueKey('album-art-error'),
                             child: Icon(
                               Icons.music_note_rounded,
-                              color: AppColors.orange,
+                              color: context.pbhColors.orange,
                               size: 90,
                             ),
                           ),
@@ -211,7 +211,7 @@ class _TrackView extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.body.copyWith(
-                          color: AppColors.textSecondary,
+                          color: context.pbhColors.textSecondary,
                         ),
                       ),
                       if (track.album.isNotEmpty) ...[
@@ -229,9 +229,9 @@ class _TrackView extends StatelessWidget {
                 IconButton(
                   tooltip: 'Abrir no Spotify',
                   onPressed: player.openCurrentTrack,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.open_in_new_rounded,
-                    color: AppColors.orange,
+                    color: context.pbhColors.orange,
                   ),
                 ),
               ],
@@ -247,8 +247,8 @@ class _TrackView extends StatelessWidget {
                 min: 0,
                 max: totalMs > 0 ? totalMs.toDouble() : 1,
                 value: totalMs > 0 ? currentMs.toDouble() : 0,
-                activeColor: AppColors.orange,
-                inactiveColor: AppColors.inactive,
+                activeColor: context.pbhColors.orange,
+                inactiveColor: context.pbhColors.inactive,
                 onChanged: totalMs <= 0
                     ? null
                     : (value) =>
@@ -282,8 +282,8 @@ class _TrackView extends StatelessWidget {
                         onPressed: () =>
                             player.setShuffle(!player.shuffleEnabled),
                         color: player.shuffleEnabled
-                            ? AppColors.orange
-                            : AppColors.textPrimary,
+                            ? context.pbhColors.orange
+                            : context.pbhColors.textPrimary,
                         icon: const Icon(Icons.shuffle_rounded),
                       ),
                       IconButton(
@@ -304,8 +304,8 @@ class _TrackView extends StatelessWidget {
                         onPressed: () =>
                             player.setRepeatMode((player.repeatMode + 1) % 3),
                         color: player.repeatMode == 0
-                            ? AppColors.textPrimary
-                            : AppColors.orange,
+                            ? context.pbhColors.textPrimary
+                            : context.pbhColors.orange,
                         icon: Icon(
                           player.repeatMode == 2
                               ? Icons.repeat_one_rounded
@@ -320,7 +320,7 @@ class _TrackView extends StatelessWidget {
                     child: FilledButton(
                       onPressed: player.togglePlayback,
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.orange,
+                        backgroundColor: context.pbhColors.orange,
                         foregroundColor: Colors.white,
                         shape: const CircleBorder(),
                         padding: EdgeInsets.zero,
@@ -367,23 +367,25 @@ class _TrackView extends StatelessWidget {
                 player.error!,
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.orangeLight,
+                  color: context.pbhColors.orangeLight,
                 ),
               ),
             ],
             const SizedBox(height: 24),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.music_note_rounded,
                   size: 18,
-                  color: AppColors.orange,
+                  color: context.pbhColors.orange,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'REPRODUÇÃO PELO SPOTIFY',
-                    style: AppTextStyles.eyebrow,
+                    style: AppTextStyles.eyebrow.copyWith(
+                      color: context.pbhColors.orangeLight,
+                    ),
                   ),
                 ),
                 TextButton(
@@ -485,34 +487,36 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.pbhColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: context.pbhColors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.lyrics_outlined,
-                color: AppColors.orange,
+                color: context.pbhColors.orange,
                 size: 19,
               ),
               const SizedBox(width: 8),
               Text(
                 'LETRA',
-                style: AppTextStyles.eyebrow.copyWith(color: AppColors.orange),
+                style: AppTextStyles.eyebrow
+                    .copyWith(color: context.pbhColors.orangeLight)
+                    .copyWith(color: context.pbhColors.orange),
               ),
             ],
           ),
           const SizedBox(height: 12),
           if (player.lyricsLoading)
-            const Center(
+            Center(
               child: Padding(
                 padding: EdgeInsets.all(10),
                 child: CircularProgressIndicator(
-                  color: AppColors.orange,
+                  color: context.pbhColors.orange,
                   strokeWidth: 2,
                 ),
               ),
@@ -544,15 +548,15 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                             ),
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? AppColors.orangeDim
+                                  ? context.pbhColors.orangeDim
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               Icons.music_note_rounded,
                               color: isActive
-                                  ? AppColors.orange
-                                  : AppColors.textTertiary,
+                                  ? context.pbhColors.orange
+                                  : context.pbhColors.textTertiary,
                               size: isActive ? 24 : 20,
                             ),
                           ),
@@ -569,7 +573,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                           ),
                           decoration: BoxDecoration(
                             color: isActive
-                                ? AppColors.orangeDim
+                                ? context.pbhColors.orangeDim
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -577,10 +581,12 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                             duration: const Duration(milliseconds: 220),
                             style: AppTextStyles.body.copyWith(
                               color: isActive
-                                  ? AppColors.textPrimary
+                                  ? context.pbhColors.textPrimary
                                   : isPast
-                                  ? AppColors.textSecondary.withOpacity(.62)
-                                  : AppColors.textSecondary,
+                                  ? context.pbhColors.textSecondary.withOpacity(
+                                      .62,
+                                    )
+                                  : context.pbhColors.textSecondary,
                               fontWeight: isActive
                                   ? FontWeight.w700
                                   : FontWeight.normal,
@@ -598,14 +604,14 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             )
           else if (player.lyricsError ==
               'A letra desta faixa não está disponível.')
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: Column(
                   children: [
                     Icon(
                       Icons.music_note_rounded,
-                      color: AppColors.orange,
+                      color: context.pbhColors.orange,
                       size: 28,
                     ),
                     SizedBox(height: 8),
@@ -668,13 +674,13 @@ class _NoTrackState extends StatelessWidget {
             width: 200,
             height: 200,
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.pbhColors.surface,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.graphic_eq_rounded,
               size: 74,
-              color: AppColors.orange,
+              color: context.pbhColors.orange,
             ),
           ),
           const SizedBox(height: 24),

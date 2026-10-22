@@ -17,6 +17,42 @@ class TestCustomization extends ProfileCustomizationService {
 
 void main() {
   test(
+    'effects persist independently of cover uploads and founder choices are restricted',
+    () {
+      final draft = const ProfileStyle(
+        frameEffect: 'sparks',
+        coverEffect: 'aurora',
+      );
+      final restored = ProfileStyle.fromMetadata({
+        'profile_style': draft.toMap(),
+        'cover_url': 'https://example.com/my-cover.png',
+      }).validated(founder: false, completed: 0, earned: []);
+      expect(restored.frameEffect, 'sparks');
+      expect(restored.coverEffect, 'aurora');
+      final blocked = const ProfileStyle(
+        frameEffect: 'crown',
+        coverEffect: 'legacy',
+      ).validated(founder: false, completed: 100, earned: []);
+      expect(blocked.frameEffect, 'orbit');
+      expect(blocked.coverEffect, 'shimmer');
+      final founder = ProfileStyle.fromMetadata(
+        {},
+        founder: true,
+      ).validated(founder: true, completed: 0, earned: []);
+      expect(founder.frameEffect, 'crown');
+      expect(founder.coverEffect, 'legacy');
+      expect(
+        ProfileStyle.frames.firstWhere((o) => o.id == 'founder').color,
+        isNot(ProfileStyle.frames.firstWhere((o) => o.id == 'gold').color),
+      );
+      final still = draft.copyWith(frameEffect: 'none', coverEffect: 'none');
+      expect(
+        ProfileStyle.fromMetadata({'profile_style': still.toMap()}).coverEffect,
+        'none',
+      );
+    },
+  );
+  test(
     'unearned styles and founder identity cannot be selected by a member',
     () {
       final style =

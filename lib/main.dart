@@ -4,6 +4,7 @@ import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/launch_screen.dart';
 import 'screens/app_startup_screen.dart';
+import 'services/appearance_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,7 @@ Future<void> initializeApp() async {
         url: SupabaseConfig.url,
         publishableKey: SupabaseConfig.publishableKey,
       );
+      await AppearanceService.instance.bind(Supabase.instance.client);
     } catch (_) {
       // Clean up a partially initialized client before another attempt.
       // The persisted session is kept on the device.
@@ -26,6 +28,7 @@ Future<void> initializeApp() async {
       rethrow;
     }
   }
+  if (!SupabaseConfig.isConfigured) await AppearanceService.instance.bind(null);
 }
 
 class PbhOficialApp extends StatelessWidget {
@@ -33,13 +36,16 @@ class PbhOficialApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PBH Oficial',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      home: const AppStartupScreen(
-        initialize: initializeApp,
-        child: LaunchScreen(),
+    return ListenableBuilder(
+      listenable: AppearanceService.instance,
+      builder: (context, _) => MaterialApp(
+        title: 'PBH Oficial',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.forPalette(AppearanceService.instance.palette),
+        home: const AppStartupScreen(
+          initialize: initializeApp,
+          child: LaunchScreen(),
+        ),
       ),
     );
   }

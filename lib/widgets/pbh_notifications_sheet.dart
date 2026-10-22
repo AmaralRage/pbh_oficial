@@ -74,7 +74,9 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível atualizar a notificação.')),
+          const SnackBar(
+            content: Text('Não foi possível atualizar a notificação.'),
+          ),
         );
       }
     }
@@ -85,10 +87,13 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
     final destination = item.destinationUrl;
     if (destination == null || destination.trim().isEmpty) return;
     final uri = Uri.tryParse(destination);
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (uri == null ||
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível abrir o link desta notificação.')),
+          const SnackBar(
+            content: Text('Não foi possível abrir o link desta notificação.'),
+          ),
         );
       }
     }
@@ -104,7 +109,9 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível atualizar as notificações.')),
+          const SnackBar(
+            content: Text('Não foi possível atualizar as notificações.'),
+          ),
         );
       }
     } finally {
@@ -131,8 +138,8 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
       top: false,
       child: Container(
         height: MediaQuery.sizeOf(context).height * .82,
-        decoration: const BoxDecoration(
-          color: AppColors.backgroundElevated,
+        decoration: BoxDecoration(
+          color: context.pbhColors.backgroundElevated,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
@@ -141,7 +148,10 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
               width: 42,
               height: 4,
               margin: const EdgeInsets.only(top: 12),
-              decoration: BoxDecoration(color: AppColors.inactive, borderRadius: BorderRadius.circular(100)),
+              decoration: BoxDecoration(
+                color: context.pbhColors.inactive,
+                borderRadius: BorderRadius.circular(100),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 14, 10),
@@ -150,17 +160,28 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
                   Container(
                     width: 42,
                     height: 42,
-                    decoration: BoxDecoration(color: AppColors.orangeDim, borderRadius: BorderRadius.circular(14)),
-                    child: const Icon(Icons.notifications_active_outlined, color: AppColors.orange),
+                    decoration: BoxDecoration(
+                      color: context.pbhColors.orangeDim,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.notifications_active_outlined,
+                      color: context.pbhColors.orange,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Notificações', style: AppTextStyles.headline.copyWith(fontSize: 21)),
                         Text(
-                          unreadCount == 0 ? 'Você está em dia' : '$unreadCount ${unreadCount == 1 ? 'aviso novo' : 'avisos novos'}',
+                          'Notificações',
+                          style: AppTextStyles.headline.copyWith(fontSize: 21),
+                        ),
+                        Text(
+                          unreadCount == 0
+                              ? 'Você está em dia'
+                              : '$unreadCount ${unreadCount == 1 ? 'aviso novo' : 'avisos novos'}',
                           style: AppTextStyles.bodySmall,
                         ),
                       ],
@@ -171,8 +192,15 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
                       tooltip: 'Marcar todas como lidas',
                       onPressed: _markingAll ? null : _markAllRead,
                       icon: _markingAll
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.done_all_rounded, color: AppColors.orange),
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              Icons.done_all_rounded,
+                              color: context.pbhColors.orange,
+                            ),
                     ),
                 ],
               ),
@@ -181,9 +209,18 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
               child: Row(
                 children: [
-                  _FilterPill(label: 'Todas', selected: !_unreadOnly, onTap: () => setState(() => _unreadOnly = false)),
+                  _FilterPill(
+                    label: 'Todas',
+                    selected: !_unreadOnly,
+                    onTap: () => setState(() => _unreadOnly = false),
+                  ),
                   const SizedBox(width: 8),
-                  _FilterPill(label: 'Não lidas', count: unreadCount, selected: _unreadOnly, onTap: () => setState(() => _unreadOnly = true)),
+                  _FilterPill(
+                    label: 'Não lidas',
+                    count: unreadCount,
+                    selected: _unreadOnly,
+                    onTap: () => setState(() => _unreadOnly = true),
+                  ),
                 ],
               ),
             ),
@@ -192,35 +229,47 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
-                      ? _EmptyNotifications(icon: Icons.cloud_off_outlined, title: _error!)
-                      : visible.isEmpty
-                          ? _EmptyNotifications(
-                              icon: _unreadOnly ? Icons.done_all_rounded : Icons.notifications_none_rounded,
-                              title: _unreadOnly ? 'Tudo foi lido' : 'Nenhum aviso por enquanto',
-                              subtitle: _unreadOnly ? 'Novos avisos aparecerão aqui.' : 'Quando houver novidades, você as verá aqui.',
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-                              itemCount: visible.length,
-                              itemBuilder: (context, index) {
-                                final item = visible[index];
-                                return TweenAnimationBuilder<double>(
-                                  key: ValueKey(item.id),
-                                  duration: Duration(milliseconds: 260 + index * 35),
-                                  tween: Tween(begin: 0, end: 1),
-                                  curve: Curves.easeOutCubic,
-                                  builder: (context, value, child) => Opacity(
-                                    opacity: value,
-                                    child: Transform.translate(offset: Offset(0, 12 * (1 - value)), child: child),
-                                  ),
-                                  child: _NotificationCard(
-                                    item: item,
-                                    time: _relativeTime(item.createdAt),
-                                    onTap: () => _openNotification(item),
-                                  ),
-                                );
-                              },
+                  ? _EmptyNotifications(
+                      icon: Icons.cloud_off_outlined,
+                      title: _error!,
+                    )
+                  : visible.isEmpty
+                  ? _EmptyNotifications(
+                      icon: _unreadOnly
+                          ? Icons.done_all_rounded
+                          : Icons.notifications_none_rounded,
+                      title: _unreadOnly
+                          ? 'Tudo foi lido'
+                          : 'Nenhum aviso por enquanto',
+                      subtitle: _unreadOnly
+                          ? 'Novos avisos aparecerão aqui.'
+                          : 'Quando houver novidades, você as verá aqui.',
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                      itemCount: visible.length,
+                      itemBuilder: (context, index) {
+                        final item = visible[index];
+                        return TweenAnimationBuilder<double>(
+                          key: ValueKey(item.id),
+                          duration: Duration(milliseconds: 260 + index * 35),
+                          tween: Tween(begin: 0, end: 1),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) => Opacity(
+                            opacity: value,
+                            child: Transform.translate(
+                              offset: Offset(0, 12 * (1 - value)),
+                              child: child,
                             ),
+                          ),
+                          child: _NotificationCard(
+                            item: item,
+                            time: _relativeTime(item.createdAt),
+                            onTap: () => _openNotification(item),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -230,7 +279,12 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
 }
 
 class _FilterPill extends StatelessWidget {
-  const _FilterPill({required this.label, required this.selected, required this.onTap, this.count = 0});
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.count = 0,
+  });
 
   final String label;
   final bool selected;
@@ -239,35 +293,55 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: selected ? AppColors.orangeDim : AppColors.surface,
-        borderRadius: BorderRadius.circular(30),
-        child: InkWell(
-          onTap: onTap,
+    color: selected ? context.pbhColors.orangeDim : context.pbhColors.surface,
+    borderRadius: BorderRadius.circular(30),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: selected ? AppColors.orange.withOpacity(.5) : AppColors.borderSubtle),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label, style: AppTextStyles.chip.copyWith(color: selected ? AppColors.orange : AppColors.textSecondary)),
-                if (count > 0) ...[
-                  const SizedBox(width: 6),
-                  Text('$count', style: AppTextStyles.chip.copyWith(color: AppColors.orange)),
-                ],
-              ],
-            ),
+          border: Border.all(
+            color: selected
+                ? context.pbhColors.orange.withOpacity(.5)
+                : context.pbhColors.borderSubtle,
           ),
         ),
-      );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: AppTextStyles.chip.copyWith(
+                color: selected
+                    ? context.pbhColors.orange
+                    : context.pbhColors.textSecondary,
+              ),
+            ),
+            if (count > 0) ...[
+              const SizedBox(width: 6),
+              Text(
+                '$count',
+                style: AppTextStyles.chip.copyWith(
+                  color: context.pbhColors.orange,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _EmptyNotifications extends StatelessWidget {
-  const _EmptyNotifications({required this.icon, required this.title, this.subtitle});
+  const _EmptyNotifications({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+  });
 
   final IconData icon;
   final String title;
@@ -275,31 +349,46 @@ class _EmptyNotifications extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
-                child: Icon(icon, color: AppColors.textTertiary, size: 28),
-              ),
-              const SizedBox(height: 16),
-              Text(title, textAlign: TextAlign.center, style: AppTextStyles.titleMedium),
-              if (subtitle != null) ...[
-                const SizedBox(height: 6),
-                Text(subtitle!, textAlign: TextAlign.center, style: AppTextStyles.bodySmall),
-              ],
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: context.pbhColors.surface,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: context.pbhColors.textTertiary, size: 28),
           ),
-        ),
-      );
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.titleMedium,
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              subtitle!,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall,
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item, required this.time, required this.onTap});
+  const _NotificationCard({
+    required this.item,
+    required this.time,
+    required this.onTap,
+  });
 
   final Announcement item;
   final String time;
@@ -307,57 +396,83 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(top: 10),
-        decoration: BoxDecoration(
-          color: item.isRead ? AppColors.surface.withOpacity(.55) : AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: item.isRead ? AppColors.borderSubtle : AppColors.border),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.all(15),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(color: AppColors.orangeDim, borderRadius: BorderRadius.circular(14)),
-                    child: const Icon(Icons.campaign_outlined, color: AppColors.orange, size: 21),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
+    margin: const EdgeInsets.only(top: 10),
+    decoration: BoxDecoration(
+      color: item.isRead
+          ? context.pbhColors.surface.withOpacity(.55)
+          : context.pbhColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+        color: item.isRead
+            ? context.pbhColors.borderSubtle
+            : context.pbhColors.border,
+      ),
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: context.pbhColors.orangeDim,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.campaign_outlined,
+                  color: context.pbhColors.orange,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: Text(item.title, style: AppTextStyles.titleMedium.copyWith(fontSize: 14))),
-                            if (!item.isRead)
-                              Container(
-                                margin: const EdgeInsets.only(top: 5, left: 8),
-                                width: 7,
-                                height: 7,
-                                decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
-                              ),
-                          ],
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            style: AppTextStyles.titleMedium.copyWith(
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 5),
-                        Text(item.message, style: AppTextStyles.bodySmall),
-                        const SizedBox(height: 9),
-                        Text(time, style: AppTextStyles.statLabel.copyWith(fontSize: 10)),
+                        if (!item.isRead)
+                          Container(
+                            margin: const EdgeInsets.only(top: 5, left: 8),
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: context.pbhColors.orange,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 5),
+                    Text(item.message, style: AppTextStyles.bodySmall),
+                    const SizedBox(height: 9),
+                    Text(
+                      time,
+                      style: AppTextStyles.statLabel.copyWith(fontSize: 10),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 }

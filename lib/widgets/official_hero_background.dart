@@ -60,7 +60,8 @@ class _OfficialHeroBackgroundState extends State<OfficialHeroBackground>
   @override
   Widget build(BuildContext context) {
     final radius = widget.borderRadius ?? BorderRadius.zero;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     return ClipRRect(
       borderRadius: radius,
@@ -99,8 +100,12 @@ class _OfficialHeroBackgroundState extends State<OfficialHeroBackground>
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.black.withOpacity(0.12 + widget.darken),
-                  AppColors.background.withOpacity(0.38 + widget.darken),
-                  AppColors.background.withOpacity(0.74 + widget.darken),
+                  context.pbhColors.background.withOpacity(
+                    0.38 + widget.darken,
+                  ),
+                  context.pbhColors.background.withOpacity(
+                    0.74 + widget.darken,
+                  ),
                 ],
               ),
             ),
@@ -111,7 +116,10 @@ class _OfficialHeroBackgroundState extends State<OfficialHeroBackground>
                 child: AnimatedBuilder(
                   animation: _motion,
                   builder: (context, _) => CustomPaint(
-                    painter: _GalaxyParticlePainter(progress: _motion.value),
+                    painter: _GalaxyParticlePainter(
+                      progress: _motion.value,
+                      accent: context.pbhColors.orange,
+                    ),
                   ),
                 ),
               ),
@@ -124,9 +132,10 @@ class _OfficialHeroBackgroundState extends State<OfficialHeroBackground>
 }
 
 class _GalaxyParticlePainter extends CustomPainter {
-  const _GalaxyParticlePainter({required this.progress});
+  const _GalaxyParticlePainter({required this.progress, required this.accent});
 
   final double progress;
+  final Color accent;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -148,9 +157,10 @@ class _GalaxyParticlePainter extends CustomPainter {
         (y + driftY).clamp(.01, .99).toDouble() * size.height,
       );
       final isOrange = index % 9 == 0;
-      final color = isOrange ? AppColors.orange : Colors.white;
+      final color = isOrange ? accent : Colors.white;
       final radius = index % 11 == 0 ? 1.8 : .8;
-      final paint = Paint()..color = color.withOpacity(twinkle * (isOrange ? .72 : .48));
+      final paint = Paint()
+        ..color = color.withOpacity(twinkle * (isOrange ? .72 : .48));
       canvas.drawCircle(point, radius * (.7 + twinkle * .55), paint);
 
       if (index % 13 == 0) {
@@ -162,15 +172,19 @@ class _GalaxyParticlePainter extends CustomPainter {
   }
 
   void _paintGlow(Canvas canvas, Size size, Offset anchor, double strength) {
-    final x = (anchor.dx + math.sin(progress * math.pi * 2 + anchor.dy) * .035) * size.width;
-    final y = (anchor.dy + math.cos(progress * math.pi * 2 + anchor.dx) * .045) * size.height;
+    final x =
+        (anchor.dx + math.sin(progress * math.pi * 2 + anchor.dy) * .035) *
+        size.width;
+    final y =
+        (anchor.dy + math.cos(progress * math.pi * 2 + anchor.dx) * .045) *
+        size.height;
     final center = Offset(x, y);
     final radius = size.shortestSide * .17;
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          AppColors.orange.withOpacity(strength * .14),
-          AppColors.orange.withOpacity(strength * .035),
+          accent.withOpacity(strength * .14),
+          accent.withOpacity(strength * .035),
           Colors.transparent,
         ],
         stops: const [0, .38, 1],
@@ -180,5 +194,5 @@ class _GalaxyParticlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GalaxyParticlePainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress || oldDelegate.accent != accent;
 }

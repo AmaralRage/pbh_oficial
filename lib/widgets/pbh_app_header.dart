@@ -32,7 +32,7 @@ class PbhAppHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.background,
+      color: context.pbhColors.background,
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
       child: Column(
         children: [
@@ -42,7 +42,7 @@ class PbhAppHeader extends StatelessWidget {
               children: [
                 IconButton(
                   tooltip: 'Abrir menu',
-                  icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+                  icon: Icon(Icons.menu, color: context.pbhColors.textPrimary),
                   onPressed: onMenuPressed,
                 ),
                 Expanded(
@@ -56,7 +56,10 @@ class PbhAppHeader extends StatelessWidget {
                           onLogoPressed();
                         },
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           child: PbhLogo(compact: true),
                         ),
                       ),
@@ -97,10 +100,18 @@ class PbhAppHeader extends StatelessWidget {
                 Container(
                   width: 6,
                   height: 6,
-                  decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: context.pbhColors.orange,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 7),
-                Text(currentSection.toUpperCase(), style: AppTextStyles.eyebrow.copyWith(fontSize: 10)),
+                Text(
+                  currentSection.toUpperCase(),
+                  style: AppTextStyles.eyebrow
+                      .copyWith(color: context.pbhColors.orangeLight)
+                      .copyWith(fontSize: 10),
+                ),
               ],
             ),
           ),
@@ -111,13 +122,17 @@ class PbhAppHeader extends StatelessWidget {
 }
 
 class _AnimatedNotificationBell extends StatefulWidget {
-  const _AnimatedNotificationBell({required this.pulseKey, required this.unreadCount});
+  const _AnimatedNotificationBell({
+    required this.pulseKey,
+    required this.unreadCount,
+  });
 
   final int pulseKey;
   final int unreadCount;
 
   @override
-  State<_AnimatedNotificationBell> createState() => _AnimatedNotificationBellState();
+  State<_AnimatedNotificationBell> createState() =>
+      _AnimatedNotificationBellState();
 }
 
 class _AnimatedNotificationBellState extends State<_AnimatedNotificationBell>
@@ -151,8 +166,10 @@ class _AnimatedNotificationBellState extends State<_AnimatedNotificationBell>
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
-                final shake = math.sin(_controller.value * math.pi * 8) *
-                    (1 - _controller.value) * .22;
+                final shake =
+                    math.sin(_controller.value * math.pi * 8) *
+                    (1 - _controller.value) *
+                    .22;
                 final scale = 1 + math.sin(_controller.value * math.pi) * .22;
                 return Transform.rotate(
                   angle: shake,
@@ -163,7 +180,7 @@ class _AnimatedNotificationBellState extends State<_AnimatedNotificationBell>
                 widget.unreadCount > 0
                     ? Icons.notifications_active_outlined
                     : Icons.notifications_none,
-                color: AppColors.textPrimary,
+                color: context.pbhColors.textPrimary,
                 size: 23,
               ),
             ),
@@ -176,14 +193,22 @@ class _AnimatedNotificationBellState extends State<_AnimatedNotificationBell>
                 constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.orange,
+                  color: context.pbhColors.orange,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.background, width: 1.5),
+                  border: Border.all(
+                    color: context.pbhColors.background,
+                    width: 1.5,
+                  ),
                 ),
                 child: Text(
                   widget.unreadCount > 9 ? '9+' : '${widget.unreadCount}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 9, height: 1.4, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    height: 1.4,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

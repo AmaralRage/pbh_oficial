@@ -35,23 +35,29 @@ class FilterChipRow extends StatelessWidget {
                 onSelected(index);
               },
               child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.orange : AppColors.surface,
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(
-                  color: isSelected ? AppColors.orange : AppColors.border,
-                  width: 1,
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? context.pbhColors.orange
+                      : context.pbhColors.surface,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                    color: isSelected
+                        ? context.pbhColors.orange
+                        : context.pbhColors.border,
+                    width: 1,
+                  ),
                 ),
-              ),
-              child: Text(
-                options[index],
-                style: isSelected
-                    ? AppTextStyles.chipActive.copyWith(color: Colors.white)
-                    : AppTextStyles.chip,
-              ),
+                child: Text(
+                  options[index],
+                  style: isSelected
+                      ? AppTextStyles.chipActive.copyWith(
+                          color: context.pbhColors.onAccent,
+                        )
+                      : AppTextStyles.chip,
+                ),
               ),
             ),
           );

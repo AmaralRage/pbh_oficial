@@ -1,31 +1,34 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import 'pbh_palette.dart';
 import 'app_text_styles.dart';
 
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get dark {
+  static ThemeData get dark => forPalette(PbhPalette.catalog.first);
+  static ThemeData forPalette(PbhPalette palette) {
     return ThemeData(
       useMaterial3: true,
+      extensions: [palette],
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: palette.background,
       fontFamily: AppTextStyles.body.fontFamily,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.orange,
-        secondary: AppColors.orange,
-        surface: AppColors.surface,
-        onPrimary: AppColors.textPrimary,
-        onSurface: AppColors.textPrimary,
+      colorScheme: ColorScheme.dark(
+        primary: palette.orange,
+        secondary: palette.orange,
+        surface: palette.surface,
+        onPrimary: palette.onAccent,
+        onSecondary: palette.onAccent,
+        onSurface: palette.textPrimary,
       ),
-      splashColor: AppColors.orangeDim,
+      splashColor: palette.orangeDim,
       highlightColor: Colors.transparent,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: palette.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: palette.textPrimary),
       ),
       textTheme: TextTheme(
         headlineLarge: AppTextStyles.displayLarge,
@@ -38,10 +41,10 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.orange,
-          foregroundColor: AppColors.textPrimary,
-          disabledBackgroundColor: AppColors.inactive,
-          minimumSize: const Size(64, 56),
+          backgroundColor: palette.orange,
+          foregroundColor: palette.onAccent,
+          disabledBackgroundColor: palette.inactive,
+          minimumSize: Size(64, 56),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -51,17 +54,17 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          minimumSize: const Size(64, 56),
-          side: const BorderSide(color: AppColors.border, width: 1.2),
+          foregroundColor: palette.textPrimary,
+          minimumSize: Size(64, 56),
+          side: BorderSide(color: palette.border, width: 1.2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
           textStyle: AppTextStyles.button,
         ),
       ),
-      dividerTheme: const DividerThemeData(
-        color: AppColors.borderSubtle,
+      dividerTheme: DividerThemeData(
+        color: palette.borderSubtle,
         thickness: 1,
         space: 1,
       ),

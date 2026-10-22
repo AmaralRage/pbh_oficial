@@ -304,7 +304,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     final publish = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.pbhColors.surface,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => Padding(
           padding: EdgeInsets.fromLTRB(
@@ -435,9 +435,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         Text('Comunidade', style: AppTextStyles.brandHeadline),
                         IconButton(
                           tooltip: 'Criar publicação',
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.edit_outlined,
-                            color: AppColors.textPrimary,
+                            color: context.pbhColors.textPrimary,
                           ),
                           onPressed: _composePost,
                         ),
@@ -468,17 +468,17 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.orangeDim,
+                        color: context.pbhColors.orangeDim,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: AppColors.orange.withOpacity(.25),
+                          color: context.pbhColors.orange.withOpacity(.25),
                         ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.forum_outlined,
-                            color: AppColors.orange,
+                            color: context.pbhColors.orange,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -487,9 +487,13 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               children: [
                                 Text(
                                   'PERGUNTA DA SEMANA',
-                                  style: AppTextStyles.eyebrow.copyWith(
-                                    color: AppColors.orange,
-                                  ),
+                                  style: AppTextStyles.eyebrow
+                                      .copyWith(
+                                        color: context.pbhColors.orangeLight,
+                                      )
+                                      .copyWith(
+                                        color: context.pbhColors.orange,
+                                      ),
                                 ),
                                 const SizedBox(height: 5),
                                 Text(_weeklyPrompt, style: AppTextStyles.body),
@@ -630,17 +634,17 @@ class _StatsPanel extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
     decoration: BoxDecoration(
-      color: AppColors.surface,
+      color: context.pbhColors.surface,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.borderSubtle),
+      border: Border.all(color: context.pbhColors.borderSubtle),
     ),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         _Stat(value: '${stats.posts}', label: 'Publicações'),
-        Container(width: 1, height: 30, color: AppColors.borderSubtle),
+        Container(width: 1, height: 30, color: context.pbhColors.borderSubtle),
         _Stat(value: '${stats.comments}', label: 'Comentários'),
-        Container(width: 1, height: 30, color: AppColors.borderSubtle),
+        Container(width: 1, height: 30, color: context.pbhColors.borderSubtle),
         _Stat(value: '${stats.likes}', label: 'Curtidas'),
       ],
     ),
@@ -679,7 +683,7 @@ class _FeedMessage extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 45),
     child: Column(
       children: [
-        Icon(icon, size: 34, color: AppColors.textTertiary),
+        Icon(icon, size: 34, color: context.pbhColors.textTertiary),
         const SizedBox(height: 12),
         Text(
           message,

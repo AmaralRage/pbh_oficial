@@ -212,7 +212,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.pbhColors.surface,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) {
           void refreshSheet(VoidCallback update) {
@@ -256,7 +256,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.borderSubtle,
+                        color: context.pbhColors.borderSubtle,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -306,11 +306,11 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 360),
                     child: isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 96,
                             child: Center(
                               child: CircularProgressIndicator(
-                                color: AppColors.orange,
+                                color: context.pbhColors.orange,
                                 strokeWidth: 2,
                               ),
                             ),
@@ -382,9 +382,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                                                 comments,
                                                 refreshSheet,
                                               ),
-                                        icon: const Icon(
+                                        icon: Icon(
                                           Icons.delete_outline_rounded,
-                                          color: AppColors.textTertiary,
+                                          color: context.pbhColors.textTertiary,
                                           size: 20,
                                         ),
                                       )
@@ -408,7 +408,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                               counterText: '',
                               hintText: 'Escreva um comentário...',
                               filled: true,
-                              fillColor: AppColors.background,
+                              fillColor: context.pbhColors.background,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(24),
                                 borderSide: BorderSide.none,
@@ -424,9 +424,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                           onPressed: _busy
                               ? null
                               : () => _addComment(comments, refreshSheet),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.send_rounded,
-                            color: AppColors.orange,
+                            color: context.pbhColors.orange,
                           ),
                         ),
                       ],
@@ -550,7 +550,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   Future<void> _showPostMenu() async {
     final action = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.pbhColors.surface,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -580,9 +580,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
             if (widget.isAuthenticated &&
                 widget.post.userId == _service.currentUserId)
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.delete_outline,
-                  color: AppColors.orange,
+                  color: context.pbhColors.orange,
                 ),
                 title: const Text('Excluir minha publicação'),
                 onTap: () => Navigator.pop(context, 'delete'),
@@ -722,10 +722,10 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     };
     final placeholder = Text(
       _initials(author),
-      style: const TextStyle(color: AppColors.orange, fontSize: 12),
+      style: TextStyle(color: context.pbhColors.orange, fontSize: 12),
     );
     return CircleAvatar(
-      backgroundColor: AppColors.orangeDim,
+      backgroundColor: context.pbhColors.orangeDim,
       child: image == null
           ? avatarUrl == null || avatarUrl.isEmpty
                 ? placeholder
@@ -771,7 +771,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     final placeholder = Text(
       post.authorInitials,
       style: AppTextStyles.chip.copyWith(
-        color: AppColors.orange,
+        color: context.pbhColors.orange,
         fontWeight: FontWeight.w800,
       ),
     );
@@ -806,9 +806,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.pbhColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: context.pbhColors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -817,7 +817,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.orangeDim,
+                backgroundColor: context.pbhColors.orangeDim,
                 child: _postAvatar(post),
               ),
               const SizedBox(width: 12),
@@ -850,17 +850,17 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                         : Icons.person_add_alt_1_rounded,
                     size: 19,
                     color: _following
-                        ? AppColors.orange
-                        : AppColors.textTertiary,
+                        ? context.pbhColors.orange
+                        : context.pbhColors.textTertiary,
                   ),
                 ),
               if (!post.isSample)
                 IconButton(
                   tooltip: 'Mais opções',
                   onPressed: _showPostMenu,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.more_horiz,
-                    color: AppColors.textTertiary,
+                    color: context.pbhColors.textTertiary,
                   ),
                 ),
             ],
@@ -870,22 +870,22 @@ class _CommunityPostCardState extends State<CommunityPostCard>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.orangeDim,
+                color: context.pbhColors.orangeDim,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.emoji_events,
                     size: 13,
-                    color: AppColors.orange,
+                    color: context.pbhColors.orange,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     post.achievementTag!,
                     style: AppTextStyles.chip.copyWith(
-                      color: AppColors.orange,
+                      color: context.pbhColors.orange,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -898,13 +898,13 @@ class _CommunityPostCardState extends State<CommunityPostCard>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.backgroundElevated,
+                color: context.pbhColors.backgroundElevated,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 _topicLabel(post.topic!),
                 style: AppTextStyles.chip.copyWith(
-                  color: AppColors.textSecondary,
+                  color: context.pbhColors.textSecondary,
                 ),
               ),
             ),
@@ -913,7 +913,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
           Text(
             post.content,
             style: AppTextStyles.body.copyWith(
-              color: AppColors.textPrimary,
+              color: context.pbhColors.textPrimary,
               height: 1.5,
             ),
           ),
@@ -944,8 +944,8 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                               : Icons.local_fire_department_outlined,
                           size: 19,
                           color: _liked
-                              ? AppColors.orange
-                              : AppColors.textSecondary,
+                              ? context.pbhColors.orange
+                              : context.pbhColors.textSecondary,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -956,7 +956,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                           child: Text(
                             '+1',
                             style: AppTextStyles.chip.copyWith(
-                              color: AppColors.orange,
+                              color: context.pbhColors.orange,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -974,10 +974,10 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.chat_bubble_outline,
                         size: 18,
-                        color: AppColors.textSecondary,
+                        color: context.pbhColors.textSecondary,
                       ),
                       const SizedBox(width: 6),
                       Text('$_commentCount', style: AppTextStyles.bodySmall),
@@ -989,10 +989,10 @@ class _CommunityPostCardState extends State<CommunityPostCard>
               IconButton(
                 tooltip: 'Compartilhar publicação',
                 onPressed: _sharePost,
-                icon: const Icon(
+                icon: Icon(
                   Icons.share_outlined,
                   size: 18,
-                  color: AppColors.textTertiary,
+                  color: context.pbhColors.textTertiary,
                 ),
               ),
             ],

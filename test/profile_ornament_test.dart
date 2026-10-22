@@ -1,8 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pbh_oficial/widgets/profile_ornament.dart';
+import 'package:pbh_oficial/models/profile_style.dart';
 
 void main() {
+  testWidgets(
+    'all selectable effects render and switching to none stops ticks',
+    (tester) async {
+      Widget app(String effect, bool frame) => MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: frame ? 96 : 320,
+            height: frame ? 96 : 132,
+            child: ProfileOrnament(
+              color: Colors.cyan,
+              founder: true,
+              effect: effect,
+              frame: frame,
+            ),
+          ),
+        ),
+      );
+      for (final frame in [true, false]) {
+        for (final option
+            in frame ? ProfileStyle.frameEffects : ProfileStyle.coverEffects) {
+          await tester.pumpWidget(app(option.id, frame));
+          await tester.pump(const Duration(milliseconds: 1700));
+          expect(tester.takeException(), isNull, reason: option.id);
+          await tester.pumpWidget(app('none', frame));
+          await tester.pump();
+          expect(tester.binding.transientCallbackCount, 0, reason: option.id);
+        }
+      }
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'decorations pause when hidden, covered, offscreen or motion is reduced',
     (tester) async {

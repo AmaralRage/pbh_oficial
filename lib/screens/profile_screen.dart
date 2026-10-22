@@ -7,6 +7,8 @@ import '../models/challenge_model.dart';
 import '../models/profile_achievement.dart';
 import '../models/profile_style.dart';
 import '../widgets/profile_identity_card.dart';
+import '../widgets/profile_theme_scope.dart';
+import 'appearance_screen.dart';
 import '../services/auth_service.dart';
 import '../services/profile_achievement_service.dart';
 import '../services/challenge_service.dart';
@@ -38,113 +40,127 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        children: [
-          Text('Perfil', style: AppTextStyles.brandHeadline),
-          const SizedBox(height: 20),
-          if (!isAuthenticated) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 18),
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.visibility_outlined,
-                    color: AppColors.orange,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Modo visitante',
-                          style: AppTextStyles.titleMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Você pode explorar o app sem uma conta.',
-                          style: AppTextStyles.bodySmall,
-                        ),
-                      ],
+    return ProfileThemeScope(
+      builder: (context) => SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            Text('Perfil', style: AppTextStyles.brandHeadline),
+            const SizedBox(height: 20),
+            if (!isAuthenticated) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 18),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: context.pbhColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: context.pbhColors.borderSubtle),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.visibility_outlined,
+                      color: context.pbhColors.orange,
                     ),
-                  ),
-                  TextButton(
-                    onPressed: onOpenSignIn,
-                    child: const Text('Entrar'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          _ProfileProgress(onEdit: onEditProfile),
-          const SizedBox(height: 26),
-          if (isAuthenticated)
-            AnimatedEntry(
-              delayMs: 220,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.tune_rounded,
-                        color: AppColors.orange,
-                        size: 19,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Modo visitante',
+                            style: AppTextStyles.titleMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Você pode explorar o app sem uma conta.',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text('Configurações', style: AppTextStyles.titleMedium),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.borderSubtle),
                     ),
-                    child: Column(
+                    TextButton(
+                      onPressed: onOpenSignIn,
+                      child: const Text('Entrar'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            _ProfileProgress(onEdit: onEditProfile),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AppearanceScreen(),
+                ),
+              ),
+              icon: const Icon(Icons.palette_outlined),
+              label: const Text('Aparência do app'),
+            ),
+            const SizedBox(height: 26),
+            if (isAuthenticated)
+              AnimatedEntry(
+                delayMs: 220,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        _SettingsRow(
-                          icon: Icons.person_outline,
-                          label: 'Editar perfil',
-                          subtitle: 'Foto, capa, moldura e selos em destaque',
-                          onTap: onEditProfile,
+                        Icon(
+                          Icons.tune_rounded,
+                          color: context.pbhColors.orange,
+                          size: 19,
                         ),
-                        _SettingsRow(
-                          icon: Icons.notifications_none_rounded,
-                          label: 'Notificações',
-                          subtitle: 'Alertas e som do app',
-                          onTap: onOpenNotificationSettings,
-                        ),
-                        _SettingsRow(
-                          icon: Icons.lock_outline_rounded,
-                          label: 'Privacidade',
-                          subtitle: 'Dados da conta e segurança',
-                          onTap: onOpenPrivacy,
-                        ),
-                        _SettingsRow(
-                          icon: Icons.help_outline_rounded,
-                          label: 'Ajuda e suporte',
-                          subtitle: 'Respostas e opções de contato',
-                          isLast: true,
-                          onTap: onOpenHelp,
-                        ),
+                        const SizedBox(width: 8),
+                        Text('Configurações', style: AppTextStyles.titleMedium),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: context.pbhColors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: context.pbhColors.borderSubtle,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          _SettingsRow(
+                            icon: Icons.person_outline,
+                            label: 'Editar perfil',
+                            subtitle: 'Foto, capa, moldura e selos em destaque',
+                            onTap: onEditProfile,
+                          ),
+                          _SettingsRow(
+                            icon: Icons.notifications_none_rounded,
+                            label: 'Notificações',
+                            subtitle: 'Alertas e som do app',
+                            onTap: onOpenNotificationSettings,
+                          ),
+                          _SettingsRow(
+                            icon: Icons.lock_outline_rounded,
+                            label: 'Privacidade',
+                            subtitle: 'Dados da conta e segurança',
+                            onTap: onOpenPrivacy,
+                          ),
+                          _SettingsRow(
+                            icon: Icons.help_outline_rounded,
+                            label: 'Ajuda e suporte',
+                            subtitle: 'Respostas e opções de contato',
+                            isLast: true,
+                            onTap: onOpenHelp,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -363,9 +379,9 @@ class _ProfileProgressState extends State<_ProfileProgress> {
             if (isProjectLeader)
               IconButton(
                 tooltip: 'Conceder selo supremo',
-                icon: const Icon(
+                icon: Icon(
                   Icons.add_moderator_outlined,
-                  color: AppColors.orange,
+                  color: context.pbhColors.orange,
                 ),
                 onPressed: () async {
                   await showDialog<void>(
@@ -409,7 +425,7 @@ class _SettingsRow extends StatelessWidget {
     decoration: BoxDecoration(
       border: isLast
           ? null
-          : const Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+          : Border(bottom: BorderSide(color: context.pbhColors.borderSubtle)),
     ),
     child: Material(
       color: Colors.transparent,
@@ -424,10 +440,14 @@ class _SettingsRow extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: AppColors.background,
+                  color: context.pbhColors.background,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: 19, color: AppColors.textSecondary),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: context.pbhColors.textSecondary,
+                ),
               ),
               const SizedBox(width: 13),
               Expanded(
@@ -437,7 +457,7 @@ class _SettingsRow extends StatelessWidget {
                     Text(
                       label,
                       style: AppTextStyles.body.copyWith(
-                        color: AppColors.textPrimary,
+                        color: context.pbhColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -448,9 +468,9 @@ class _SettingsRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textTertiary,
+                color: context.pbhColors.textTertiary,
                 size: 20,
               ),
             ],

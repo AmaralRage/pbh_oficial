@@ -11,10 +11,12 @@ class SpotifyPlaylistTracksScreen extends StatefulWidget {
   const SpotifyPlaylistTracksScreen({super.key});
 
   @override
-  State<SpotifyPlaylistTracksScreen> createState() => _SpotifyPlaylistTracksScreenState();
+  State<SpotifyPlaylistTracksScreen> createState() =>
+      _SpotifyPlaylistTracksScreenState();
 }
 
-class _SpotifyPlaylistTracksScreenState extends State<SpotifyPlaylistTracksScreen> {
+class _SpotifyPlaylistTracksScreenState
+    extends State<SpotifyPlaylistTracksScreen> {
   final TextEditingController _queryController = TextEditingController();
   final SpotifyPlaybackController _player = SpotifyPlaybackController.instance;
   List<SpotifyTrack> _tracks = const [];
@@ -79,7 +81,10 @@ class _SpotifyPlaylistTracksScreenState extends State<SpotifyPlaylistTracksScree
       });
     } catch (exception) {
       if (!mounted) return;
-      final message = exception.toString().replaceFirst('Exception: ', '').replaceFirst('Bad state: ', '');
+      final message = exception
+          .toString()
+          .replaceFirst('Exception: ', '')
+          .replaceFirst('Bad state: ', '');
       setState(() {
         _requiresReconnect = message.contains('HTTP 403');
         _error = message.contains('403')
@@ -110,7 +115,14 @@ class _SpotifyPlaylistTracksScreenState extends State<SpotifyPlaylistTracksScree
     } catch (exception) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(exception.toString().replaceFirst('Bad state: ', '').replaceFirst('Exception: ', ''))),
+        SnackBar(
+          content: Text(
+            exception
+                .toString()
+                .replaceFirst('Bad state: ', '')
+                .replaceFirst('Exception: ', ''),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _playingUri = null);
@@ -120,22 +132,27 @@ class _SpotifyPlaylistTracksScreenState extends State<SpotifyPlaylistTracksScree
   @override
   Widget build(BuildContext context) {
     final query = _queryController.text.trim().toLowerCase();
-    final filteredTracks = _tracks.where((track) {
-      if (query.isEmpty) return true;
-      return track.name.toLowerCase().contains(query) || track.artists.toLowerCase().contains(query);
-    }).toList(growable: false);
+    final filteredTracks = _tracks
+        .where((track) {
+          if (query.isEmpty) return true;
+          return track.name.toLowerCase().contains(query) ||
+              track.artists.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.pbhColors.background,
       appBar: AppBar(
         title: const Text('Músicas da playlist'),
         actions: [
           IconButton(
             tooltip: 'Atualizar lista',
-            onPressed: _loading ? null : () {
-              setState(() => _loaded = false);
-              _loadPlaylist();
-            },
+            onPressed: _loading
+                ? null
+                : () {
+                    setState(() => _loaded = false);
+                    _loadPlaylist();
+                  },
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -150,9 +167,17 @@ class _SpotifyPlaylistTracksScreenState extends State<SpotifyPlaylistTracksScree
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.link_rounded, color: AppColors.orange, size: 42),
+                    Icon(
+                      Icons.link_rounded,
+                      color: context.pbhColors.orange,
+                      size: 42,
+                    ),
                     const SizedBox(height: 14),
-                    Text('Conecte o Spotify para ver e tocar as faixas da playlist.', style: AppTextStyles.body, textAlign: TextAlign.center),
+                    Text(
+                      'Conecte o Spotify para ver e tocar as faixas da playlist.',
+                      style: AppTextStyles.body,
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: _player.connect,
@@ -172,9 +197,17 @@ class _SpotifyPlaylistTracksScreenState extends State<SpotifyPlaylistTracksScree
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('PROJETO BOM HOMEM', style: AppTextStyles.eyebrow),
+                    Text(
+                      'PROJETO BOM HOMEM',
+                      style: AppTextStyles.eyebrow.copyWith(
+                        color: context.pbhColors.orangeLight,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text('${_tracks.length} faixas na playlist', style: AppTextStyles.bodySmall),
+                    Text(
+                      '${_tracks.length} faixas na playlist',
+                      style: AppTextStyles.bodySmall,
+                    ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _queryController,
@@ -194,8 +227,11 @@ class _SpotifyPlaylistTracksScreenState extends State<SpotifyPlaylistTracksScree
                                 icon: const Icon(Icons.close_rounded),
                               ),
                         filled: true,
-                        fillColor: AppColors.surface,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        fillColor: context.pbhColors.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                   ],
@@ -203,88 +239,135 @@ class _SpotifyPlaylistTracksScreenState extends State<SpotifyPlaylistTracksScree
               ),
               Expanded(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.orange))
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: context.pbhColors.orange,
+                        ),
+                      )
                     : _error != null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(_error!, textAlign: TextAlign.center, style: AppTextStyles.bodySmall),
-                                  const SizedBox(height: 12),
-                                  TextButton.icon(
-                                    onPressed: _retryPlaylistLoad,
-                                    icon: Icon(_requiresReconnect ? Icons.link_rounded : Icons.refresh_rounded),
-                                    label: Text(_requiresReconnect ? 'Reconectar Spotify' : 'Tentar novamente'),
-                                  ),
-                                ],
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _error!,
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.bodySmall,
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton.icon(
+                                onPressed: _retryPlaylistLoad,
+                                icon: Icon(
+                                  _requiresReconnect
+                                      ? Icons.link_rounded
+                                      : Icons.refresh_rounded,
+                                ),
+                                label: Text(
+                                  _requiresReconnect
+                                      ? 'Reconectar Spotify'
+                                      : 'Tentar novamente',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : filteredTracks.isEmpty
+                    ? Center(
+                        child: Text(
+                          query.isEmpty
+                              ? 'A playlist não possui faixas disponíveis.'
+                              : 'Nenhuma faixa encontrada nesta playlist.',
+                          style: AppTextStyles.bodySmall,
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        itemCount: filteredTracks.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, indent: 68),
+                        itemBuilder: (context, index) {
+                          final track = filteredTracks[index];
+                          final isCurrent = _player.track?.uri == track.uri;
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 4,
+                            ),
+                            leading: _TrackArtwork(track: track),
+                            title: Text(
+                              track.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleMedium.copyWith(
+                                fontSize: 14,
+                                color: isCurrent
+                                    ? context.pbhColors.orange
+                                    : context.pbhColors.textPrimary,
                               ),
                             ),
-                          )
-                        : filteredTracks.isEmpty
-                            ? Center(
-                                child: Text(
-                                  query.isEmpty ? 'A playlist não possui faixas disponíveis.' : 'Nenhuma faixa encontrada nesta playlist.',
-                                  style: AppTextStyles.bodySmall,
+                            subtitle: Text(
+                              [
+                                track.artists,
+                                track.album,
+                              ].where((value) => value.isNotEmpty).join(' · '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.statLabel,
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Abrir no Spotify',
+                                  onPressed: () => _player.openTrack(track),
+                                  icon: Icon(
+                                    Icons.open_in_new_rounded,
+                                    color: context.pbhColors.textTertiary,
+                                    size: 19,
+                                  ),
                                 ),
-                              )
-                            : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                                itemCount: filteredTracks.length,
-                                separatorBuilder: (_, __) => const Divider(height: 1, indent: 68),
-                                itemBuilder: (context, index) {
-                                  final track = filteredTracks[index];
-                                  final isCurrent = _player.track?.uri == track.uri;
-                                  return ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                                    leading: _TrackArtwork(track: track),
-                                    title: Text(
-                                      track.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTextStyles.titleMedium.copyWith(
-                                        fontSize: 14,
-                                        color: isCurrent ? AppColors.orange : AppColors.textPrimary,
-                                      ),
+                                if (_playingUri == track.uri)
+                                  SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: context.pbhColors.orange,
                                     ),
-                                    subtitle: Text(
-                                      [track.artists, track.album].where((value) => value.isNotEmpty).join(' · '),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTextStyles.statLabel,
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          tooltip: 'Abrir no Spotify',
-                                          onPressed: () => _player.openTrack(track),
-                                          icon: const Icon(Icons.open_in_new_rounded, color: AppColors.textTertiary, size: 19),
-                                        ),
-                                        if (_playingUri == track.uri)
-                                          const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange))
-                                        else
-                                          Icon(
-                                            isCurrent && _player.isPlaying ? Icons.equalizer_rounded : Icons.play_circle_fill_rounded,
-                                            color: AppColors.orange,
-                                            size: 27,
-                                          ),
-                                      ],
-                                    ),
-                                    onTap: () => _playTrack(track),
-                                  );
-                                },
-                              ),
+                                  )
+                                else
+                                  Icon(
+                                    isCurrent && _player.isPlaying
+                                        ? Icons.equalizer_rounded
+                                        : Icons.play_circle_fill_rounded,
+                                    color: context.pbhColors.orange,
+                                    size: 27,
+                                  ),
+                              ],
+                            ),
+                            onTap: () => _playTrack(track),
+                          );
+                        },
+                      ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.music_note_rounded, color: AppColors.orange, size: 17),
+                    Icon(
+                      Icons.music_note_rounded,
+                      color: context.pbhColors.orange,
+                      size: 17,
+                    ),
                     const SizedBox(width: 6),
-                    Text('Playlist e reprodução pelo Spotify', style: AppTextStyles.statLabel),
+                    Text(
+                      'Playlist e reprodução pelo Spotify',
+                      style: AppTextStyles.statLabel,
+                    ),
                   ],
                 ),
               ),
@@ -304,17 +387,29 @@ class _TrackArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: SizedBox(
-          width: 48,
-          height: 48,
-          child: track.imageUrl.isEmpty
-              ? const ColoredBox(color: AppColors.surface, child: Icon(Icons.music_note_rounded, color: AppColors.orange))
-              : Image.network(
-                  track.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const ColoredBox(color: AppColors.surface, child: Icon(Icons.music_note_rounded, color: AppColors.orange)),
+    borderRadius: BorderRadius.circular(8),
+    child: SizedBox(
+      width: 48,
+      height: 48,
+      child: track.imageUrl.isEmpty
+          ? ColoredBox(
+              color: context.pbhColors.surface,
+              child: Icon(
+                Icons.music_note_rounded,
+                color: context.pbhColors.orange,
+              ),
+            )
+          : Image.network(
+              track.imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => ColoredBox(
+                color: context.pbhColors.surface,
+                child: Icon(
+                  Icons.music_note_rounded,
+                  color: context.pbhColors.orange,
                 ),
-        ),
-      );
+              ),
+            ),
+    ),
+  );
 }

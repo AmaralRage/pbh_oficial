@@ -22,9 +22,9 @@ class ProgramCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.pbhColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.borderSubtle),
+          border: Border.all(color: context.pbhColors.borderSubtle),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,11 +33,15 @@ class ProgramCard extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: AppColors.backgroundElevated,
+                color: context.pbhColors.backgroundElevated,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.pbhColors.border),
               ),
-              child: Icon(program.icon, color: AppColors.orange, size: 24),
+              child: Icon(
+                program.icon,
+                color: context.pbhColors.orange,
+                size: 24,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -57,8 +61,14 @@ class ProgramCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _MiniTag(icon: Icons.view_module_outlined, label: '${program.modules} módulos'),
-                      _MiniTag(icon: Icons.calendar_today_outlined, label: '${program.weeks} semanas'),
+                      _MiniTag(
+                        icon: Icons.view_module_outlined,
+                        label: '${program.modules} módulos',
+                      ),
+                      _MiniTag(
+                        icon: Icons.calendar_today_outlined,
+                        label: '${program.weeks} semanas',
+                      ),
                     ],
                   ),
                 ],
@@ -82,7 +92,7 @@ class _MiniTag extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: AppColors.textTertiary),
+        Icon(icon, size: 12, color: context.pbhColors.textTertiary),
         const SizedBox(width: 4),
         Text(label, style: AppTextStyles.chip.copyWith(fontSize: 11)),
       ],

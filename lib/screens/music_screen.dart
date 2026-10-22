@@ -34,9 +34,9 @@ class MusicScreen extends StatelessWidget {
                       builder: (_) => const SpotifyPlaylistTracksScreen(),
                     ),
                   ),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.queue_music_rounded,
-                    color: AppColors.orange,
+                    color: context.pbhColors.orange,
                     size: 27,
                   ),
                 ),
@@ -172,9 +172,9 @@ class _PlaylistCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.pbhColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: context.pbhColors.borderSubtle),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(23),
@@ -259,9 +259,9 @@ class _PlaylistCard extends StatelessWidget {
                 children: [
                   Text(
                     'PLAYLIST OFICIAL',
-                    style: AppTextStyles.eyebrow.copyWith(
-                      color: AppColors.orange,
-                    ),
+                    style: AppTextStyles.eyebrow
+                        .copyWith(color: context.pbhColors.orangeLight)
+                        .copyWith(color: context.pbhColors.orange),
                   ),
                   const SizedBox(height: 5),
                   Text('Projeto Bom Homem', style: AppTextStyles.titleLarge),
@@ -275,7 +275,7 @@ class _PlaylistCard extends StatelessWidget {
                     Text(
                       error!,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.orangeLight,
+                        color: context.pbhColors.orangeLight,
                       ),
                     ),
                   ],
@@ -299,7 +299,7 @@ class _PlaylistCard extends StatelessWidget {
                                 ? onConnect
                                 : (trackTitle != null ? onOpenPlayer : onPlay)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.orange,
+                        backgroundColor: context.pbhColors.orange,
                         foregroundColor: Colors.white,
                       ),
                       icon: isBusy
@@ -360,9 +360,9 @@ class _CoverThumb extends StatelessWidget {
       width: 48,
       height: 48,
       child: imageUrl == null || imageUrl!.isEmpty
-          ? const ColoredBox(
-              color: AppColors.backgroundElevated,
-              child: Icon(Icons.music_note, color: AppColors.orange),
+          ? ColoredBox(
+              color: context.pbhColors.backgroundElevated,
+              child: Icon(Icons.music_note, color: context.pbhColors.orange),
             )
           : Image.network(imageUrl!, fit: BoxFit.cover),
     ),
@@ -379,10 +379,14 @@ class _PlayingBadge extends StatelessWidget {
       color: Colors.black.withOpacity(.62),
       borderRadius: BorderRadius.circular(20),
     ),
-    child: const Row(
+    child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.graphic_eq_rounded, size: 15, color: AppColors.orange),
+        Icon(
+          Icons.graphic_eq_rounded,
+          size: 15,
+          color: context.pbhColors.orange,
+        ),
         SizedBox(width: 6),
         Text(
           'TOCANDO',
@@ -407,14 +411,14 @@ class _FeatureRow extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(15),
     decoration: BoxDecoration(
-      color: AppColors.surface,
+      color: context.pbhColors.surface,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: AppColors.borderSubtle),
+      border: Border.all(color: context.pbhColors.borderSubtle),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: AppColors.orange, size: 22),
+        Icon(icon, color: context.pbhColors.orange, size: 22),
         const SizedBox(width: 13),
         Expanded(
           child: Column(

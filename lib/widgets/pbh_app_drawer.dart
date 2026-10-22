@@ -4,6 +4,8 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/feedback/tap_feedback.dart';
 import 'pbh_logo.dart';
+import '../core/navigation/app_transitions.dart';
+import '../screens/appearance_screen.dart';
 
 /// Menu principal aberto pelo icone de tres tracos da tela inicial.
 class PbhAppDrawer extends StatelessWidget {
@@ -25,12 +27,42 @@ class PbhAppDrawer extends StatelessWidget {
   });
 
   static const _mainItems = <_DrawerItemData>[
-    _DrawerItemData(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Início', index: 0),
-    _DrawerItemData(icon: Icons.emoji_events_outlined, activeIcon: Icons.emoji_events, label: 'Desafios', index: 1),
-    _DrawerItemData(icon: Icons.play_circle_outline, activeIcon: Icons.play_circle_fill, label: 'Conteúdo', index: 2),
-    _DrawerItemData(icon: Icons.music_note_outlined, activeIcon: Icons.music_note, label: 'Música', index: 3),
-    _DrawerItemData(icon: Icons.groups_outlined, activeIcon: Icons.groups, label: 'Comunidade', index: 4),
-    _DrawerItemData(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Perfil', index: 5),
+    _DrawerItemData(
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home,
+      label: 'Início',
+      index: 0,
+    ),
+    _DrawerItemData(
+      icon: Icons.emoji_events_outlined,
+      activeIcon: Icons.emoji_events,
+      label: 'Desafios',
+      index: 1,
+    ),
+    _DrawerItemData(
+      icon: Icons.play_circle_outline,
+      activeIcon: Icons.play_circle_fill,
+      label: 'Conteúdo',
+      index: 2,
+    ),
+    _DrawerItemData(
+      icon: Icons.music_note_outlined,
+      activeIcon: Icons.music_note,
+      label: 'Música',
+      index: 3,
+    ),
+    _DrawerItemData(
+      icon: Icons.groups_outlined,
+      activeIcon: Icons.groups,
+      label: 'Comunidade',
+      index: 4,
+    ),
+    _DrawerItemData(
+      icon: Icons.person_outline,
+      activeIcon: Icons.person,
+      label: 'Perfil',
+      index: 5,
+    ),
   ];
 
   void _selectTab(BuildContext context, int index) {
@@ -48,11 +80,17 @@ class PbhAppDrawer extends StatelessWidget {
     onAccountAction();
   }
 
+  void _openAppearance(BuildContext context) {
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    navigator.push(fadeSlideRoute<void>(const AppearanceScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
       width: MediaQuery.sizeOf(context).width * .84,
-      backgroundColor: AppColors.backgroundElevated,
+      backgroundColor: context.pbhColors.backgroundElevated,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.horizontal(right: Radius.circular(28)),
       ),
@@ -68,7 +106,10 @@ class PbhAppDrawer extends StatelessWidget {
                   const Spacer(),
                   IconButton(
                     tooltip: 'Fechar menu',
-                    icon: const Icon(Icons.close, color: AppColors.textPrimary),
+                    icon: Icon(
+                      Icons.close,
+                      color: context.pbhColors.textPrimary,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -80,22 +121,42 @@ class PbhAppDrawer extends StatelessWidget {
                 children: [
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('NAVEGAÇÃO', style: AppTextStyles.eyebrow),
+                    child: Text(
+                      'NAVEGAÇÃO',
+                      style: AppTextStyles.eyebrow.copyWith(
+                        color: context.pbhColors.orangeLight,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  ..._mainItems.map((item) => _DrawerNavigationItem(
-                        icon: currentIndex == item.index ? item.activeIcon : item.icon,
-                        label: item.label,
-                        selected: currentIndex == item.index,
-                        onTap: () => _selectTab(context, item.index),
-                      )),
+                  ..._mainItems.map(
+                    (item) => _DrawerNavigationItem(
+                      icon: currentIndex == item.index
+                          ? item.activeIcon
+                          : item.icon,
+                      label: item.label,
+                      selected: currentIndex == item.index,
+                      onTap: () => _selectTab(context, item.index),
+                    ),
+                  ),
+                  _DrawerNavigationItem(
+                    icon: Icons.palette_outlined,
+                    label: 'Aparência do app',
+                    selected: false,
+                    onTap: () => _openAppearance(context),
+                  ),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(24, 22, 24, 16),
                     child: Divider(),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('SUA JORNADA', style: AppTextStyles.eyebrow),
+                    child: Text(
+                      'SUA JORNADA',
+                      style: AppTextStyles.eyebrow.copyWith(
+                        color: context.pbhColors.orangeLight,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _DrawerNavigationItem(
@@ -111,16 +172,24 @@ class PbhAppDrawer extends StatelessWidget {
               margin: const EdgeInsets.all(20),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.pbhColors.surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.borderSubtle),
+                border: Border.all(color: context.pbhColors.borderSubtle),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.local_fire_department, color: AppColors.orange),
+                  Icon(
+                    Icons.local_fire_department,
+                    color: context.pbhColors.orange,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text('23 dias de consistência', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary)),
+                    child: Text(
+                      '23 dias de consistência',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: context.pbhColors.textPrimary,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -128,8 +197,12 @@ class PbhAppDrawer extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: _DrawerNavigationItem(
-                icon: isAuthenticated ? Icons.logout_rounded : Icons.login_rounded,
-                label: isAuthenticated ? 'Sair da conta' : 'Entrar ou criar conta',
+                icon: isAuthenticated
+                    ? Icons.logout_rounded
+                    : Icons.login_rounded,
+                label: isAuthenticated
+                    ? 'Sair da conta'
+                    : 'Entrar ou criar conta',
                 selected: false,
                 onTap: () => _accountAction(context),
               ),
@@ -147,7 +220,12 @@ class _DrawerItemData {
   final String label;
   final int index;
 
-  const _DrawerItemData({required this.icon, required this.activeIcon, required this.label, required this.index});
+  const _DrawerItemData({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.index,
+  });
 }
 
 class _DrawerNavigationItem extends StatelessWidget {
@@ -156,15 +234,22 @@ class _DrawerNavigationItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _DrawerNavigationItem({required this.icon, required this.label, required this.selected, required this.onTap});
+  const _DrawerNavigationItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.orange : AppColors.textSecondary;
+    final color = selected
+        ? context.pbhColors.orange
+        : context.pbhColors.textSecondary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Material(
-        color: selected ? AppColors.orangeDim : Colors.transparent,
+        color: selected ? context.pbhColors.orangeDim : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -179,9 +264,22 @@ class _DrawerNavigationItem extends StatelessWidget {
               children: [
                 Icon(icon, color: color, size: 22),
                 const SizedBox(width: 16),
-                Text(label, style: AppTextStyles.titleMedium.copyWith(color: selected ? AppColors.textPrimary : AppColors.textSecondary, fontSize: 15)),
+                Text(
+                  label,
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: selected
+                        ? context.pbhColors.textPrimary
+                        : context.pbhColors.textSecondary,
+                    fontSize: 15,
+                  ),
+                ),
                 const Spacer(),
-                if (selected) const Icon(Icons.chevron_right, color: AppColors.orange, size: 20),
+                if (selected)
+                  Icon(
+                    Icons.chevron_right,
+                    color: context.pbhColors.orange,
+                    size: 20,
+                  ),
               ],
             ),
           ),

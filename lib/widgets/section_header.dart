@@ -35,12 +35,16 @@ class SectionHeader extends StatelessWidget {
                 Text(
                   actionLabel!,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.orange,
+                    color: context.pbhColors.orange,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(width: 2),
-                const Icon(Icons.chevron_right, size: 16, color: AppColors.orange),
+                Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: context.pbhColors.orange,
+                ),
               ],
             ),
           ),

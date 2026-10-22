@@ -275,7 +275,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.background,
+      backgroundColor: context.pbhColors.background,
       drawer: PbhAppDrawer(
         currentIndex: _currentIndex,
         onNavigate: _goTo,

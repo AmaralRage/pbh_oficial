@@ -182,7 +182,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                             tooltip: 'Buscar desafios',
                             icon: Icon(
                               _searching ? Icons.close : Icons.search,
-                              color: AppColors.textPrimary,
+                              color: context.pbhColors.textPrimary,
                             ),
                             onPressed: () => setState(() {
                               _searching = !_searching;
@@ -447,7 +447,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => Dialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.pbhColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
           side: BorderSide(color: awardedTier.color.withOpacity(.55)),
@@ -535,9 +535,9 @@ class _PageSelector extends StatelessWidget {
     height: 56,
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
-      color: AppColors.surface,
+      color: context.pbhColors.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.borderSubtle),
+      border: Border.all(color: context.pbhColors.borderSubtle),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -625,18 +625,20 @@ class _PageSelectorButtonState extends State<_PageSelectorButton>
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: widget.selected ? AppColors.orange : Colors.transparent,
+                color: widget.selected
+                    ? context.pbhColors.orange
+                    : Colors.transparent,
                 width: 1.3,
               ),
               boxShadow: widget.selected
                   ? [
                       BoxShadow(
-                        color: AppColors.orange.withValues(alpha: .35),
+                        color: context.pbhColors.orange.withValues(alpha: .35),
                         blurRadius: 12,
                         spreadRadius: 1,
                       ),
                       BoxShadow(
-                        color: AppColors.orange.withValues(alpha: .13),
+                        color: context.pbhColors.orange.withValues(alpha: .13),
                         blurRadius: 24,
                         spreadRadius: 2,
                       ),
@@ -652,8 +654,8 @@ class _PageSelectorButtonState extends State<_PageSelectorButton>
               },
               style: TextButton.styleFrom(
                 foregroundColor: widget.selected
-                    ? AppColors.orange
-                    : AppColors.textSecondary,
+                    ? context.pbhColors.orange
+                    : context.pbhColors.textSecondary,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -673,13 +675,15 @@ class _PageSelectorButtonState extends State<_PageSelectorButton>
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.chip.copyWith(
                         color: widget.selected
-                            ? AppColors.orange
-                            : AppColors.textSecondary,
+                            ? context.pbhColors.orange
+                            : context.pbhColors.textSecondary,
                         fontWeight: FontWeight.w700,
                         shadows: widget.selected
                             ? [
                                 Shadow(
-                                  color: AppColors.orange.withValues(alpha: .5),
+                                  color: context.pbhColors.orange.withValues(
+                                    alpha: .5,
+                                  ),
                                   blurRadius: 10,
                                 ),
                               ]
@@ -715,13 +719,17 @@ class _TrophySummaryCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF24201E), AppColors.surface, Color(0xFF111111)],
+        colors: [
+          context.pbhColors.surfaceElevated,
+          context.pbhColors.surface,
+          context.pbhColors.backgroundElevated,
+        ],
       ),
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.orange.withOpacity(.32)),
+      border: Border.all(color: context.pbhColors.orange.withOpacity(.32)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,7 +742,12 @@ class _TrophySummaryCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('SUA COLEÇÃO', style: AppTextStyles.eyebrow),
+                  Text(
+                    'SUA COLEÇÃO',
+                    style: AppTextStyles.eyebrow.copyWith(
+                      color: context.pbhColors.orangeLight,
+                    ),
+                  ),
                   const SizedBox(height: 3),
                   Text('Troféus PBH', style: AppTextStyles.titleLarge),
                 ],
@@ -761,12 +774,14 @@ class _TrophySummaryCard extends StatelessWidget {
                 Text(
                   '$points',
                   style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.orange,
+                    color: context.pbhColors.orange,
                   ),
                 ),
                 Text(
                   'PONTOS PBH',
-                  style: AppTextStyles.eyebrow.copyWith(fontSize: 9),
+                  style: AppTextStyles.eyebrow
+                      .copyWith(color: context.pbhColors.orangeLight)
+                      .copyWith(fontSize: 9),
                 ),
               ],
             ),
@@ -778,8 +793,8 @@ class _TrophySummaryCard extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 7,
-            backgroundColor: AppColors.background,
-            valueColor: const AlwaysStoppedAnimation(AppColors.orange),
+            backgroundColor: context.pbhColors.background,
+            valueColor: AlwaysStoppedAnimation(context.pbhColors.orange),
           ),
         ),
         const SizedBox(height: 16),
@@ -840,10 +855,10 @@ class _SupremeTrophyCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.pbhColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: unlocked ? color.withOpacity(.8) : AppColors.border,
+          color: unlocked ? color.withOpacity(.8) : context.pbhColors.border,
           width: unlocked ? 1.4 : 1,
         ),
         boxShadow: unlocked
@@ -890,10 +905,10 @@ class _SupremeTrophyCard extends StatelessWidget {
                       ),
                     ),
                     if (!unlocked)
-                      const Icon(
+                      Icon(
                         Icons.lock_rounded,
                         size: 16,
-                        color: AppColors.textTertiary,
+                        color: context.pbhColors.textTertiary,
                       )
                     else
                       Icon(Icons.check_circle_rounded, size: 18, color: color),
@@ -912,9 +927,9 @@ class _SupremeTrophyCard extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 5,
-                    backgroundColor: AppColors.background,
+                    backgroundColor: context.pbhColors.background,
                     valueColor: AlwaysStoppedAnimation(
-                      unlocked ? color : AppColors.orange,
+                      unlocked ? color : context.pbhColors.orange,
                     ),
                   ),
                 ),
@@ -922,7 +937,7 @@ class _SupremeTrophyCard extends StatelessWidget {
                 Text(
                   '$completedCount de $challengeCount troféus conquistados',
                   style: AppTextStyles.statLabel.copyWith(
-                    color: unlocked ? color : AppColors.textSecondary,
+                    color: unlocked ? color : context.pbhColors.textSecondary,
                   ),
                 ),
                 if (unlocked)
@@ -957,7 +972,7 @@ class _AchievementCard extends StatelessWidget {
     final unlocked = challenge.status == ChallengeStatus.completed;
     final active = challenge.status == ChallengeStatus.active;
     return Material(
-      color: AppColors.surface,
+      color: context.pbhColors.surface,
       borderRadius: BorderRadius.circular(17),
       child: InkWell(
         onTap: onTap,
@@ -967,7 +982,9 @@ class _AchievementCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(17),
             border: Border.all(
-              color: unlocked ? tier.color.withOpacity(.42) : AppColors.border,
+              color: unlocked
+                  ? tier.color.withOpacity(.42)
+                  : context.pbhColors.border,
             ),
           ),
           child: Row(
@@ -1001,10 +1018,10 @@ class _AchievementCard extends StatelessWidget {
                             color: tier.color,
                           )
                         else if (!active)
-                          const Icon(
+                          Icon(
                             Icons.lock_rounded,
                             size: 15,
-                            color: AppColors.textTertiary,
+                            color: context.pbhColors.textTertiary,
                           ),
                       ],
                     ),
@@ -1021,9 +1038,9 @@ class _AchievementCard extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: challenge.progress,
                         minHeight: 4,
-                        backgroundColor: AppColors.background,
+                        backgroundColor: context.pbhColors.background,
                         valueColor: AlwaysStoppedAnimation(
-                          unlocked ? tier.color : AppColors.orange,
+                          unlocked ? tier.color : context.pbhColors.orange,
                         ),
                       ),
                     ),
@@ -1035,7 +1052,9 @@ class _AchievementCard extends StatelessWidget {
                           ? '${challenge.currentDay}/${challenge.totalDays} dias • em andamento'
                           : 'Bloqueado • ${challenge.totalDays} dias',
                       style: AppTextStyles.statLabel.copyWith(
-                        color: unlocked ? tier.color : AppColors.textSecondary,
+                        color: unlocked
+                            ? tier.color
+                            : context.pbhColors.textSecondary,
                         fontSize: 10,
                       ),
                     ),
@@ -1043,9 +1062,9 @@ class _AchievementCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textTertiary,
+                color: context.pbhColors.textTertiary,
               ),
             ],
           ),
@@ -1103,7 +1122,7 @@ class _TrophyMedallion extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: RadialGradient(
-            colors: [color.withOpacity(.24), AppColors.background],
+            colors: [color.withOpacity(.24), context.pbhColors.background],
           ),
           border: Border.all(color: color.withOpacity(locked ? .25 : .75)),
           boxShadow: locked
@@ -1124,9 +1143,9 @@ class _LoginPrompt extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(22),
     decoration: BoxDecoration(
-      color: AppColors.surface,
+      color: context.pbhColors.surface,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.border),
+      border: Border.all(color: context.pbhColors.border),
     ),
     child: Column(
       children: [
@@ -1169,10 +1188,10 @@ class _EmptyChallengeState extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 42),
     child: Column(
       children: [
-        const Icon(
+        Icon(
           Icons.flag_outlined,
           size: 34,
-          color: AppColors.textTertiary,
+          color: context.pbhColors.textTertiary,
         ),
         const SizedBox(height: 10),
         Text(

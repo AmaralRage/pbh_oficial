@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+export 'pbh_palette.dart';
 
-/// Paleta oficial do Design System PBH Oficial.
-/// Extraída fielmente da referência visual: dark mode profundo,
-/// cards em preto fosco e um único acento — laranja intenso.
-/// Não introduzir outras cores predominantes.
+/// Cores fixas da marca e fallback. Nas telas, use context.pbhColors para
+/// acompanhar o tema do app ou o tema independente do perfil.
 class AppColors {
   AppColors._();
 
@@ -23,7 +22,9 @@ class AppColors {
   // Acento — laranja intenso (cor de marca)
   static const Color orange = Color(0xFFFF5A1F);
   static const Color orangeLight = Color(0xFFFF8A4D);
-  static const Color orangeDim = Color(0x33FF5A1F); // 20% opacidade, para fundos de badge
+  static const Color orangeDim = Color(
+    0x33FF5A1F,
+  ); // 20% opacidade, para fundos de badge
 
   // Texto
   static const Color textPrimary = Color(0xFFFFFFFF);
@@ -31,7 +32,8 @@ class AppColors {
   static const Color textTertiary = Color(0xFF6E6E6E);
 
   // Estados
-  static const Color success = orange; // no design de referência, check = laranja
+  static const Color success =
+      orange; // no design de referência, check = laranja
   static const Color inactive = Color(0xFF3A3A3A);
 
   // Gradiente sutil usado em cards em destaque (ex: card de desafio ativo)

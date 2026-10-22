@@ -7,11 +7,7 @@ class PbhLogo extends StatelessWidget {
   final double scale;
   final bool compact;
 
-  const PbhLogo({
-    super.key,
-    this.scale = 1,
-    this.compact = false,
-  });
+  const PbhLogo({super.key, this.scale = 1, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +27,7 @@ class PbhLogo extends StatelessWidget {
               fontWeight: FontWeight.w500,
               height: 0.9,
               letterSpacing: compact ? 1.8 : 2.4,
-              color: AppColors.textPrimary,
+              color: context.pbhColors.textPrimary,
             ),
           ),
         ),
@@ -41,7 +37,7 @@ class PbhLogo extends StatelessWidget {
           style: AppTextStyles.statLabel.copyWith(
             fontSize: officialSize,
             letterSpacing: compact ? 3.1 : 8.2,
-            color: AppColors.textPrimary.withOpacity(0.9),
+            color: context.pbhColors.textPrimary.withOpacity(0.9),
             fontWeight: FontWeight.w600,
           ),
         ),

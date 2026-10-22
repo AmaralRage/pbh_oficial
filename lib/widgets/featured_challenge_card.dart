@@ -28,7 +28,7 @@ class FeaturedChallengeCard extends StatelessWidget {
         height: 150,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border, width: 1),
+          border: Border.all(color: context.pbhColors.border, width: 1),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
@@ -46,9 +46,9 @@ class FeaturedChallengeCard extends StatelessWidget {
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      AppColors.background.withOpacity(0.92),
-                      AppColors.background.withOpacity(0.62),
-                      AppColors.background.withOpacity(0.12),
+                      context.pbhColors.background.withOpacity(0.92),
+                      context.pbhColors.background.withOpacity(0.62),
+                      context.pbhColors.background.withOpacity(0.12),
                     ],
                   ),
                 ),
@@ -58,7 +58,12 @@ class FeaturedChallengeCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('DESAFIO ATUAL', style: AppTextStyles.eyebrow.copyWith(fontSize: 10)),
+                    Text(
+                      'DESAFIO ATUAL',
+                      style: AppTextStyles.eyebrow
+                          .copyWith(color: context.pbhColors.orangeLight)
+                          .copyWith(fontSize: 10),
+                    ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: 150,
@@ -80,7 +85,11 @@ class FeaturedChallengeCard extends StatelessWidget {
                           style: AppTextStyles.bodySmall,
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.chevron_right, size: 17, color: AppColors.textPrimary),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 17,
+                          color: context.pbhColors.textPrimary,
+                        ),
                       ],
                     ),
                     const Spacer(),
@@ -92,8 +101,11 @@ class FeaturedChallengeCard extends StatelessWidget {
                             child: LinearProgressIndicator(
                               value: challenge.progress,
                               minHeight: 4,
-                              backgroundColor: AppColors.surfaceElevated,
-                              valueColor: const AlwaysStoppedAnimation(AppColors.orange),
+                              backgroundColor:
+                                  context.pbhColors.surfaceElevated,
+                              valueColor: AlwaysStoppedAnimation(
+                                context.pbhColors.orange,
+                              ),
                             ),
                           ),
                         ),
@@ -101,7 +113,7 @@ class FeaturedChallengeCard extends StatelessWidget {
                         Text(
                           '$progressPercent%',
                           style: AppTextStyles.chip.copyWith(
-                            color: AppColors.orange,
+                            color: context.pbhColors.orange,
                             fontWeight: FontWeight.w800,
                           ),
                         ),

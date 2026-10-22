@@ -16,7 +16,15 @@ class WeekdaySelector extends StatelessWidget {
   });
 
   static const _labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-  static const _fullLabels = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'];
+  static const _fullLabels = [
+    'segunda-feira',
+    'terça-feira',
+    'quarta-feira',
+    'quinta-feira',
+    'sexta-feira',
+    'sábado',
+    'domingo',
+  ];
 
   int get _todayIndex => date.weekday - 1;
 
@@ -25,43 +33,58 @@ class WeekdaySelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Hoje · ${_fullLabels[_todayIndex]}', style: AppTextStyles.bodySmall),
+        Text(
+          'Hoje · ${_fullLabels[_todayIndex]}',
+          style: AppTextStyles.bodySmall,
+        ),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(7, (index) {
-        final isToday = index == _todayIndex;
-        final isCompleted = completedIndexes.contains(index);
-        final isElapsed = elapsedIndexes.contains(index);
+            final isToday = index == _todayIndex;
+            final isCompleted = completedIndexes.contains(index);
+            final isElapsed = elapsedIndexes.contains(index);
 
-        return Column(
-          children: [
-            Text(
-              _labels[index],
-              style: AppTextStyles.statLabel.copyWith(
-                color: isToday ? AppColors.textPrimary : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isCompleted ? AppColors.orange : (isElapsed ? AppColors.orangeDim : Colors.transparent),
-                border: Border.all(
-                  color: isToday
-                      ? AppColors.orange
-                      : (isCompleted ? Colors.transparent : (isElapsed ? AppColors.orange.withOpacity(.35) : AppColors.border)),
-                  width: isToday ? 2 : 1,
+            return Column(
+              children: [
+                Text(
+                  _labels[index],
+                  style: AppTextStyles.statLabel.copyWith(
+                    color: isToday
+                        ? context.pbhColors.textPrimary
+                        : context.pbhColors.textSecondary,
+                  ),
                 ),
-              ),
-              child: isCompleted
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
-                  : null,
-            ),
-          ],
-        );
+                const SizedBox(height: 10),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isCompleted
+                        ? context.pbhColors.orange
+                        : (isElapsed
+                              ? context.pbhColors.orangeDim
+                              : Colors.transparent),
+                    border: Border.all(
+                      color: isToday
+                          ? context.pbhColors.orange
+                          : (isCompleted
+                                ? Colors.transparent
+                                : (isElapsed
+                                      ? context.pbhColors.orange.withOpacity(
+                                          .35,
+                                        )
+                                      : context.pbhColors.border)),
+                      width: isToday ? 2 : 1,
+                    ),
+                  ),
+                  child: isCompleted
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      : null,
+                ),
+              ],
+            );
           }),
         ),
       ],

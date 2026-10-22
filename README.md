@@ -6,6 +6,11 @@ Se `flutter run -d chrome` encerrar com `WipError -32000 Cannot find context wit
 specified id`, inicie o servidor web e abra o endereço manualmente. Isso evita
 a etapa de conexão automática ao depurador do Chrome:
 
+Na raiz do projeto, execute `./run_web.bat` no PowerShell e abra
+`http://127.0.0.1:7357/` depois que a compilação terminar. Mantenha o terminal
+aberto. Esse caminho contorna a falha do depurador; não altera o SDK Flutter.
+O comando equivalente é:
+
 ```powershell
 flutter run -d web-server --web-hostname=127.0.0.1 --web-port=7357 --dart-define=SPOTIFY_CLIENT_ID=59ea8a21516947b1936233d03ea53f31
 ```
@@ -316,3 +321,27 @@ cadentes ocasionais. A moldura da foto tem um brilho que percorre o contorno.
 Os efeitos usam pintura isolada no Flutter, sem reconstruir a foto e os textos
 a cada quadro. Param quando o cabeçalho sai da tela, outra rota ou aba está
 ativa, o app vai para segundo plano ou o sistema solicita reduzir movimento.
+
+Em **Editar perfil**, a animação da moldura e a animação da capa podem ser
+selecionadas independentemente das cores e das imagens. As opções da moldura
+incluem órbita, pulso, faíscas e anéis; a capa oferece reflexo, estrelas,
+meteoros, aurora e brasas. A sobreposição funciona também em capas enviadas.
+Cada área permite escolher **Sem animação**. As escolhas ficam salvas com
+o perfil. O fundador usa ciano e violeta, com Coroa cósmica e Nebulosa do
+fundador exclusivas, mantendo uma aparência diferente das opções Ouro.
+
+### Temas do app e do perfil
+
+Em **Perfil → Aparência do app**, a galeria mostra PBH Original, Meia-noite,
+Azul estelar, Vermelho cósmico, Roxo galáctico, Rosa nova e Esmeralda. O líder
+confirmado também tem Legado do fundador. A prévia só altera a própria tela
+de seleção; **Aplicar tema** atualiza as telas, menus, cards e controles.
+O tema de membros é salvo nos metadados da conta (`app_theme`) e em cache
+separado por usuário; visitantes têm uma preferência local própria.
+
+Em **Editar perfil → Tema do perfil**, é possível acompanhar a aparência do
+app ou escolher outra paleta só para o perfil. Essa escolha é salva em
+`profile_style.profile_theme`, independente da capa e das animações.
+As telas usam `context.pbhColors`, uma extensão de `ThemeData`, para reagir
+às mudanças sem recriar a navegação. Os temas mantêm uma base escura,
+texto legível e cores próprias para os conteúdos e artes de conquistas.

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'profile_achievement.dart';
+import '../core/theme/pbh_palette.dart';
 
 class ProfileStyleOption {
   const ProfileStyleOption(
@@ -34,11 +35,44 @@ class ProfileStyle {
     this.cover = 'ember',
     this.title = 'member',
     this.featured,
+    this.frameEffect = 'orbit',
+    this.coverEffect = 'shimmer',
+    this.profileTheme = 'app',
   });
   final String frame;
   final String cover;
   final String title;
   final List<String>? featured;
+  final String frameEffect;
+  final String coverEffect;
+  final String profileTheme;
+  static const frameEffects = [
+    ProfileStyleOption('none', 'Sem animação', Color(0xFF909090)),
+    ProfileStyleOption('orbit', 'Órbita de luz', Color(0xFFFFC45A)),
+    ProfileStyleOption('pulse', 'Pulso suave', Color(0xFF80DDD5)),
+    ProfileStyleOption('sparks', 'Faíscas', Color(0xFFFF8F64)),
+    ProfileStyleOption('double', 'Anéis gêmeos', Color(0xFFB7A2FF)),
+    ProfileStyleOption(
+      'crown',
+      'Coroa cósmica',
+      Color(0xFF70E8FF),
+      founderOnly: true,
+    ),
+  ];
+  static const coverEffects = [
+    ProfileStyleOption('none', 'Sem animação', Color(0xFF909090)),
+    ProfileStyleOption('shimmer', 'Reflexo de luz', Color(0xFFE4D5FF)),
+    ProfileStyleOption('stars', 'Céu estrelado', Color(0xFFBCDFFF)),
+    ProfileStyleOption('meteors', 'Estrelas cadentes', Color(0xFFBCDFFF)),
+    ProfileStyleOption('aurora', 'Aurora', Color(0xFF71E6CE)),
+    ProfileStyleOption('embers', 'Brasas', Color(0xFFFF935D)),
+    ProfileStyleOption(
+      'legacy',
+      'Nebulosa do fundador',
+      Color(0xFF70E8FF),
+      founderOnly: true,
+    ),
+  ];
   static const frames = [
     ProfileStyleOption('orange', 'PBH', Color(0xFFFF5A1F)),
     ProfileStyleOption('bronze', 'Bronze', Color(0xFFCF9563), minimum: 1),
@@ -53,7 +87,7 @@ class ProfileStyle {
     ProfileStyleOption(
       'founder',
       'Fundador',
-      Color(0xFFFFB547),
+      Color(0xFF70E8FF),
       founderOnly: true,
     ),
   ];
@@ -65,7 +99,7 @@ class ProfileStyle {
     ProfileStyleOption(
       'founder',
       'Legado PBH',
-      Color(0xFFCD8B36),
+      Color(0xFF7547CA),
       founderOnly: true,
     ),
   ];
@@ -81,6 +115,9 @@ class ProfileStyle {
       frame: value('frame', founder ? 'founder' : 'orange'),
       cover: value('cover', founder ? 'founder' : 'ember'),
       title: value('title', founder ? 'founder' : 'member'),
+      frameEffect: value('frame_effect', founder ? 'crown' : 'orbit'),
+      coverEffect: value('cover_effect', founder ? 'legacy' : 'shimmer'),
+      profileTheme: value('profile_theme', 'app'),
       featured: map['featured'] is List
           ? (map['featured'] as List)
                 .whereType<String>()
@@ -95,16 +132,25 @@ class ProfileStyle {
     String? cover,
     String? title,
     List<String>? featured,
+    String? frameEffect,
+    String? coverEffect,
+    String? profileTheme,
   }) => ProfileStyle(
     frame: frame ?? this.frame,
     cover: cover ?? this.cover,
     title: title ?? this.title,
     featured: featured ?? this.featured,
+    frameEffect: frameEffect ?? this.frameEffect,
+    coverEffect: coverEffect ?? this.coverEffect,
+    profileTheme: profileTheme ?? this.profileTheme,
   );
   Map<String, dynamic> toMap() => {
     'frame': frame,
     'cover': cover,
     'title': title,
+    'frame_effect': frameEffect,
+    'cover_effect': coverEffect,
+    'profile_theme': profileTheme,
     if (featured != null) 'featured': featured,
   };
   ProfileStyle validated({
@@ -126,6 +172,11 @@ class ProfileStyle {
     return ProfileStyle(
       frame: option(frames, frame, 'orange'),
       cover: option(covers, cover, 'ember'),
+      frameEffect: option(frameEffects, frameEffect, 'orbit'),
+      coverEffect: option(coverEffects, coverEffect, 'shimmer'),
+      profileTheme: profileTheme == 'app'
+          ? 'app'
+          : PbhPalette.resolve(profileTheme, founder: founder).id,
       title:
           title == 'member' ||
               (title == 'founder' && founder) ||

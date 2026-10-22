@@ -48,7 +48,11 @@ class ProfileAchievementSeals extends StatefulWidget {
         ),
       ),
       pageBuilder: (context, _, __) => Dialog(
-        backgroundColor: Color.lerp(AppColors.background, badge.color, .04),
+        backgroundColor: Color.lerp(
+          context.pbhColors.background,
+          badge.color,
+          .04,
+        ),
         insetPadding: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
@@ -74,7 +78,9 @@ class ProfileAchievementSeals extends StatefulWidget {
                 ),
                 Text(
                   'SELO CONQUISTADO',
-                  style: AppTextStyles.eyebrow.copyWith(color: badge.color),
+                  style: AppTextStyles.eyebrow
+                      .copyWith(color: context.pbhColors.orangeLight)
+                      .copyWith(color: badge.color),
                 ),
                 const SizedBox(height: 20),
                 LayoutBuilder(
@@ -116,10 +122,9 @@ class ProfileAchievementSeals extends StatefulWidget {
                         (badge.id == 'platinum'
                             ? 'COLEÇÃO COMPLETA • PLATINA PBH'
                             : '${badge.category} • TROFÉU SUPREMO'),
-                    style: AppTextStyles.eyebrow.copyWith(
-                      color: badge.color,
-                      fontSize: 10,
-                    ),
+                    style: AppTextStyles.eyebrow
+                        .copyWith(color: context.pbhColors.orangeLight)
+                        .copyWith(color: badge.color, fontSize: 10),
                   ),
                 ],
                 const SizedBox(height: 24),
@@ -165,15 +170,15 @@ class _ProfileAchievementSealsState extends State<ProfileAchievementSeals> {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.pbhColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.borderSubtle),
+          border: Border.all(color: context.pbhColors.borderSubtle),
         ),
         child: Column(
           children: [
-            const Icon(
+            Icon(
               Icons.workspace_premium_outlined,
-              color: AppColors.orange,
+              color: context.pbhColors.orange,
               size: 34,
             ),
             const SizedBox(height: 12),
@@ -209,7 +214,7 @@ class _ProfileAchievementSealsState extends State<ProfileAchievementSeals> {
                 button: true,
                 label: '${badge.title}, conquistado. Ver detalhes',
                 child: Material(
-                  color: AppColors.surface,
+                  color: context.pbhColors.surface,
                   borderRadius: BorderRadius.circular(20),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(20),
@@ -242,7 +247,7 @@ class _ProfileAchievementSealsState extends State<ProfileAchievementSeals> {
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
                               style: AppTextStyles.statLabel.copyWith(
-                                color: AppColors.textPrimary,
+                                color: context.pbhColors.textPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -522,7 +527,10 @@ class _GrantProfileSealDialogState extends State<GrantProfileSealDialog> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: AppColors.orange)),
+                Text(
+                  _error!,
+                  style: TextStyle(color: context.pbhColors.orange),
+                ),
               ],
             ],
           ),

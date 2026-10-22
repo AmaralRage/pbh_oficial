@@ -205,7 +205,7 @@ class _HabitsScreenState extends State<HabitsScreen>
     final time = await showModalBottomSheet<TimeOfDay>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.pbhColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -220,9 +220,9 @@ class _HabitsScreenState extends State<HabitsScreen>
                 children: [
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.schedule_rounded,
-                        color: AppColors.orange,
+                        color: context.pbhColors.orange,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -234,7 +234,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                       Text(
                         '${selected.hour.toString().padLeft(2, '0')}:${selected.minute.toString().padLeft(2, '0')}',
                         style: AppTextStyles.titleLarge.copyWith(
-                          color: AppColors.orange,
+                          color: context.pbhColors.orange,
                         ),
                       ),
                     ],
@@ -243,9 +243,9 @@ class _HabitsScreenState extends State<HabitsScreen>
                   SizedBox(
                     height: 176,
                     child: CupertinoTheme(
-                      data: const CupertinoThemeData(
+                      data: CupertinoThemeData(
                         brightness: Brightness.dark,
-                        primaryColor: AppColors.orange,
+                        primaryColor: context.pbhColors.orange,
                       ),
                       child: CupertinoDatePicker(
                         mode: CupertinoDatePickerMode.time,
@@ -433,7 +433,7 @@ class _HabitsScreenState extends State<HabitsScreen>
     final result = await showModalBottomSheet<Set<String>>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.pbhColors.surface,
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) => SafeArea(
           child: Padding(
@@ -452,7 +452,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                 ...habitCatalog.map(
                   (habit) => CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
-                    activeColor: AppColors.orange,
+                    activeColor: context.pbhColors.orange,
                     title: Text(
                       habit.title,
                       style: AppTextStyles.titleMedium.copyWith(fontSize: 15),
@@ -543,14 +543,14 @@ class _HabitsScreenState extends State<HabitsScreen>
     messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.pbhColors.surface,
         elevation: 12,
         duration: const Duration(seconds: 4),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 84),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: AppColors.orange.withOpacity(.55)),
+          side: BorderSide(color: context.pbhColors.orange.withOpacity(.55)),
         ),
         content: TweenAnimationBuilder<double>(
           tween: Tween(begin: .88, end: 1),
@@ -564,12 +564,12 @@ class _HabitsScreenState extends State<HabitsScreen>
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppColors.orangeDim,
+                  color: context.pbhColors.orangeDim,
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.emoji_events_rounded,
-                  color: AppColors.orange,
+                  color: context.pbhColors.orange,
                 ),
               ),
               const SizedBox(width: 12),
@@ -581,7 +581,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                     Text(
                       'Rotina concluída!',
                       style: AppTextStyles.titleMedium.copyWith(
-                        color: AppColors.orange,
+                        color: context.pbhColors.orange,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -594,9 +594,9 @@ class _HabitsScreenState extends State<HabitsScreen>
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.auto_awesome_rounded,
-                color: AppColors.orange,
+                color: context.pbhColors.orange,
                 size: 19,
               ),
             ],
@@ -630,7 +630,7 @@ class _HabitsScreenState extends State<HabitsScreen>
     final week = _currentWeek;
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.background,
+      backgroundColor: context.pbhColors.background,
       drawer: PbhAppDrawer(
         currentIndex: widget.currentIndex,
         onNavigate: _handleBottomTap,
@@ -711,8 +711,8 @@ class _HabitsScreenState extends State<HabitsScreen>
                                       style: AppTextStyles.statLabel.copyWith(
                                         fontSize: 10,
                                         color: selected
-                                            ? AppColors.textPrimary
-                                            : AppColors.textSecondary,
+                                            ? context.pbhColors.textPrimary
+                                            : context.pbhColors.textSecondary,
                                       ),
                                     ),
                                     const SizedBox(height: 7),
@@ -726,12 +726,14 @@ class _HabitsScreenState extends State<HabitsScreen>
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: selected
-                                            ? AppColors.orangeDim
-                                            : AppColors.backgroundElevated,
+                                            ? context.pbhColors.orangeDim
+                                            : context
+                                                  .pbhColors
+                                                  .backgroundElevated,
                                         border: Border.all(
                                           color: selected
-                                              ? AppColors.orange
-                                              : AppColors.borderSubtle,
+                                              ? context.pbhColors.orange
+                                              : context.pbhColors.borderSubtle,
                                           width: selected ? 2 : 1,
                                         ),
                                       ),
@@ -741,8 +743,10 @@ class _HabitsScreenState extends State<HabitsScreen>
                                             .copyWith(
                                               fontSize: 14,
                                               color: selected
-                                                  ? AppColors.orange
-                                                  : AppColors.textPrimary,
+                                                  ? context.pbhColors.orange
+                                                  : context
+                                                        .pbhColors
+                                                        .textPrimary,
                                             ),
                                       ),
                                     ),
@@ -789,7 +793,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                                       text:
                                           '$_completedCount/${_habits.length}',
                                       style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.orange,
+                                        color: context.pbhColors.orange,
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
@@ -801,9 +805,9 @@ class _HabitsScreenState extends State<HabitsScreen>
                             IconButton(
                               tooltip: 'Escolher hábitos da rotina',
                               onPressed: _chooseHabits,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.tune_rounded,
-                                color: AppColors.orange,
+                                color: context.pbhColors.orange,
                               ),
                             ),
                           ],
@@ -874,17 +878,17 @@ class _HabitsScreenState extends State<HabitsScreen>
       duration: const Duration(milliseconds: 280),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.pbhColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: enabled
-              ? AppColors.orange.withOpacity(.55)
-              : AppColors.borderSubtle,
+              ? context.pbhColors.orange.withOpacity(.55)
+              : context.pbhColors.borderSubtle,
         ),
         boxShadow: enabled
             ? [
                 BoxShadow(
-                  color: AppColors.orange.withOpacity(.08),
+                  color: context.pbhColors.orange.withOpacity(.08),
                   blurRadius: 18,
                 ),
               ]
@@ -905,9 +909,9 @@ class _HabitsScreenState extends State<HabitsScreen>
           : !authenticated
           ? Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.notifications_active_outlined,
-                  color: AppColors.orange,
+                  color: context.pbhColors.orange,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -943,15 +947,15 @@ class _HabitsScreenState extends State<HabitsScreen>
                       height: 42,
                       decoration: BoxDecoration(
                         color: enabled
-                            ? AppColors.orangeDim
-                            : AppColors.backgroundElevated,
+                            ? context.pbhColors.orangeDim
+                            : context.pbhColors.backgroundElevated,
                         borderRadius: BorderRadius.circular(13),
                       ),
                       child: Icon(
                         enabled
                             ? Icons.notifications_active_rounded
                             : Icons.notifications_none_rounded,
-                        color: AppColors.orange,
+                        color: context.pbhColors.orange,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -976,7 +980,7 @@ class _HabitsScreenState extends State<HabitsScreen>
                     Switch.adaptive(
                       value: enabled,
                       onChanged: _reminderSaving ? null : _setReminderEnabled,
-                      activeColor: AppColors.orange,
+                      activeColor: context.pbhColors.orange,
                     ),
                   ],
                 ),
@@ -991,15 +995,15 @@ class _HabitsScreenState extends State<HabitsScreen>
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.backgroundElevated,
+                        color: context.pbhColors.backgroundElevated,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.schedule_rounded,
                             size: 18,
-                            color: AppColors.orange,
+                            color: context.pbhColors.orange,
                           ),
                           const SizedBox(width: 9),
                           Expanded(
@@ -1017,10 +1021,10 @@ class _HabitsScreenState extends State<HabitsScreen>
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           else
-                            const Icon(
+                            Icon(
                               Icons.chevron_right_rounded,
                               size: 19,
-                              color: AppColors.textSecondary,
+                              color: context.pbhColors.textSecondary,
                             ),
                         ],
                       ),
@@ -1059,9 +1063,9 @@ class _WeeklySummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.pbhColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: context.pbhColors.borderSubtle),
       ),
       child: Row(
         children: [
@@ -1069,10 +1073,13 @@ class _WeeklySummaryCard extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppColors.orangeDim,
+              color: context.pbhColors.orangeDim,
               borderRadius: BorderRadius.circular(13),
             ),
-            child: const Icon(Icons.insights_rounded, color: AppColors.orange),
+            child: Icon(
+              Icons.insights_rounded,
+              color: context.pbhColors.orange,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1094,7 +1101,7 @@ class _WeeklySummaryCard extends StatelessWidget {
           IconButton(
             tooltip: 'Compartilhar resumo semanal',
             onPressed: onShare,
-            icon: const Icon(Icons.share_outlined, color: AppColors.orange),
+            icon: Icon(Icons.share_outlined, color: context.pbhColors.orange),
           ),
         ],
       ),
@@ -1123,9 +1130,9 @@ class _StreakCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface.withOpacity(.72),
+        color: context.pbhColors.surface.withOpacity(.72),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: context.pbhColors.borderSubtle),
       ),
       child: Row(
         children: [
@@ -1136,9 +1143,9 @@ class _StreakCard extends StatelessWidget {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.local_fire_department,
-                    color: AppColors.orange,
+                    color: context.pbhColors.orange,
                     size: 22,
                   ),
                   const SizedBox(width: 7),
@@ -1178,7 +1185,7 @@ class _StreakCard extends StatelessWidget {
                         width: 5,
                         height: 30 * fraction,
                         decoration: BoxDecoration(
-                          color: AppColors.orange.withOpacity(
+                          color: context.pbhColors.orange.withOpacity(
                             .26 + .74 * fraction,
                           ),
                           borderRadius: BorderRadius.circular(4),

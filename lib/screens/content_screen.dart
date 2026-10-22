@@ -23,7 +23,13 @@ class _ContentScreenState extends State<ContentScreen> {
   final Set<String> _startedProgramIds = {};
   final SharedPreferencesAsync _storage = SharedPreferencesAsync();
   final _searchController = TextEditingController();
-  static const _filters = ['Todos', 'Iniciante', 'Intermediário', 'Avançado', 'Salvos'];
+  static const _filters = [
+    'Todos',
+    'Iniciante',
+    'Intermediário',
+    'Avançado',
+    'Salvos',
+  ];
 
   @override
   void initState() {
@@ -39,16 +45,27 @@ class _ContentScreenState extends State<ContentScreen> {
         final savedKey = 'pbh.program.${program.id}.saved';
         final startedKey = 'pbh.program.${program.id}.started';
         if (!keys.contains(savedKey) && !keys.contains(startedKey)) continue;
-        state[program.id] = await Future.wait([_storage.getBool(savedKey), _storage.getBool(startedKey)]);
+        state[program.id] = await Future.wait([
+          _storage.getBool(savedKey),
+          _storage.getBool(startedKey),
+        ]);
       }
       if (!mounted) return;
       setState(() {
         _savedProgramIds
           ..clear()
-          ..addAll(state.entries.where((entry) => entry.value[0] == true).map((entry) => entry.key));
+          ..addAll(
+            state.entries
+                .where((entry) => entry.value[0] == true)
+                .map((entry) => entry.key),
+          );
         _startedProgramIds
           ..clear()
-          ..addAll(state.entries.where((entry) => entry.value[1] == true).map((entry) => entry.key));
+          ..addAll(
+            state.entries
+                .where((entry) => entry.value[1] == true)
+                .map((entry) => entry.key),
+          );
       });
     } catch (_) {
       // The catalog remains usable if local preferences are unavailable.
@@ -71,8 +88,10 @@ class _ContentScreenState extends State<ContentScreen> {
     final query = _searchQuery.trim().toLowerCase();
     return programCatalog.where((program) {
       final matchesLevel = level == null || program.level == level;
-      final matchesSaved = _filterIndex != 4 || _savedProgramIds.contains(program.id);
-      final matchesSearch = query.isEmpty ||
+      final matchesSaved =
+          _filterIndex != 4 || _savedProgramIds.contains(program.id);
+      final matchesSearch =
+          query.isEmpty ||
           program.title.toLowerCase().contains(query) ||
           program.tagline.toLowerCase().contains(query) ||
           program.description.toLowerCase().contains(query);
@@ -95,7 +114,10 @@ class _ContentScreenState extends State<ContentScreen> {
               Text('Conteúdo', style: AppTextStyles.brandHeadline),
               IconButton(
                 tooltip: _searchOpen ? 'Fechar busca' : 'Buscar programas',
-                icon: Icon(_searchOpen ? Icons.close : Icons.search, color: AppColors.textPrimary),
+                icon: Icon(
+                  _searchOpen ? Icons.close : Icons.search,
+                  color: context.pbhColors.textPrimary,
+                ),
                 onPressed: () => setState(() {
                   _searchOpen = !_searchOpen;
                   if (!_searchOpen) {
@@ -115,7 +137,8 @@ class _ContentScreenState extends State<ContentScreen> {
                     child: TextField(
                       controller: _searchController,
                       autofocus: true,
-                      onChanged: (value) => setState(() => _searchQuery = value),
+                      onChanged: (value) =>
+                          setState(() => _searchQuery = value),
                       decoration: InputDecoration(
                         hintText: 'Buscar por nome ou tema',
                         prefixIcon: const Icon(Icons.search),
@@ -135,7 +158,10 @@ class _ContentScreenState extends State<ContentScreen> {
                 : const SizedBox.shrink(),
           ),
           const SizedBox(height: 6),
-          Text('Programas para sua evolução contínua.', style: AppTextStyles.bodySmall),
+          Text(
+            'Programas para sua evolução contínua.',
+            style: AppTextStyles.bodySmall,
+          ),
           const SizedBox(height: 24),
 
           FilterChipRow(
@@ -145,7 +171,10 @@ class _ContentScreenState extends State<ContentScreen> {
           ),
           const SizedBox(height: 20),
 
-          Text('${list.length} programas encontrados', style: AppTextStyles.bodySmall),
+          Text(
+            '${list.length} programas encontrados',
+            style: AppTextStyles.bodySmall,
+          ),
           const SizedBox(height: 14),
 
           if (list.isEmpty)
@@ -172,14 +201,31 @@ class _ContentScreenState extends State<ContentScreen> {
                           .then((_) => _loadProgramState());
                     },
                   ),
-                  if (_startedProgramIds.contains(p.id) || _savedProgramIds.contains(p.id))
+                  if (_startedProgramIds.contains(p.id) ||
+                      _savedProgramIds.contains(p.id))
                     Positioned(
                       top: 10,
                       right: 10,
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        if (_startedProgramIds.contains(p.id)) const Icon(Icons.play_circle_fill, size: 16, color: AppColors.orange),
-                        if (_savedProgramIds.contains(p.id)) const Padding(padding: EdgeInsets.only(left: 5), child: Icon(Icons.bookmark, size: 16, color: AppColors.orange)),
-                      ]),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_startedProgramIds.contains(p.id))
+                            Icon(
+                              Icons.play_circle_fill,
+                              size: 16,
+                              color: context.pbhColors.orange,
+                            ),
+                          if (_savedProgramIds.contains(p.id))
+                            Padding(
+                              padding: EdgeInsets.only(left: 5),
+                              child: Icon(
+                                Icons.bookmark,
+                                size: 16,
+                                color: context.pbhColors.orange,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                 ],
               ),

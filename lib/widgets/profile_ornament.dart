@@ -8,10 +8,12 @@ class ProfileOrnament extends StatefulWidget {
     required this.color,
     this.frame = false,
     this.founder = false,
+    this.effect,
   });
   final Color color;
   final bool frame;
   final bool founder;
+  final String? effect;
   @override
   State<ProfileOrnament> createState() => _ProfileOrnamentState();
 }
@@ -36,6 +38,7 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _enabled =
+        widget.effect != 'none' &&
         !MediaQuery.disableAnimationsOf(context) &&
         TickerMode.valuesOf(context).enabled &&
         (ModalRoute.isCurrentOf(context) ?? true);
@@ -50,6 +53,21 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
       _motion.value = 0;
     }
     _checkVisibility();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileOrnament oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.effect != widget.effect) {
+      _motion.stop();
+      _motion.value = 0;
+      _enabled =
+          widget.effect != 'none' &&
+          !MediaQuery.disableAnimationsOf(context) &&
+          TickerMode.valuesOf(context).enabled &&
+          (ModalRoute.isCurrentOf(context) ?? true);
+      _checkVisibility();
+    }
   }
 
   void _checkVisibility() {
@@ -98,6 +116,12 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
           widget.color,
           widget.frame,
           widget.founder,
+          widget.effect ??
+              (widget.frame
+                  ? 'orbit'
+                  : widget.founder
+                  ? 'meteors'
+                  : 'shimmer'),
         ),
         size: Size.infinite,
       ),
@@ -106,20 +130,101 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
 }
 
 class _OrnamentPainter extends CustomPainter {
-  _OrnamentPainter(this.motion, this.color, this.frame, this.founder)
-    : super(repaint: motion);
+  _OrnamentPainter(
+    this.motion,
+    this.color,
+    this.frame,
+    this.founder,
+    this.effect,
+  ) : super(repaint: motion);
   final Animation<double> motion;
   final Color color;
   final bool frame;
   final bool founder;
+  final String effect;
   @override
   void paint(Canvas canvas, Size size) {
     final t = motion.value;
+    if (effect == 'none') return;
     if (frame) {
       final center = size.center(Offset.zero);
       final radius = size.shortestSide / 2 - 1.8;
       final rect = Rect.fromCircle(center: center, radius: radius);
       final angle = t * math.pi * 2;
+      if (effect == 'pulse') {
+        final pulse = .5 + .5 * math.sin(angle * 2);
+        canvas.drawCircle(
+          center,
+          radius,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2 + pulse * 1.5
+            ..color = color.withValues(alpha: .25 + pulse * .7),
+        );
+        canvas.drawCircle(
+          center,
+          radius - 3,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = .8
+            ..color = color.withValues(alpha: .15 + pulse * .25),
+        );
+        return;
+      }
+      if (effect == 'double' || effect == 'crown') {
+        final cosmic = effect == 'crown';
+        final accent = cosmic
+            ? const Color(0xFFBD83FF)
+            : Color.lerp(color, Colors.white, .7)!;
+        for (var ring = 0; ring < 2; ring++) {
+          final bounds = Rect.fromCircle(
+            center: center,
+            radius: radius - ring * 3.5,
+          );
+          canvas.drawArc(
+            bounds,
+            (ring == 0 ? angle : -angle) + ring * math.pi,
+            math.pi * 1.35,
+            false,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = ring == 0 ? 2.2 : 1.2
+              ..strokeCap = StrokeCap.round
+              ..shader = SweepGradient(
+                transform: GradientRotation(ring == 0 ? angle : -angle),
+                colors: [color.withValues(alpha: .1), accent, color],
+              ).createShader(bounds),
+          );
+        }
+        if (cosmic) {
+          for (var i = 0; i < 6; i++) {
+            final a = -angle + i * math.pi / 3;
+            final p = center + Offset(math.cos(a), math.sin(a)) * (radius - 1);
+            _star(canvas, p, 2.3, accent.withValues(alpha: .8));
+          }
+        }
+        return;
+      }
+      if (effect == 'sparks') {
+        for (var i = 0; i < 14; i++) {
+          final phase = (t * 2 + i / 14) % 1;
+          final a = i * 2.399 + t * math.pi;
+          final p =
+              center +
+              Offset(math.cos(a), math.sin(a)) * (radius - 3 + phase * 3);
+          canvas.drawCircle(
+            p,
+            .6 + (1 - phase) * 1.2,
+            Paint()
+              ..color = Color.lerp(
+                color,
+                Colors.white,
+                .5,
+              )!.withValues(alpha: math.sin(phase * math.pi) * .85),
+          );
+        }
+        return;
+      }
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.6
@@ -146,6 +251,56 @@ class _OrnamentPainter extends CustomPainter {
     }
     canvas.save();
     canvas.clipRect(Offset.zero & size);
+    if (effect == 'aurora' || effect == 'legacy') {
+      for (var band = 0; band < 3; band++) {
+        final path = Path();
+        for (var step = 0; step <= 20; step++) {
+          final x = size.width * step / 20;
+          final y =
+              size.height *
+              (.35 +
+                  band * .2 +
+                  .15 * math.sin(step * .25 + t * math.pi * 2 + band));
+          if (step == 0) {
+            path.moveTo(x, y);
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+        final tint = effect == 'legacy'
+            ? (band.isEven ? const Color(0xFF70E8FF) : const Color(0xFFBD83FF))
+            : (band.isEven ? color : const Color(0xFFAF9AFF));
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 12 + band * 4
+            ..color = tint.withValues(alpha: .065)
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+      if (effect == 'aurora') {
+        canvas.restore();
+        return;
+      }
+    }
+    if (effect == 'embers') {
+      for (var i = 0; i < 18; i++) {
+        final phase = (t + i / 18) % 1;
+        final x =
+            size.width * ((i * 73 % 307) / 307) +
+            math.sin(phase * math.pi * 2 + i) * 10;
+        final y = size.height * (1 - phase);
+        canvas.drawCircle(
+          Offset(x, y),
+          .8 + (i % 3) * .45,
+          Paint()
+            ..color = color.withValues(alpha: math.sin(phase * math.pi) * .6),
+        );
+      }
+      canvas.restore();
+      return;
+    }
     // A small fixed constellation; no particles, blur layers or random allocations.
     for (var i = 0; i < (founder ? 14 : 7); i++) {
       final x = ((i * 73 + 19) % 307) / 307 * size.width;
@@ -162,10 +317,10 @@ class _OrnamentPainter extends CustomPainter {
           )!.withValues(alpha: .12 + pulse * .35),
       );
     }
-    if (founder) {
+    if (effect == 'meteors' || effect == 'legacy') {
       _meteor(canvas, size, t, .09, .19, .88);
       _meteor(canvas, size, t, .65, .74, .55);
-    } else {
+    } else if (effect == 'shimmer') {
       final x = size.width * (t * 1.6 - .3);
       final path = Path()
         ..moveTo(x - 35, 0)
@@ -176,6 +331,15 @@ class _OrnamentPainter extends CustomPainter {
       canvas.drawPath(path, Paint()..color = color.withValues(alpha: .045));
     }
     canvas.restore();
+  }
+
+  void _star(Canvas canvas, Offset p, double radius, Color tint) {
+    final paint = Paint()
+      ..color = tint
+      ..strokeWidth = .8
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(p - Offset(radius, 0), p + Offset(radius, 0), paint);
+    canvas.drawLine(p - Offset(0, radius), p + Offset(0, radius), paint);
   }
 
   void _meteor(
@@ -222,5 +386,6 @@ class _OrnamentPainter extends CustomPainter {
       oldDelegate.color != color ||
       oldDelegate.frame != frame ||
       oldDelegate.founder != founder ||
+      oldDelegate.effect != effect ||
       oldDelegate.motion != motion;
 }

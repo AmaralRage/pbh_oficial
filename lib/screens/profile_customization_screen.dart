@@ -8,6 +8,8 @@ import '../models/profile_style.dart';
 import '../services/auth_service.dart';
 import '../services/profile_customization_service.dart';
 import '../widgets/profile_identity_card.dart';
+import '../widgets/profile_theme_scope.dart';
+import '../widgets/theme_choices.dart';
 
 class ProfileCustomizationScreen extends StatefulWidget {
   const ProfileCustomizationScreen({super.key});
@@ -235,18 +237,22 @@ class _ProfileCustomizationScreenState
                     style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: 20),
-                  ProfileIdentityCard(
-                    name: _name.text.trim().isEmpty
-                        ? 'Seu nome'
-                        : _name.text.trim(),
-                    bio: _bio.text.trim(),
-                    style: _style,
-                    earned: progress.earned,
+                  ProfileThemeScope(
+                    themeId: _style.profileTheme,
                     founder: _founder,
-                    photo: _photo,
-                    avatarUrl: _removePhoto ? null : _avatar,
-                    coverPhoto: _coverPhoto,
-                    coverUrl: _removeCover ? null : _coverUrl,
+                    builder: (context) => ProfileIdentityCard(
+                      name: _name.text.trim().isEmpty
+                          ? 'Seu nome'
+                          : _name.text.trim(),
+                      bio: _bio.text.trim(),
+                      style: _style,
+                      earned: progress.earned,
+                      founder: _founder,
+                      photo: _photo,
+                      avatarUrl: _removePhoto ? null : _avatar,
+                      coverPhoto: _coverPhoto,
+                      coverUrl: _removeCover ? null : _coverUrl,
+                    ),
                   ),
                   Wrap(
                     spacing: 8,
@@ -291,11 +297,28 @@ class _ProfileCustomizationScreenState
                     onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(labelText: 'Sobre você'),
                   ),
+                  _heading('Tema do perfil'),
+                  ThemeChoices(
+                    selected: _style.profileTheme,
+                    founder: _founder,
+                    allowFollowApp: true,
+                    onSelected: _saving
+                        ? null
+                        : (id) => setState(
+                            () => _style = _style.copyWith(profileTheme: id),
+                          ),
+                  ),
                   _heading('Moldura da foto'),
                   _options(
                     ProfileStyle.frames,
                     _style.frame,
                     (id) => _style = _style.copyWith(frame: id),
+                  ),
+                  _heading('Animação da moldura'),
+                  _options(
+                    ProfileStyle.frameEffects,
+                    _style.frameEffect,
+                    (id) => _style = _style.copyWith(frameEffect: id),
                   ),
                   _heading('Capa do perfil'),
                   Wrap(
@@ -334,6 +357,17 @@ class _ProfileCustomizationScreenState
                       _coverPhoto = null;
                       _removeCover = true;
                     },
+                  ),
+                  _heading('Animação sobre a capa'),
+                  Text(
+                    'Os efeitos também aparecem sobre a sua capa enviada. Veja a prévia no topo.',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  _options(
+                    ProfileStyle.coverEffects,
+                    _style.coverEffect,
+                    (id) => _style = _style.copyWith(coverEffect: id),
                   ),
                   _heading('Título'),
                   DropdownButtonFormField<String>(
@@ -422,7 +456,7 @@ class _ProfileCustomizationScreenState
                       child: Text(
                         _error!,
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.orange,
+                          color: context.pbhColors.orange,
                         ),
                       ),
                     ),

@@ -20,14 +20,14 @@ class StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.pbhColors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.borderSubtle),
+          border: Border.all(color: context.pbhColors.borderSubtle),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppColors.orange, size: 22),
+            Icon(icon, color: context.pbhColors.orange, size: 22),
             const SizedBox(height: 14),
             Text(value, style: AppTextStyles.statNumber),
             const SizedBox(height: 4),

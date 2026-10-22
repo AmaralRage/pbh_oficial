@@ -193,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Text(
                       'Líder do projeto PBH Oficial',
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.orange,
+                        color: context.pbhColors.orange,
                       ),
                     ),
                   ] else ...[
@@ -338,13 +338,13 @@ class _HomeLoadError extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: AppColors.surface,
+      color: context.pbhColors.surface,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.border),
+      border: Border.all(color: context.pbhColors.border),
     ),
     child: Row(
       children: [
-        const Icon(Icons.cloud_off_outlined, color: AppColors.orange),
+        Icon(Icons.cloud_off_outlined, color: context.pbhColors.orange),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
@@ -363,7 +363,7 @@ class _NoActiveChallenge extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-    color: AppColors.surface,
+    color: context.pbhColors.surface,
     borderRadius: BorderRadius.circular(18),
     child: InkWell(
       onTap: onTap,
@@ -372,7 +372,7 @@ class _NoActiveChallenge extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         child: Row(
           children: [
-            const Icon(Icons.flag_outlined, color: AppColors.orange),
+            Icon(Icons.flag_outlined, color: context.pbhColors.orange),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -380,9 +380,9 @@ class _NoActiveChallenge extends StatelessWidget {
                 style: AppTextStyles.body,
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textTertiary,
+              color: context.pbhColors.textTertiary,
             ),
           ],
         ),
