@@ -1,5 +1,6 @@
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { sendNativeAnnouncement } from '../_shared/native-push.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,7 +34,7 @@ Deno.serve(async (request) => {
 
     const { data: announcement, error: announcementError } = await adminClient
       .from('announcements')
-      .select('id, title, message, audience, destination_url')
+      .select('id, title, message, audience, destination_url, sound_enabled')
       .eq('id', announcementId)
       .maybeSingle();
     if (announcementError) throw announcementError;
@@ -68,11 +69,19 @@ Deno.serve(async (request) => {
 
     let sent = 0;
     let expired = 0;
+    let native = { attempted: 0, sent: 0 };
+    let warning: string | undefined;
+    try {
+      native = await sendNativeAnnouncement(adminClient, announcement);
+    } catch {
+      warning = 'Não foi possível concluir o push para celulares. Confira a configuração FCM no servidor.';
+    }
     const payload = JSON.stringify({
       title: announcement.title,
       body: announcement.message,
       url: announcement.destination_url || '/',
       tag: `announcement-${announcement.id}`,
+      silent: !announcement.sound_enabled,
     });
     await Promise.all((subscriptions ?? []).map(async (subscription) => {
       try {
@@ -92,11 +101,11 @@ Deno.serve(async (request) => {
 
     const { error: metricsError } = await adminClient
       .from('announcements')
-      .update({ push_attempted_count: subscriptions.length, push_accepted_count: sent })
+      .update({ push_attempted_count: subscriptions.length + native.attempted, push_accepted_count: sent + native.sent })
       .eq('id', announcement.id);
     if (metricsError) throw metricsError;
 
-    return response({ sent, attempted: subscriptions.length, expired });
+    return response({ sent: sent + native.sent, attempted: subscriptions.length + native.attempted, expired, warning });
   } catch (error) {
     console.error('send-announcement failed', error);
     return response({ error: 'Unable to send push notifications' }, 500);

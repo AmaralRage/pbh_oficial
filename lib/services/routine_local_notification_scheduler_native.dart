@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:ui' show Color;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as timezone_data;
 import 'package:timezone/timezone.dart' as timezone;
@@ -13,7 +14,7 @@ class RoutineLocalNotificationScheduler {
     47102,
     47103,
     47104,
-    47105
+    47105,
   };
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
@@ -27,7 +28,7 @@ class RoutineLocalNotificationScheduler {
     timezone.setLocalLocation(timezone.getLocation(zone.identifier));
     await _plugin.initialize(
       const InitializationSettings(
-        android: AndroidInitializationSettings('ic_stat_pbh'),
+        android: AndroidInitializationSettings('ic_stat_pbh_prominent'),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
@@ -40,8 +41,10 @@ class RoutineLocalNotificationScheduler {
 
   static Future<bool> requestPermission() async {
     await _initialize();
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       final notificationsGranted =
           await android.requestNotificationsPermission() ?? false;
@@ -53,24 +56,32 @@ class RoutineLocalNotificationScheduler {
       return exactAlarmsGranted ??
           (await android.canScheduleExactNotifications() ?? false);
     }
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (ios != null) {
       return await ios.requestPermissions(
-              alert: true, badge: true, sound: true) ??
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
           false;
     }
     return false;
   }
 
   static Future<void> scheduleDaily(
-      List<RoutineLocalReminder> reminders) async {
+    List<RoutineLocalReminder> reminders,
+  ) async {
     await _initialize();
     for (final id in _notificationIds) {
       await _plugin.cancel(id);
     }
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     final canScheduleExactly = android == null
         ? false
         : await android.canScheduleExactNotifications() ?? false;
@@ -85,8 +96,11 @@ class RoutineLocalNotificationScheduler {
         reminder.time.minute,
       );
       if (reminder.skipToday || !next.isAfter(now)) {
-        final tomorrow =
-            DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+        final tomorrow = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).add(const Duration(days: 1));
         next = timezone.TZDateTime(
           timezone.local,
           tomorrow.year,
@@ -110,9 +124,11 @@ class RoutineLocalNotificationScheduler {
                 'Lembretes personalizados para cada tarefa da rotina.',
             importance: Importance.high,
             priority: Priority.high,
-            icon: 'ic_stat_pbh',
-            largeIcon:
-                DrawableResourceAndroidBitmap(reminder.largeIconResource),
+            icon: 'ic_stat_pbh_prominent',
+            color: const Color(0xFF6D28D9),
+            largeIcon: DrawableResourceAndroidBitmap(
+              reminder.largeIconResource,
+            ),
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,

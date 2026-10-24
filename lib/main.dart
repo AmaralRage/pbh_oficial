@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'screens/launch_screen.dart';
 import 'screens/app_startup_screen.dart';
 import 'services/appearance_service.dart';
+import 'services/mobile_push_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +20,7 @@ Future<void> initializeApp() async {
         publishableKey: SupabaseConfig.publishableKey,
       );
       await AppearanceService.instance.bind(Supabase.instance.client);
+      await MobilePushService.bind(Supabase.instance.client);
     } catch (_) {
       // Clean up a partially initialized client before another attempt.
       // The persisted session is kept on the device.

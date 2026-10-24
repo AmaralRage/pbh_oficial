@@ -167,7 +167,35 @@ flutter build web `
   --dart-define=WEB_PUSH_VAPID_PUBLIC_KEY=SUA_CHAVE_VAPID_PUBLICA
 ```
 
-Depois de publicar o site em HTTPS, cada pessoa ativa “Notificações no navegador” em Perfil > Configurações > Notificações. A Edge Function verifica o papel de administrador e o público selecionado antes de enviar os avisos. A taxa de envio representa notificações aceitas pelo serviço push do navegador; a taxa de leitura vem das confirmações registradas dentro do app. O agendamento ainda depende de configurar uma rotina no Supabase; enquanto isso, a central publica imediatamente ou salva como rascunho.
+Depois de publicar o site em HTTPS, cada pessoa ativa “Notificações no navegador” em Perfil > Configurações > Notificações. A Edge Function verifica o papel de administrador e o público selecionado antes de enviar os avisos. A taxa de envio representa notificações aceitas pelo serviço push do navegador; a taxa de leitura vem das confirmações registradas dentro do app. A chave pública VAPID do projeto já possui um valor padrão no cliente web; uma definição explícita no build pode substituí-la. Nunca substitua o par VAPID sem planejar a renovação das inscrições existentes.
+
+### Mensagens administrativas agendadas
+
+Na aba **Histórico**, o ícone de lixeira exclui um aviso após confirmação e remove a mensagem da central de todos os usuários. A lista permite carregar notificações mais antigas. A migration `20261023000300_admin_delete_announcements.sql` restringe a operação a administradores, remove recibos vinculados e encerra novas tentativas pendentes de agendamentos já publicados. O registro do agendamento fica marcado como excluído. Avisos já entregues ou em processamento nos dispositivos não podem ser recolhidos. A central e o contador do sino atualizam quando recebem o evento de exclusão. O teste `supabase/tests/admin_delete_announcements.sql` valida a operação com fixtures revertidas, sem apagar mensagens reais.
+
+Na central administrativa, escolha **Agendar envio**, selecione a data e o horário e confirme em **Agendar notificação**. A aba **Agendadas** lista as últimas 100 programações da sua conta, permite atualizar o status e cancelar envios ainda pendentes. Os horários usam o fuso local do aparelho que agenda e são salvos em UTC. Rascunhos salvam o conteúdo; o horário é definido ao confirmar o agendamento.
+
+A migration `20261023000100_scheduled_announcements.sql` instala `pg_cron`, `pg_net`, a fila protegida por RLS e o job `pbh-announcement-scheduler`. Ele verifica a fila a cada minuto, publica mensagens vencidas na central do app e chama a função `process-announcement-schedules` para o push web. A publicação é atômica e não se repete em execuções concorrentes. Um cancelamento que chegar depois da publicação é recusado. O papel de administrador é verificado ao agendar e novamente ao publicar. Se houver indisponibilidade do servidor, mensagens pendentes são processadas quando ele retomar.
+
+O worker exige o segredo `ANNOUNCEMENT_CRON_SECRET`, também armazenado no Vault como `pbh_announcements_cron_secret`. A URL fica no segredo `pbh_announcements_project_url`. As chaves `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` configuram o push. Esses valores privados não pertencem ao repositório. A instalação no projeto vinculado foi realizada em 23/10/2026.
+
+O worker reserva cada envio com uma concessão de cinco minutos, tenta até cinco vezes e registra os endpoints já processados para não reenviar pushes confirmados. Como em outros sistemas de push, uma interrupção entre a aceitação pelo provedor e a gravação do recibo ainda pode causar repetição; a mesma `tag` de notificação reduz duplicatas visuais. Aceitação pelo provedor não confirma entrega/leitura no aparelho. Falha no push não desfaz a mensagem publicada na central. A aba Agendadas distingue publicação e processamento do push. O APK recebe a mensagem na central ao abrir/sincronizar; aviso remoto com o APK fechado requer uma integração nativa adicional.
+
+Validação: `supabase/tests/scheduled_announcements.sql` usa fixtures em transação revertida para testar permissões, data futura, cancelamento, publicação única, remoção de privilégios administrativos, concessões e limite de tentativas. Execute com `supabase db query --linked --file supabase/tests/scheduled_announcements.sql`. Não execute fixtures de entrega contra usuários reais. Para inspecionar o agendador, consulte `cron.job` e `cron.job_run_details`; não exponha os valores do Vault.
+
+### Notificações remotas no APK Android
+
+O PBH mantém autenticação, dados, públicos e agendamentos no Supabase. O Firebase Cloud Messaging (FCM) transporta o aviso para a barra de notificações do Android. A integração está preparada, mas a entrega depende das configurações abaixo, ainda não fornecidas pelo proprietário:
+
+1. Crie um projeto no [Firebase Console](https://console.firebase.google.com/) e registre o aplicativo Android com pacote `com.amaralstudios.pbh_oficial`.
+2. Salve o arquivo **google-services.json** em `android/app/google-services.json`. O Gradle aplica a configuração somente quando esse arquivo existe. Sem ele, o app continua funcionando e informa que o push nativo está pendente.
+3. Em **Configurações do projeto > Contas de serviço**, gere uma credencial de servidor autorizada a enviar via FCM HTTP v1. Salve-a localmente, por exemplo em `build/firebase-service-account.json`, e configure seu conteúdo no segredo `FCM_SERVICE_ACCOUNT_JSON` das Edge Functions. Nunca adicione a chave privada ao APK, ao repositório ou à conversa. Habilite a API Firebase Cloud Messaging HTTP v1 do projeto, se necessário.
+4. Aplique `20261023000200_native_push_tokens.sql` e publique `send-announcement` e `process-announcement-schedules`, incluindo `functions/_shared/native-push.ts`. Esses componentes guardam os dispositivos sob controle do servidor e respeitam o público escolhido. O segredo só é necessário quando existem celulares elegíveis para receber.
+5. Gere e instale um novo APK. Com a conta conectada, abra **Configurações > Notificações > Notificações no celular > Ativar neste dispositivo** e permita os avisos no Android. Teste com o app em segundo plano e com o processo encerrado normalmente. Não use **Forçar parada**: o Android suspende a entrega até a próxima abertura.
+
+Os tokens são renovados automaticamente e trocam de proprietário quando a conta do aparelho muda. O logout revoga o cadastro antes de sair. Tokens não podem ser lidos diretamente por usuários do app. Recibos evitam repetir entregas já confirmadas; endpoints expirados são removidos. Avisos imediatos e agendados usam o mesmo transporte FCM; avisos em primeiro plano usam o canal local correspondente. O toque em uma notificação abre o app. A inicialização não solicita permissão automaticamente. A implementação desta etapa cobre Android; iOS exige configuração APNs própria antes de habilitar esse fluxo.
+
+Validações: `supabase/tests/native_push_tokens.sql`, `npx deno test --allow-env supabase/functions/_shared/native-push_test.ts`, testes Flutter e compilação Android. A entrega física em um aparelho só pode ser verificada depois de configurar o Firebase e registrar um celular real.
 
 ### Lembretes automáticos da rotina
 

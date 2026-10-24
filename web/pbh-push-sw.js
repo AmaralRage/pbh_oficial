@@ -11,7 +11,8 @@ self.addEventListener('push', (event) => {
     icon: payload.icon || './icons/Icon-192.png',
     badge: payload.badge || './icons/Icon-192.png',
     tag: payload.tag || 'pbh-announcement',
-    vibrate: payload.vibrate || [120, 60, 120],
+    silent: payload.silent === true,
+    ...(payload.silent === true ? {} : { vibrate: payload.vibrate || [120, 60, 120] }),
     data: { url: payload.url || './' },
   }));
 });

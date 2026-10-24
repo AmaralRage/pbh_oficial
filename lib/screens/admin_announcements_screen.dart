@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/announcement_service.dart';
+import '../widgets/schedule_time_picker.dart';
 import 'admin_community_moderation_screen.dart';
 
 class AdminAnnouncementsScreen extends StatefulWidget {
@@ -59,6 +60,7 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
     'Histórico',
     'Rascunhos',
     'Modelos',
+    'Agendadas',
   ];
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
@@ -68,6 +70,14 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
   final _service = AnnouncementService();
   List<Announcement> _announcements = const [];
   List<AnnouncementDraft> _drafts = const [];
+  List<AnnouncementSchedule> _schedules = const [];
+  DateTime? _scheduledAt;
+  bool _scheduleEnabled = false;
+  final Set<String> _cancellingSchedules = {};
+  final Set<String> _deletingAnnouncements = {};
+  bool _moreHistory = true;
+  bool _loadingMoreHistory = false;
+  int _historyRevision = 0;
   AnnouncementMetrics? _metrics;
   int _tab = 0;
   bool _loading = true;
@@ -95,6 +105,7 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
   }
 
   Future<void> _load() async {
+    final revision = ++_historyRevision;
     setState(() {
       _loading = true;
       _error = null;
@@ -104,16 +115,19 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
         _service.fetchMetrics(),
         _service.fetchAnnouncements(limit: 50, includeAudienceMetrics: true),
         _service.fetchDrafts(),
+        _service.fetchSchedules(),
       ]);
-      if (!mounted) return;
+      if (!mounted || revision != _historyRevision) return;
       setState(() {
         _metrics = values[0] as AnnouncementMetrics;
         _announcements = values[1] as List<Announcement>;
+        _moreHistory = _announcements.length == 50;
         _drafts = values[2] as List<AnnouncementDraft>;
+        _schedules = values[3] as List<AnnouncementSchedule>;
         _loading = false;
       });
     } catch (error) {
-      if (mounted)
+      if (mounted && revision == _historyRevision)
         setState(() {
           _loading = false;
           _error = _friendlyError(error);
@@ -160,8 +174,33 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
 
   Future<void> _publish() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_scheduleEnabled &&
+        (_scheduledAt == null || !_scheduledAt!.isAfter(DateTime.now()))) {
+      _showMessage('Escolha uma data e horário futuros para o envio.');
+      return;
+    }
     setState(() => _sending = true);
     try {
+      if (_scheduleEnabled) {
+        await _service.schedule(
+          title: _titleController.text,
+          message: _messageController.text,
+          audience: _audience,
+          destinationUrl: _urlController.text,
+          soundEnabled: _soundEnabled,
+          scheduledAt: _scheduledAt!,
+        );
+        if (!mounted) return;
+        _clearForm();
+        await _load();
+        if (mounted) {
+          setState(() => _tab = 4);
+          _showMessage(
+            'Mensagem agendada. O envio será automático, mesmo com o app fechado.',
+          );
+        }
+        return;
+      }
       final id = await _service.publish(
         title: _titleController.text,
         message: _messageController.text,
@@ -220,6 +259,8 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
     _audience = 'all';
     _soundEnabled = true;
     _editingDraftId = null;
+    _scheduledAt = null;
+    _scheduleEnabled = false;
     FocusScope.of(context).unfocus();
   }
 
@@ -355,8 +396,9 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
               _historyPanel()
             else if (_tab == 2)
               _draftPanel()
-            else
+            else if (_tab == 3)
               _templatesPanel(),
+            if (_tab == 4) _schedulesPanel(),
             if (_tab == 0) ...[const SizedBox(height: 28), _recentSection()],
           ],
         ];
@@ -647,34 +689,46 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
           const SizedBox(height: 14),
           _SectionTitle(number: '3', title: 'Quando enviar?'),
           const SizedBox(height: 10),
-          Row(
+          Wrap(
+            spacing: 8,
             children: [
-              Icon(
-                Icons.radio_button_checked_rounded,
-                color: context.pbhColors.orange,
-                size: 18,
+              ChoiceChip(
+                label: const Text('Enviar agora'),
+                selected: !_scheduleEnabled,
+                onSelected: _sending
+                    ? null
+                    : (_) => setState(() => _scheduleEnabled = false),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Enviar agora',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: context.pbhColors.textPrimary,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Icon(
-                Icons.schedule_rounded,
-                color: context.pbhColors.textTertiary,
-                size: 17,
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  'Agendamento requer rotina de envio no Supabase.',
-                  style: AppTextStyles.statLabel,
-                ),
+              ChoiceChip(
+                label: const Text('Agendar envio'),
+                selected: _scheduleEnabled,
+                onSelected: _sending
+                    ? null
+                    : (_) => setState(() => _scheduleEnabled = true),
               ),
             ],
+          ),
+          if (_scheduleEnabled) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _sending ? null : _pickSchedule,
+              icon: const Icon(Icons.event_outlined),
+              label: Text(
+                _scheduledAt == null
+                    ? 'Escolher data e horário'
+                    : _scheduleDate(_scheduledAt!),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Horário local deste aparelho (${DateTime.now().timeZoneName}). O envio é verificado a cada minuto e funciona com o app fechado.',
+              style: AppTextStyles.statLabel,
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'A mensagem fica disponível na central do app. Para receber avisos fora do app, cada pessoa precisa ativar as notificações no dispositivo.',
+            style: AppTextStyles.statLabel,
           ),
           const SizedBox(height: 18),
           LayoutBuilder(
@@ -694,7 +748,13 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.send_rounded, size: 17),
-                  label: Text(_sending ? 'Enviando...' : 'Enviar notificação'),
+                  label: Text(
+                    _sending
+                        ? 'Salvando...'
+                        : _scheduleEnabled
+                        ? 'Agendar notificação'
+                        : 'Enviar notificação',
+                  ),
                 ),
               ];
               if (constraints.maxWidth < 590) {
@@ -1023,8 +1083,87 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
         )
       else
         ..._filteredHistory.map(_historyRow),
+      if (_moreHistory)
+        TextButton.icon(
+          onPressed: _loadingMoreHistory || _loading ? null : _loadMoreHistory,
+          icon: const Icon(Icons.expand_more),
+          label: Text(
+            _loadingMoreHistory
+                ? 'Carregando...'
+                : 'Carregar notificações mais antigas',
+          ),
+        ),
     ],
   );
+
+  Future<void> _loadMoreHistory() async {
+    final revision = _historyRevision;
+    setState(() => _loadingMoreHistory = true);
+    try {
+      final more = await _service.fetchAnnouncements(
+        limit: 50,
+        offset: _announcements.length,
+        includeAudienceMetrics: true,
+      );
+      if (!mounted || revision != _historyRevision) return;
+      setState(() {
+        final known = _announcements.map((item) => item.id).toSet();
+        _announcements = [
+          ..._announcements,
+          ...more.where((item) => !known.contains(item.id)),
+        ];
+        _moreHistory = more.length == 50;
+      });
+    } catch (_) {
+      _showMessage(
+        'Não foi possível carregar notificações mais antigas. Tente novamente.',
+      );
+    } finally {
+      if (mounted) setState(() => _loadingMoreHistory = false);
+    }
+  }
+
+  Future<void> _deleteAnnouncement(Announcement item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir notificação?'),
+        content: Text(
+          '“${item.title}” será removida da central de todos os usuários. Essa ação não pode ser desfeita e não recolhe avisos já enviados aos dispositivos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true ||
+        !mounted ||
+        _deletingAnnouncements.contains(item.id))
+      return;
+    setState(() => _deletingAnnouncements.add(item.id));
+    try {
+      await _service.deleteAnnouncement(item.id);
+      if (!mounted) return;
+      setState(
+        () => _announcements = _announcements
+            .where((a) => a.id != item.id)
+            .toList(),
+      );
+      await _load();
+      _showMessage('Notificação excluída da central.');
+    } catch (error) {
+      _showMessage('Não foi possível excluir: ${_errorText(error)}');
+    } finally {
+      if (mounted) setState(() => _deletingAnnouncements.remove(item.id));
+    }
+  }
 
   Widget _historyRow(Announcement item) => Container(
     margin: const EdgeInsets.only(bottom: 9),
@@ -1072,8 +1211,152 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
             ],
           ),
         ),
+        IconButton(
+          tooltip: 'Excluir notificação',
+          onPressed: _deletingAnnouncements.contains(item.id)
+              ? null
+              : () => _deleteAnnouncement(item),
+          icon: _deletingAnnouncements.contains(item.id)
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.delete_outline_rounded),
+        ),
       ],
     ),
+  );
+
+  String _scheduleDate(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year} às ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _pickSchedule() async {
+    final now = DateTime.now();
+    final initial = _scheduledAt?.isAfter(now) == true
+        ? _scheduledAt!
+        : now.add(const Duration(minutes: 5));
+    final day = await showDatePicker(
+      context: context,
+      helpText: 'Data do envio',
+      cancelText: 'Cancelar',
+      confirmText: 'Continuar',
+      initialDate: initial,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5, 12, 31),
+    );
+    if (day == null || !mounted) return;
+    final time = await showScheduleTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null || !mounted) return;
+    final selected = DateTime(
+      day.year,
+      day.month,
+      day.day,
+      time.hour,
+      time.minute,
+    );
+    if (!selected.isAfter(DateTime.now())) {
+      _showMessage('Escolha uma data e horário futuros.');
+      return;
+    }
+    setState(() => _scheduledAt = selected);
+  }
+
+  Future<void> _cancelSchedule(AnnouncementSchedule item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar agendamento?'),
+        content: Text(item.title),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Voltar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancelar envio'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _cancellingSchedules.add(item.id));
+    try {
+      await _service.cancelSchedule(item.id);
+      await _load();
+      _showMessage('Agendamento cancelado.');
+    } catch (_) {
+      _showMessage(
+        'Não foi possível cancelar. Atualize a lista: a mensagem pode já ter sido publicada.',
+      );
+    } finally {
+      if (mounted) setState(() => _cancellingSchedules.remove(item.id));
+    }
+  }
+
+  Widget _schedulesPanel() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Mensagens agendadas',
+              style: AppTextStyles.titleMedium,
+            ),
+          ),
+          IconButton(
+            onPressed: _loading ? null : _load,
+            tooltip: 'Atualizar agendamentos',
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Horários locais deste aparelho. Puxe a tela para atualizar o status do envio.',
+        style: AppTextStyles.statLabel,
+      ),
+      const SizedBox(height: 12),
+      if (_schedules.isEmpty)
+        _emptyPanel('Escolha “Agendar envio” ao criar uma notificação.')
+      else
+        ..._schedules.map(
+          (item) => Card(
+            child: ListTile(
+              leading: const Icon(Icons.schedule_outlined),
+              title: Text(item.title),
+              subtitle: Text(
+                '${_scheduleDate(item.scheduledAt)} · ${_audienceLabel(item.audience)}\n${switch (item.status) {
+                  'pending' => 'Aguardando envio',
+                  'cancelled' => 'Cancelada',
+                  'failed' => 'Não publicada: verifique a permissão do administrador',
+                  'deleted' => 'Excluída da central pelo administrador',
+                  _ => item.pushStatus == 'failed'
+                      ? 'Publicada no app · push do navegador falhou'
+                      : item.pushStatus == 'sent'
+                      ? 'Publicada · processamento do push concluído'
+                      : 'Publicada no app · push em processamento',
+                }}',
+              ),
+              isThreeLine: true,
+              trailing: item.status == 'pending'
+                  ? IconButton(
+                      tooltip: 'Cancelar envio',
+                      onPressed: _cancellingSchedules.contains(item.id)
+                          ? null
+                          : () => _cancelSchedule(item),
+                      icon: const Icon(Icons.cancel_outlined),
+                    )
+                  : null,
+            ),
+          ),
+        ),
+    ],
   );
 
   Widget _draftPanel() => Column(
@@ -1981,8 +2264,8 @@ class _AnnouncementSuccessDialogState extends State<_AnnouncementSuccessDialog>
           Text(
             widget.pushWarning ??
                 (widget.pushSent == 0
-                    ? 'O aviso está na central do app. Nenhum navegador inscrito recebeu push.'
-                    : 'A central foi atualizada e ${widget.pushSent} navegador(es) aceitaram o push.'),
+                    ? 'O aviso está na central do app. Nenhum dispositivo inscrito recebeu push.'
+                    : 'A central foi atualizada e ${widget.pushSent} dispositivo(s) aceitaram o push.'),
             textAlign: TextAlign.center,
             style: AppTextStyles.body,
           ),

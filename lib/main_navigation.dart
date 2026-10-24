@@ -131,6 +131,12 @@ class _MainNavigationState extends State<MainNavigation> {
             }
           },
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: 'announcements',
+          callback: (_) => _refreshUnreadNotifications(),
+        )
         .subscribe();
   }
 

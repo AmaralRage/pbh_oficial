@@ -4,6 +4,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase client configuration is supplied by the project owner.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.amaralstudios.pbh_oficial"
     compileSdk = flutter.compileSdkVersion

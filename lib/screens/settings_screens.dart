@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -92,7 +93,11 @@ class _NotificationSettingsScreenState
     try {
       await NotificationPushService.subscribe();
       if (mounted)
-        setState(() => _pushStatus = 'Notificações ativadas neste navegador.');
+        setState(
+          () => _pushStatus = kIsWeb
+              ? 'Notificações ativadas neste navegador.'
+              : 'Notificações ativadas neste celular.',
+        );
     } catch (error) {
       if (mounted)
         setState(
@@ -122,6 +127,66 @@ class _NotificationSettingsScreenState
       else ...[
         _SettingsCard(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                kIsWeb
+                    ? 'Notificações no navegador'
+                    : 'Notificações no celular',
+                style: AppTextStyles.titleMedium,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                kIsWeb
+                    ? 'Receba avisos mesmo quando o app estiver em segundo plano. O navegador pedirá sua permissão.'
+                    : 'Receba avisos na barra de notificações, mesmo com o app fechado. O Android pedirá sua permissão.',
+                style: AppTextStyles.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _pushBusy ? null : _activatePush,
+                  icon: _pushBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.notifications_active_outlined),
+                  label: Text(
+                    _pushBusy
+                        ? 'Cadastrando dispositivo...'
+                        : 'Ativar neste dispositivo',
+                  ),
+                ),
+              ),
+              if (_pushStatus != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _pushStatus!,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: _pushStatus!.startsWith('Notificações ativadas')
+                        ? context.pbhColors.orange
+                        : context.pbhColors.textSecondary,
+                  ),
+                ),
+              ],
+              if (!NotificationPushService.isConfigured) ...[
+                const SizedBox(height: 8),
+                Text(
+                  kIsWeb
+                      ? 'A configuração de chave Web Push ainda está pendente no build do site.'
+                      : 'A configuração de notificações Android ainda está pendente nesta versão do app.',
+                  style: AppTextStyles.statLabel,
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          child: Column(
             children: [
               _PreferenceSwitch(
                 icon: Icons.notifications_active_outlined,
@@ -144,61 +209,14 @@ class _NotificationSettingsScreenState
           ),
         ),
         const SizedBox(height: 14),
-        _SettingsCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Notificações no navegador',
-                style: AppTextStyles.titleMedium,
-              ),
-              const SizedBox(height: 5),
-              Text(
-                'Receba avisos mesmo quando o app estiver em segundo plano. O navegador pedirá sua permissão.',
-                style: AppTextStyles.bodySmall,
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _pushBusy ? null : _activatePush,
-                  icon: _pushBusy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.notifications_active_outlined),
-                  label: Text(
-                    _pushBusy ? 'Ativando...' : 'Ativar neste dispositivo',
-                  ),
-                ),
-              ),
-              if (_pushStatus != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _pushStatus!,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: _pushStatus!.startsWith('Notificações ativadas')
-                        ? context.pbhColors.orange
-                        : context.pbhColors.textSecondary,
-                  ),
-                ),
-              ],
-              if (!NotificationPushService.isConfigured) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'A configuração de chave Web Push ainda está pendente no build do site.',
-                  style: AppTextStyles.statLabel,
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
         Text(
           'Essas opções controlam os avisos dentro do app. O histórico continua disponível ao tocar no sino.',
           style: AppTextStyles.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Versão ${const String.fromEnvironment('FLUTTER_BUILD_NAME', defaultValue: 'desenvolvimento')} · build ${const String.fromEnvironment('FLUTTER_BUILD_NUMBER', defaultValue: 'local')}',
+          style: AppTextStyles.statLabel,
         ),
       ],
     ],

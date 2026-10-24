@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'mobile_push_service.dart';
 
 class AuthService {
   AuthService({SupabaseClient? client})
@@ -53,5 +54,8 @@ class AuthService {
     return profile?['role'] == 'admin';
   }
 
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> signOut() async {
+    await MobilePushService.unregister();
+    await _client.auth.signOut();
+  }
 }

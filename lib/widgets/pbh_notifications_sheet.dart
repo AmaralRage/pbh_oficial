@@ -31,7 +31,7 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
     _channel = Supabase.instance.client
         .channel('announcement-sheet-${DateTime.now().microsecondsSinceEpoch}')
         .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
+          event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'announcements',
           callback: (_) => _refresh(),

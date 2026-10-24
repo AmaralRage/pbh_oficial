@@ -71,7 +71,8 @@ class AnnouncementMetrics {
   final double? pushDeliveryRate;
   final double? readRate;
 
-  factory AnnouncementMetrics.fromMap(Map<String, dynamic> map) => AnnouncementMetrics(
+  factory AnnouncementMetrics.fromMap(Map<String, dynamic> map) =>
+      AnnouncementMetrics(
         sent: (map['sent'] as num? ?? 0).toInt(),
         readReceipts: (map['read_receipts'] as num? ?? 0).toInt(),
         pushAttempted: (map['push_attempted'] as num? ?? 0).toInt(),
@@ -84,21 +85,88 @@ class AnnouncementMetrics {
       );
 }
 
+class AnnouncementSchedule {
+  const AnnouncementSchedule({
+    required this.id,
+    required this.title,
+    required this.scheduledAt,
+    required this.status,
+    required this.pushStatus,
+    required this.audience,
+  });
+  final String id, title, status, pushStatus, audience;
+  final DateTime scheduledAt;
+  factory AnnouncementSchedule.fromMap(Map<String, dynamic> row) =>
+      AnnouncementSchedule(
+        id: row['id'] as String,
+        title: row['title'] as String,
+        scheduledAt: DateTime.parse(row['scheduled_at'] as String).toLocal(),
+        status: row['status'] as String,
+        pushStatus: row['push_status'] as String,
+        audience: row['audience'] as String,
+      );
+}
+
 class AnnouncementService {
-  AnnouncementService({SupabaseClient? client}) : _client = client ?? Supabase.instance.client;
+  AnnouncementService({SupabaseClient? client})
+    : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
   String get _userId => _client.auth.currentUser!.id;
 
-  Future<List<Announcement>> fetchAnnouncements({int limit = 1000, bool includeAudienceMetrics = false}) async {
+  Future<List<AnnouncementSchedule>> fetchSchedules() async {
+    final rows = await _client
+        .from('announcement_schedules')
+        .select('id,title,scheduled_at,status,push_status,audience')
+        .order('scheduled_at', ascending: false)
+        .limit(100);
+    return rows.map(AnnouncementSchedule.fromMap).toList();
+  }
+
+  Future<void> schedule({
+    required String title,
+    required String message,
+    required String audience,
+    String? destinationUrl,
+    required bool soundEnabled,
+    required DateTime scheduledAt,
+  }) async {
+    if (!scheduledAt.isAfter(DateTime.now()))
+      throw ArgumentError('Escolha uma data e horário futuros.');
+    await _client.rpc(
+      'schedule_announcement',
+      params: {
+        'p_title': title.trim(),
+        'p_message': message.trim(),
+        'p_audience': audience,
+        'p_destination_url': destinationUrl?.trim(),
+        'p_sound_enabled': soundEnabled,
+        'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
+      },
+    );
+  }
+
+  Future<void> cancelSchedule(String id) async {
+    await _client.rpc('cancel_announcement_schedule', params: {'p_id': id});
+  }
+
+  Future<List<Announcement>> fetchAnnouncements({
+    int limit = 1000,
+    int offset = 0,
+    bool includeAudienceMetrics = false,
+  }) async {
     final rows = await _client
         .from('announcements')
-        .select('id, title, message, created_at, audience, destination_url, sound_enabled, push_attempted_count, push_accepted_count')
+        .select(
+          'id, title, message, created_at, audience, destination_url, sound_enabled, push_attempted_count, push_accepted_count',
+        )
         .order('created_at', ascending: false)
-        .limit(limit);
+        .order('id', ascending: false)
+        .range(offset, offset + limit - 1);
     final receiptCounts = <String, int>{};
     if (includeAudienceMetrics) {
-      final receiptRows = await _client.rpc('admin_announcement_read_counts') as List<dynamic>;
+      final receiptRows =
+          await _client.rpc('admin_announcement_read_counts') as List<dynamic>;
       for (final row in receiptRows) {
         final id = row['announcement_id'] as String;
         receiptCounts[id] = (row['read_count'] as num).toInt();
@@ -108,38 +176,51 @@ class AnnouncementService {
         .from('announcement_reads')
         .select('announcement_id')
         .eq('user_id', _userId);
-    final ownReadIds = ownRows.map((row) => row['announcement_id'] as String).toSet();
-    return rows.map((row) => Announcement(
-          id: row['id'] as String,
-          title: row['title'] as String,
-          message: row['message'] as String,
-          createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
-          audience: row['audience'] as String? ?? 'all',
-          destinationUrl: row['destination_url'] as String?,
-          soundEnabled: row['sound_enabled'] as bool? ?? true,
-          pushAttempted: (row['push_attempted_count'] as num? ?? 0).toInt(),
-          pushAccepted: (row['push_accepted_count'] as num? ?? 0).toInt(),
-          readCount: receiptCounts[row['id'] as String] ?? 0,
-          isRead: ownReadIds.contains(row['id']),
-        )).toList();
+    final ownReadIds = ownRows
+        .map((row) => row['announcement_id'] as String)
+        .toSet();
+    return rows
+        .map(
+          (row) => Announcement(
+            id: row['id'] as String,
+            title: row['title'] as String,
+            message: row['message'] as String,
+            createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
+            audience: row['audience'] as String? ?? 'all',
+            destinationUrl: row['destination_url'] as String?,
+            soundEnabled: row['sound_enabled'] as bool? ?? true,
+            pushAttempted: (row['push_attempted_count'] as num? ?? 0).toInt(),
+            pushAccepted: (row['push_accepted_count'] as num? ?? 0).toInt(),
+            readCount: receiptCounts[row['id'] as String] ?? 0,
+            isRead: ownReadIds.contains(row['id']),
+          ),
+        )
+        .toList();
   }
 
   Future<int> unreadCount() async =>
       (await fetchAnnouncements()).where((item) => !item.isRead).length;
 
   Future<List<AnnouncementDraft>> fetchDrafts() async {
-    final rows = await _client.from('announcement_drafts')
-        .select('id, title, message, audience, destination_url, sound_enabled, updated_at')
+    final rows = await _client
+        .from('announcement_drafts')
+        .select(
+          'id, title, message, audience, destination_url, sound_enabled, updated_at',
+        )
         .order('updated_at', ascending: false);
-    return rows.map((row) => AnnouncementDraft(
-          id: row['id'] as String,
-          title: row['title'] as String,
-          message: row['message'] as String,
-          audience: row['audience'] as String,
-          destinationUrl: row['destination_url'] as String?,
-          soundEnabled: row['sound_enabled'] as bool? ?? true,
-          updatedAt: DateTime.parse(row['updated_at'] as String).toLocal(),
-        )).toList();
+    return rows
+        .map(
+          (row) => AnnouncementDraft(
+            id: row['id'] as String,
+            title: row['title'] as String,
+            message: row['message'] as String,
+            audience: row['audience'] as String,
+            destinationUrl: row['destination_url'] as String?,
+            soundEnabled: row['sound_enabled'] as bool? ?? true,
+            updatedAt: DateTime.parse(row['updated_at'] as String).toLocal(),
+          ),
+        )
+        .toList();
   }
 
   Future<AnnouncementMetrics> fetchMetrics() async {
@@ -159,7 +240,9 @@ class AnnouncementService {
       'title': title.trim(),
       'message': message.trim(),
       'audience': audience,
-      'destination_url': destinationUrl?.trim().isEmpty == true ? null : destinationUrl?.trim(),
+      'destination_url': destinationUrl?.trim().isEmpty == true
+          ? null
+          : destinationUrl?.trim(),
       'sound_enabled': soundEnabled,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
@@ -175,6 +258,10 @@ class AnnouncementService {
     await _client.from('announcement_drafts').delete().eq('id', id);
   }
 
+  Future<void> deleteAnnouncement(String id) async {
+    await _client.rpc('admin_delete_announcement', params: {'p_id': id});
+  }
+
   Future<String> publish({
     required String title,
     required String message,
@@ -182,22 +269,31 @@ class AnnouncementService {
     String? destinationUrl,
     required bool soundEnabled,
   }) async {
-    final row = await _client.from('announcements').insert({
-      'title': title.trim(),
-      'message': message.trim(),
-      'audience': audience,
-      'destination_url': destinationUrl?.trim().isEmpty == true ? null : destinationUrl?.trim(),
-      'sound_enabled': soundEnabled,
-      'created_by': _userId,
-    }).select('id').single();
+    final row = await _client
+        .from('announcements')
+        .insert({
+          'title': title.trim(),
+          'message': message.trim(),
+          'audience': audience,
+          'destination_url': destinationUrl?.trim().isEmpty == true
+              ? null
+              : destinationUrl?.trim(),
+          'sound_enabled': soundEnabled,
+          'created_by': _userId,
+        })
+        .select('id')
+        .single();
     return row['id'] as String;
   }
 
   Future<int> sendPush({required String announcementId}) async {
-    final result = await _client.functions.invoke('send-announcement', body: {
-      'announcementId': announcementId,
-    });
+    final result = await _client.functions.invoke(
+      'send-announcement',
+      body: {'announcementId': announcementId},
+    );
     final data = result.data as Map<String, dynamic>?;
+    if (data?['warning'] is String)
+      throw StateError(data!['warning'] as String);
     return data?['sent'] as int? ?? 0;
   }
 
