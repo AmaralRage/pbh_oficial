@@ -523,8 +523,14 @@ class _HabitsScreenState extends State<HabitsScreen>
     try {
       await _service.setCompleted(habit.key, selected, value);
       await _load();
-      if (completesRoutine && mounted)
-        _showRoutineCompleteToast(forToday: selectedStart == todayStart);
+      if (completesRoutine && mounted) {
+        await _showRoutineCompleteSheet(
+          habitCount: _habits.length,
+          streak: _streak,
+          forToday: selectedStart == todayStart,
+          onUndo: () => _toggleHabit(index, false),
+        );
+      }
     } catch (error) {
       if (mounted) {
         setState(() => _habits[index] = habit.copyWith(completed: !value));
@@ -537,73 +543,114 @@ class _HabitsScreenState extends State<HabitsScreen>
     }
   }
 
-  void _showRoutineCompleteToast({required bool forToday}) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: context.pbhColors.surface,
-        elevation: 12,
-        duration: const Duration(seconds: 4),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 84),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: context.pbhColors.orange.withOpacity(.55)),
-        ),
-        content: TweenAnimationBuilder<double>(
-          tween: Tween(begin: .88, end: 1),
-          duration: const Duration(milliseconds: 420),
-          curve: Curves.easeOutBack,
-          builder: (context, scale, child) =>
-              Transform.scale(scale: scale, child: child),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: context.pbhColors.orangeDim,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  Icons.emoji_events_rounded,
-                  color: context.pbhColors.orange,
-                ),
+  Future<void> _showRoutineCompleteSheet({
+    required int habitCount,
+    required int streak,
+    required bool forToday,
+    required Future<void> Function() onUndo,
+  }) async {
+    final completed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: context.pbhColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.pbhColors.borderSubtle,
+                borderRadius: BorderRadius.circular(100),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Rotina concluída!',
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: context.pbhColors.orange,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      forToday
-                          ? 'Disciplina hoje. Liberdade amanhã.'
-                          : 'Progresso registrado para este dia.',
-                      style: AppTextStyles.bodySmall,
+            ),
+            const SizedBox(height: 24),
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: .72, end: 1),
+              duration: const Duration(milliseconds: 520),
+              curve: Curves.elasticOut,
+              builder: (context, scale, child) =>
+                  Transform.scale(scale: scale, child: child),
+              child: Container(
+                width: 82,
+                height: 82,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: context.pbhColors.orangeDim,
+                  boxShadow: [
+                    BoxShadow(
+                      color: context.pbhColors.orange.withOpacity(.18),
+                      blurRadius: 28,
+                      spreadRadius: 4,
                     ),
                   ],
                 ),
+                child: Icon(
+                  Icons.emoji_events_rounded,
+                  size: 42,
+                  color: context.pbhColors.orange,
+                ),
               ),
-              Icon(
-                Icons.auto_awesome_rounded,
-                color: context.pbhColors.orange,
-                size: 19,
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Rotina concluída',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.brandHeadline.copyWith(fontSize: 28),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              forToday
+                  ? 'Você cumpriu todas as escolhas de hoje. Disciplina feita. Próximo nível liberado.'
+                  : 'A rotina deste dia foi concluída e registrada no seu progresso.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body,
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: _RoutineResult(
+                    icon: Icons.check_circle_rounded,
+                    value: '$habitCount',
+                    label: 'hábitos feitos',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _RoutineResult(
+                    icon: Icons.local_fire_department_rounded,
+                    value: '$streak',
+                    label: streak == 1 ? 'dia seguido' : 'dias seguidos',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pop(sheetContext, false),
+                icon: const Icon(Icons.done_all_rounded),
+                label: const Text('Fechar'),
               ),
-            ],
-          ),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.pop(sheetContext, true),
+              icon: const Icon(Icons.undo_rounded),
+              label: const Text('Desfazer último hábito'),
+            ),
+          ],
         ),
       ),
     );
+    if (completed == true && mounted) await onUndo();
   }
 
   Future<void> _shareWeeklySummary() async {
@@ -1049,6 +1096,40 @@ class _HabitsScreenState extends State<HabitsScreen>
             ),
     );
   }
+}
+
+class _RoutineResult extends StatelessWidget {
+  const _RoutineResult({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    decoration: BoxDecoration(
+      color: context.pbhColors.backgroundElevated,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: context.pbhColors.borderSubtle),
+    ),
+    child: Column(
+      children: [
+        Icon(icon, color: context.pbhColors.orange),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: AppTextStyles.statNumber.copyWith(fontSize: 24),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
+      ],
+    ),
+  );
 }
 
 class _WeeklySummaryCard extends StatelessWidget {

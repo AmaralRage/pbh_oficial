@@ -3,9 +3,36 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:pbh_oficial/core/theme/pbh_palette.dart';
+import 'package:pbh_oficial/models/habit_model.dart';
 import 'package:pbh_oficial/screens/app_startup_screen.dart';
+import 'package:pbh_oficial/widgets/habit_item_card.dart';
 
 void main() {
+  testWidgets('habit card completes from the full row', (tester) async {
+    var completed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark().copyWith(extensions: [PbhPalette.resolve('pbh')]),
+        home: Scaffold(
+          body: HabitItemCard(
+            habit: const HabitModel(
+              key: 'train',
+              title: 'Treinar o corpo',
+              subtitle: '45 min',
+              icon: Icons.fitness_center_rounded,
+            ),
+            onToggle: (value) => completed = value,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Treinar o corpo'));
+
+    expect(completed, isTrue);
+  });
+
   testWidgets('shows a first frame while initialization is pending', (
     tester,
   ) async {
