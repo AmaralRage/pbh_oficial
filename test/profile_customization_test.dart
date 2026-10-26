@@ -16,6 +16,48 @@ class TestCustomization extends ProfileCustomizationService {
 }
 
 void main() {
+  test('every animated option offers intensity; none does not', () {
+    for (final option in [
+      ...ProfileStyle.frameEffects,
+      ...ProfileStyle.coverEffects,
+    ]) {
+      expect(
+        ProfileStyle.hasIntensity(option.id),
+        option.id != 'none',
+        reason: option.id,
+      );
+    }
+    expect(ProfileStyle.hasIntensity('unknown'), isFalse);
+  });
+  test(
+    'weather effects and independent intensities survive metadata round trips',
+    () {
+      for (final effect in {
+        ...ProfileStyle.weatherEffects,
+        ...ProfileStyle.seasonalEffects,
+      }) {
+        final style = ProfileStyle.fromMetadata({
+          'profile_style': ProfileStyle(
+            frameEffect: effect,
+            coverEffect: effect,
+            frameIntensity: .2,
+            coverIntensity: .9,
+          ).toMap(),
+        }).validated(founder: false, completed: 0, earned: []);
+        expect(style.frameEffect, effect);
+        expect(style.coverEffect, effect);
+        expect(style.frameIntensity, .2);
+        expect(style.coverIntensity, .9);
+        expect(style.copyWith(frameIntensity: .7).coverIntensity, .9);
+      }
+      for (final invalid in [null, 'high', double.nan, double.infinity]) {
+        expect(ProfileStyle.safeIntensity(invalid), .5);
+      }
+      expect(ProfileStyle.safeIntensity(-4), 0);
+      expect(ProfileStyle.safeIntensity(8), 1);
+      expect(ProfileStyle.fromMetadata({}).frameIntensity, .5);
+    },
+  );
   test(
     'effects persist independently of cover uploads and founder choices are restricted',
     () {

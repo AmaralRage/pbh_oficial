@@ -9,6 +9,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/auth_service.dart';
 import '../services/notification_push_service.dart';
+import '../services/mobile_push_service.dart';
 import 'blocked_members_screen.dart';
 import 'profile_customization_screen.dart';
 import '../widgets/animated_entry.dart';
@@ -65,10 +66,11 @@ class _NotificationSettingsScreenState
     final values = await Future.wait([
       NotificationPreferences.enabled,
       NotificationPreferences.sound,
+      MobilePushService.deviceEnabled,
     ]);
     if (mounted) {
       setState(() {
-        _enabled = values[0];
+        _enabled = values[0] && values[2];
         _sound = values[1];
         _loading = false;
       });
@@ -76,8 +78,26 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> _toggleEnabled(bool value) async {
-    setState(() => _enabled = value);
-    await NotificationPreferences.setEnabled(value);
+    setState(() => _pushBusy = true);
+    try {
+      if (MobilePushService.isSupported) {
+        if (value) {
+          await MobilePushService.subscribe();
+        } else {
+          await MobilePushService.disable();
+        }
+      }
+      await NotificationPreferences.setEnabled(value);
+      if (mounted) setState(() => _enabled = value);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _pushStatus = error.toString().replaceFirst('Bad state: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pushBusy = false);
+    }
   }
 
   Future<void> _toggleSound(bool value) async {
@@ -92,6 +112,8 @@ class _NotificationSettingsScreenState
     });
     try {
       await NotificationPushService.subscribe();
+      await NotificationPreferences.setEnabled(true);
+      if (mounted) setState(() => _enabled = true);
       if (mounted)
         setState(
           () => _pushStatus = kIsWeb
@@ -114,7 +136,7 @@ class _NotificationSettingsScreenState
   @override
   Widget build(BuildContext context) => _SettingsPage(
     title: 'Notificações',
-    subtitle: 'Escolha quais alertas aparecem enquanto você usa o app.',
+    subtitle: 'Gerencie as notificações e os sons do app.',
     icon: Icons.notifications_none_rounded,
     children: [
       if (_loading)
@@ -139,7 +161,7 @@ class _NotificationSettingsScreenState
               Text(
                 kIsWeb
                     ? 'Receba avisos mesmo quando o app estiver em segundo plano. O navegador pedirá sua permissão.'
-                    : 'Receba avisos na barra de notificações, mesmo com o app fechado. O Android pedirá sua permissão.',
+                    : 'A permissão é solicitada na primeira abertura. Se recusou, você pode ativar as notificações aqui.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -190,10 +212,14 @@ class _NotificationSettingsScreenState
             children: [
               _PreferenceSwitch(
                 icon: Icons.notifications_active_outlined,
-                title: 'Alertas no app',
-                subtitle: 'Mostra o contador de avisos novos no sino.',
+                title: MobilePushService.isSupported
+                    ? 'Receber notificações'
+                    : 'Alertas no app',
+                subtitle: MobilePushService.isSupported
+                    ? 'Controla os avisos neste celular e os alertas dentro do app.'
+                    : 'Mostra o contador de avisos novos no sino.',
                 value: _enabled,
-                onChanged: _toggleEnabled,
+                onChanged: _pushBusy ? null : _toggleEnabled,
               ),
               const Divider(height: 22),
               _PreferenceSwitch(
@@ -210,7 +236,7 @@ class _NotificationSettingsScreenState
         ),
         const SizedBox(height: 14),
         Text(
-          'Essas opções controlam os avisos dentro do app. O histórico continua disponível ao tocar no sino.',
+          'O histórico continua disponível ao tocar no sino, mesmo com os alertas desativados.',
           style: AppTextStyles.bodySmall,
         ),
         const SizedBox(height: 12),

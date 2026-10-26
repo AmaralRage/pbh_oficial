@@ -140,6 +140,7 @@ class ProfileIdentityCard extends StatelessWidget {
                                   )
                                   .color,
                               effect: style.coverEffect,
+                              intensity: style.coverIntensity,
                               founder: founder,
                             ),
                           ),
@@ -197,6 +198,7 @@ class ProfileIdentityCard extends StatelessWidget {
                       frame: true,
                       founder: founder,
                       effect: style.frameEffect,
+                      intensity: style.frameIntensity,
                     ),
                   ),
                 if (onEdit != null)

@@ -8,6 +8,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/community_post_model.dart';
 import '../models/community_topics.dart';
+import 'community_comment_avatar.dart';
 import '../services/community_service.dart';
 import '../services/minute_clock.dart';
 import '../screens/public_member_profile_screen.dart';
@@ -350,9 +351,10 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                                 leading: InkWell(
                                   onTap: () => _openMember(comment.userId),
                                   borderRadius: BorderRadius.circular(24),
-                                  child: _commentAvatar(
-                                    comment.author,
-                                    comment.avatarUrl,
+                                  child: ProfileCommentAvatar(
+                                    userId: comment.userId,
+                                    name: comment.author,
+                                    avatarUrl: comment.avatarUrl,
                                   ),
                                 ),
                                 title: Row(
@@ -720,53 +722,6 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     if (elapsed.inHours < 24) return 'há ${elapsed.inHours} h';
     if (elapsed.inDays < 7) return 'há ${elapsed.inDays} d';
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-
-  Widget _commentAvatar(String author, String? avatarUrl) {
-    final image = switch (author.trim().toLowerCase()) {
-      'amaral' => 'assets/images/profile_photo.png',
-      'samuel' => 'assets/images/samuel.png',
-      'wellerson' => 'assets/images/wellerson.png',
-      'kanye west' => 'assets/images/kanye.png',
-      'chad' => 'assets/images/chad.png',
-      _ => null,
-    };
-    final placeholder = Text(
-      _initials(author),
-      style: TextStyle(color: context.pbhColors.orange, fontSize: 12),
-    );
-    return CircleAvatar(
-      backgroundColor: context.pbhColors.orangeDim,
-      child: image == null
-          ? avatarUrl == null || avatarUrl.isEmpty
-                ? placeholder
-                : ClipOval(
-                    child: Image.network(
-                      avatarUrl,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(child: placeholder),
-                    ),
-                  )
-          : ClipOval(
-              child: Image.asset(
-                image,
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Center(child: placeholder),
-              ),
-            ),
-    );
-  }
-
-  String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return 'M';
-    return parts.length == 1
-        ? parts.first[0].toUpperCase()
-        : '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
   String _topicLabel(String topic) => communityTopics[topic] ?? topic;

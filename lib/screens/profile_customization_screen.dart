@@ -171,6 +171,38 @@ class _ProfileCustomizationScreenState
     padding: const EdgeInsets.only(top: 26, bottom: 12),
     child: Text(label, style: AppTextStyles.titleMedium),
   );
+  Widget _intensity({required bool frame}) {
+    final value = frame ? _style.frameIntensity : _style.coverIntensity;
+    final label = frame ? 'Intensidade da moldura' : 'Intensidade da capa';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Text(
+          '$label · ${(value * 100).round()}%',
+          style: AppTextStyles.bodySmall,
+        ),
+        Slider(
+          semanticFormatterCallback: (v) => '${(v * 100).round()} por cento',
+          value: value,
+          divisions: 10,
+          label: '${(value * 100).round()}%',
+          onChanged: _saving
+              ? null
+              : (v) => setState(() {
+                  _style = frame
+                      ? _style.copyWith(frameIntensity: v)
+                      : _style.copyWith(coverIntensity: v);
+                }),
+        ),
+        Text(
+          'Suave → intenso. Ajusta a velocidade, o brilho ou a quantidade de elementos conforme o efeito.',
+          style: AppTextStyles.bodySmall,
+        ),
+      ],
+    );
+  }
+
   Widget _options(
     List<ProfileStyleOption> options,
     String value,
@@ -186,6 +218,12 @@ class _ProfileCustomizationScreenState
           message: available ? option.label : option.requirement,
           child: ChoiceChip(
             selected: value == option.id,
+            labelStyle: TextStyle(
+              color: value == option.id
+                  ? context.pbhColors.onAccent
+                  : Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
             avatar: Icon(
               available ? Icons.circle : Icons.lock_outline,
               size: 15,
@@ -320,6 +358,8 @@ class _ProfileCustomizationScreenState
                     _style.frameEffect,
                     (id) => _style = _style.copyWith(frameEffect: id),
                   ),
+                  if (ProfileStyle.hasIntensity(_style.frameEffect))
+                    _intensity(frame: true),
                   _heading('Capa do perfil'),
                   Wrap(
                     spacing: 8,
@@ -369,6 +409,8 @@ class _ProfileCustomizationScreenState
                     _style.coverEffect,
                     (id) => _style = _style.copyWith(coverEffect: id),
                   ),
+                  if (ProfileStyle.hasIntensity(_style.coverEffect))
+                    _intensity(frame: false),
                   _heading('Título'),
                   DropdownButtonFormField<String>(
                     initialValue: _style.title,

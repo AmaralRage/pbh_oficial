@@ -216,24 +216,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: LinearProgressIndicator(minHeight: 2),
               ),
             const SizedBox(height: 24),
-            if (!_loading)
-              HomeJourneyPanel(
-                key: ValueKey('journey-$_loadVersion'),
-                pendingHabits: (_selectedHabitCount - _todayCompleted).clamp(
-                  0,
-                  _selectedHabitCount,
-                ),
-                activeChallenge: _activeChallenge != null,
-                onHabits:
-                    widget.onOpenHabits ??
-                    () => Navigator.of(context).push(
-                      fadeSlideRoute(
-                        HabitsScreen(onNavigate: widget.onNavigate),
-                      ),
-                    ),
-                onChallenges: () => widget.onNavigate(1),
-                onContent: () => widget.onNavigate(2),
-              ),
             HabitSyncNotice(
               pending: _pendingChanges,
               cached: _habitService.isUsingCachedData,
@@ -318,6 +300,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 14),
             const ProgramRecommendations(),
+            if (!_loading) ...[
+              const SizedBox(height: 24),
+              HomeJourneyPanel(
+                key: ValueKey('journey-$_loadVersion'),
+                pendingHabits: (_selectedHabitCount - _todayCompleted).clamp(
+                  0,
+                  _selectedHabitCount,
+                ),
+                activeChallenge: _activeChallenge != null,
+                onHabits:
+                    widget.onOpenHabits ??
+                    () => Navigator.of(context).push(
+                      fadeSlideRoute(
+                        HabitsScreen(onNavigate: widget.onNavigate),
+                      ),
+                    ),
+                onChallenges: () => widget.onNavigate(1),
+                onContent: () => widget.onNavigate(2),
+              ),
+            ],
           ],
         ),
       ),

@@ -7,10 +7,16 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'initial_notification_permission.dart';
 
 class MobilePushService {
   static bool get isSupported => Platform.isAndroid;
   static bool get isConfigured => _ready;
+  static Future<bool> get deviceEnabled async =>
+      await SharedPreferencesAsync().getBool(
+        InitialNotificationPermission.enabledKey,
+      ) ??
+      true;
   static bool _ready = false;
   static String? _pausedUser;
   static SupabaseClient? _client;
@@ -41,7 +47,7 @@ class MobilePushService {
     if (!_ready) {
       try {
         await Firebase.initializeApp();
-        // Consent is requested from Settings, never silently at launch.
+        // Token collection starts only after the system permission is granted.
         await FirebaseMessaging.instance.setAutoInitEnabled(false);
         await _notifications.initialize(
           const InitializationSettings(
@@ -70,6 +76,10 @@ class MobilePushService {
           ),
         );
         _messages ??= FirebaseMessaging.onMessage.listen((message) {
+          if (_pausedUser == _client?.auth.currentUser?.id &&
+              _pausedUser != null) {
+            return;
+          }
           if (_client?.auth.currentUser?.id != message.data['recipient_id'])
             return;
           final notice = message.notification;
@@ -114,6 +124,31 @@ class MobilePushService {
       (_) => _syncSoon(),
     );
     _syncSoon();
+    unawaited(_requestInitialPermission());
+  }
+
+  static Future<void> _requestInitialPermission() async {
+    try {
+      await InitialNotificationPermission().requestOnce(() async {
+        final result = await FirebaseMessaging.instance.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        return result.authorizationStatus == AuthorizationStatus.authorized;
+      });
+      _syncSoon();
+    } catch (_) {
+      // Permission or network failures must not interrupt opening the app.
+    }
+  }
+
+  static Future<void> disable() async {
+    await SharedPreferencesAsync().setBool(
+      InitialNotificationPermission.enabledKey,
+      false,
+    );
+    await unregister();
   }
 
   static void _syncSoon() {
@@ -129,9 +164,15 @@ class MobilePushService {
     final user = client?.auth.currentUser?.id;
     if (!_ready || client == null || user == null || user == _pausedUser)
       return false;
+    if (await SharedPreferencesAsync().getBool(
+          InitialNotificationPermission.enabledKey,
+        ) ==
+        false)
+      return false;
     final settings = await FirebaseMessaging.instance.getNotificationSettings();
     if (settings.authorizationStatus != AuthorizationStatus.authorized)
       return false;
+    await FirebaseMessaging.instance.setAutoInitEnabled(true);
     final token = await FirebaseMessaging.instance.getToken();
     if (token == null || token.isEmpty || client.auth.currentUser?.id != user)
       return false;
@@ -158,6 +199,10 @@ class MobilePushService {
     );
     if (result.authorizationStatus != AuthorizationStatus.authorized)
       throw StateError('Permita notificações nas configurações do Android.');
+    await SharedPreferencesAsync().setBool(
+      InitialNotificationPermission.enabledKey,
+      true,
+    );
     await FirebaseMessaging.instance.setAutoInitEnabled(true);
     _pausedUser = null;
     await _pending;

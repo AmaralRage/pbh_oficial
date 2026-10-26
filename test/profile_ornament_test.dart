@@ -2,12 +2,57 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pbh_oficial/widgets/profile_ornament.dart';
 import 'package:pbh_oficial/models/profile_style.dart';
+import 'package:pbh_oficial/widgets/mobile_app_viewport.dart';
 
 void main() {
+  testWidgets('all cover effects repaint in the centered desktop viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final option in ProfileStyle.coverEffects.where(
+      (o) => o.id != 'none',
+    )) {
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MobileAppViewport(child: child!),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SizedBox(
+                width: 430,
+                height: 132,
+                child: ProfileOrnament(color: option.color, effect: option.id),
+              ),
+            ),
+          ),
+        ),
+      );
+      final paint = tester
+          .widget<CustomPaint>(
+            find.descendant(
+              of: find.byType(ProfileOrnament),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .painter!;
+      var repaints = 0;
+      void onPaint() => repaints++;
+      paint.addListener(onPaint);
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        repaints,
+        greaterThan(0),
+        reason: '${option.id} must animate on desktop',
+      );
+      paint.removeListener(onPaint);
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'all selectable effects render and switching to none stops ticks',
     (tester) async {
-      Widget app(String effect, bool frame) => MaterialApp(
+      Widget app(String effect, bool frame, double intensity) => MaterialApp(
         home: Center(
           child: SizedBox(
             width: frame ? 96 : 320,
@@ -17,6 +62,7 @@ void main() {
               founder: true,
               effect: effect,
               frame: frame,
+              intensity: intensity,
             ),
           ),
         ),
@@ -24,10 +70,16 @@ void main() {
       for (final frame in [true, false]) {
         for (final option
             in frame ? ProfileStyle.frameEffects : ProfileStyle.coverEffects) {
-          await tester.pumpWidget(app(option.id, frame));
-          await tester.pump(const Duration(milliseconds: 1700));
-          expect(tester.takeException(), isNull, reason: option.id);
-          await tester.pumpWidget(app('none', frame));
+          for (final intensity in [0.0, .5, 1.0]) {
+            await tester.pumpWidget(app(option.id, frame, intensity));
+            await tester.pump(const Duration(milliseconds: 1700));
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: '${option.id}:$intensity',
+            );
+          }
+          await tester.pumpWidget(app('none', frame, .5));
           await tester.pump();
           expect(tester.binding.transientCallbackCount, 0, reason: option.id);
         }

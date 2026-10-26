@@ -38,6 +38,8 @@ class ProfileStyle {
     this.frameEffect = 'orbit',
     this.coverEffect = 'shimmer',
     this.profileTheme = 'app',
+    this.frameIntensity = .5,
+    this.coverIntensity = .5,
   });
   final String frame;
   final String cover;
@@ -46,12 +48,27 @@ class ProfileStyle {
   final String frameEffect;
   final String coverEffect;
   final String profileTheme;
+  final double frameIntensity;
+  final double coverIntensity;
+  static const weatherEffects = {'rain', 'snow', 'fireflies'};
+  static const seasonalEffects = {'halloween', 'christmas', 'new_year'};
+  static bool hasIntensity(String effect) =>
+      effect != 'none' &&
+      [...frameEffects, ...coverEffects].any((option) => option.id == effect);
+  static double safeIntensity(Object? value) =>
+      value is num && value.isFinite ? value.toDouble().clamp(0, 1) : .5;
   static const frameEffects = [
     ProfileStyleOption('none', 'Sem animação', Color(0xFF909090)),
     ProfileStyleOption('orbit', 'Órbita de luz', Color(0xFFFFC45A)),
     ProfileStyleOption('pulse', 'Pulso suave', Color(0xFF80DDD5)),
     ProfileStyleOption('sparks', 'Faíscas', Color(0xFFFF8F64)),
     ProfileStyleOption('double', 'Anéis gêmeos', Color(0xFFB7A2FF)),
+    ProfileStyleOption('rain', 'Chuva', Color(0xFF83CFFF)),
+    ProfileStyleOption('snow', 'Neve', Color(0xFFE0F4FF)),
+    ProfileStyleOption('fireflies', 'Vaga-lumes', Color(0xFFBBF878)),
+    ProfileStyleOption('halloween', 'Halloween', Color(0xFFFFA24C)),
+    ProfileStyleOption('christmas', 'Natal', Color(0xFF85E5A2)),
+    ProfileStyleOption('new_year', 'Ano Novo', Color(0xFFFFD878)),
     ProfileStyleOption(
       'crown',
       'Coroa cósmica',
@@ -66,6 +83,12 @@ class ProfileStyle {
     ProfileStyleOption('meteors', 'Estrelas cadentes', Color(0xFFBCDFFF)),
     ProfileStyleOption('aurora', 'Aurora', Color(0xFF71E6CE)),
     ProfileStyleOption('embers', 'Brasas', Color(0xFFFF935D)),
+    ProfileStyleOption('rain', 'Chuva', Color(0xFF83CFFF)),
+    ProfileStyleOption('snow', 'Neve', Color(0xFFE0F4FF)),
+    ProfileStyleOption('fireflies', 'Vaga-lumes', Color(0xFFBBF878)),
+    ProfileStyleOption('halloween', 'Halloween', Color(0xFFFFA24C)),
+    ProfileStyleOption('christmas', 'Natal', Color(0xFF85E5A2)),
+    ProfileStyleOption('new_year', 'Ano Novo', Color(0xFFFFD878)),
     ProfileStyleOption(
       'legacy',
       'Nebulosa do fundador',
@@ -118,6 +141,8 @@ class ProfileStyle {
       frameEffect: value('frame_effect', founder ? 'crown' : 'orbit'),
       coverEffect: value('cover_effect', founder ? 'legacy' : 'shimmer'),
       profileTheme: value('profile_theme', 'app'),
+      frameIntensity: safeIntensity(map['frame_intensity']),
+      coverIntensity: safeIntensity(map['cover_intensity']),
       featured: map['featured'] is List
           ? (map['featured'] as List)
                 .whereType<String>()
@@ -135,6 +160,8 @@ class ProfileStyle {
     String? frameEffect,
     String? coverEffect,
     String? profileTheme,
+    double? frameIntensity,
+    double? coverIntensity,
   }) => ProfileStyle(
     frame: frame ?? this.frame,
     cover: cover ?? this.cover,
@@ -143,6 +170,8 @@ class ProfileStyle {
     frameEffect: frameEffect ?? this.frameEffect,
     coverEffect: coverEffect ?? this.coverEffect,
     profileTheme: profileTheme ?? this.profileTheme,
+    frameIntensity: safeIntensity(frameIntensity ?? this.frameIntensity),
+    coverIntensity: safeIntensity(coverIntensity ?? this.coverIntensity),
   );
   Map<String, dynamic> toMap() => {
     'frame': frame,
@@ -151,6 +180,8 @@ class ProfileStyle {
     'frame_effect': frameEffect,
     'cover_effect': coverEffect,
     'profile_theme': profileTheme,
+    'frame_intensity': safeIntensity(frameIntensity),
+    'cover_intensity': safeIntensity(coverIntensity),
     if (featured != null) 'featured': featured,
   };
   ProfileStyle validated({
@@ -174,6 +205,8 @@ class ProfileStyle {
       cover: option(covers, cover, 'ember'),
       frameEffect: option(frameEffects, frameEffect, 'orbit'),
       coverEffect: option(coverEffects, coverEffect, 'shimmer'),
+      frameIntensity: safeIntensity(frameIntensity),
+      coverIntensity: safeIntensity(coverIntensity),
       profileTheme: profileTheme == 'app'
           ? 'app'
           : PbhPalette.resolve(profileTheme, founder: founder).id,
