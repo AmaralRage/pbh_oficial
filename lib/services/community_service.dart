@@ -66,7 +66,7 @@ class CommunityService {
       if (followingIds.isEmpty) return const [];
       query = query.inFilter('user_id', followingIds);
     } else if (filterIndex == 2) {
-      query = query.not('achievement_tag', 'is', null);
+      query = query.or('achievement_tag.not.is.null,topic.eq.conquistas');
     } else if (filterIndex == 4) {
       if (userId == null) return const [];
       savedPostIds = await _fetchSavedPostIds(userId);

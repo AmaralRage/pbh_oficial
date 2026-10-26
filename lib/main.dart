@@ -6,6 +6,7 @@ import 'screens/launch_screen.dart';
 import 'screens/app_startup_screen.dart';
 import 'services/appearance_service.dart';
 import 'services/mobile_push_service.dart';
+import 'widgets/mobile_app_viewport.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,8 @@ class PbhOficialApp extends StatelessWidget {
         title: 'PBH Oficial',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.forPalette(AppearanceService.instance.palette),
+        builder: (context, child) =>
+            MobileAppViewport(child: child ?? const SizedBox.shrink()),
         home: const AppStartupScreen(
           initialize: initializeApp,
           child: LaunchScreen(),

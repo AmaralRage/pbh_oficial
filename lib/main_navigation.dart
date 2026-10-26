@@ -250,7 +250,7 @@ class _MainNavigationState extends State<MainNavigation> {
         isAuthenticated: widget.isAuthenticated,
         onRequireLogin: () => widget.onOpenSignIn?.call(),
       ),
-      const ContentScreen(),
+      ContentScreen(key: ValueKey('content-$accountKey'), isAdmin: widget.isAdmin),
       const MusicScreen(),
       CommunityScreen(
         key: ValueKey('community-$accountKey'),

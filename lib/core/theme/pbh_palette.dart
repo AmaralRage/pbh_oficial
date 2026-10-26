@@ -15,33 +15,33 @@ class PbhPalette extends ThemeExtension<PbhPalette> {
   final Color accent;
   final bool founderOnly;
   static const catalog = [
-    PbhPalette('pbh', 'PBH Original', Color(0xFF0B0B0B), Color(0xFFFF5A1F)),
-    PbhPalette('midnight', 'Meia-noite', Color(0xFF090D16), Color(0xFF566A88)),
+    PbhPalette('pbh', 'PBH Original', Color(0xFF0B0B0B), Color(0xFFFF6B2C)),
+    PbhPalette('midnight', 'Meia-noite', Color(0xFF080F20), Color(0xFF749FFF)),
     PbhPalette(
       'starlight',
       'Azul estelar',
       Color(0xFF081425),
-      Color(0xFF2469C7),
+      Color(0xFF549EFF),
     ),
     PbhPalette(
       'cosmic',
       'Vermelho cósmico',
       Color(0xFF1C0B15),
-      Color(0xFFBB355B),
+      Color(0xFFFF6485),
     ),
     PbhPalette(
       'galactic',
       'Roxo galáctico',
       Color(0xFF140D25),
-      Color(0xFF7951BF),
+      Color(0xFFBE8AFF),
     ),
-    PbhPalette('nova', 'Rosa nova', Color(0xFF200D1C), Color(0xFFAB3C79)),
-    PbhPalette('emerald', 'Esmeralda', Color(0xFF091B18), Color(0xFF246E60)),
+    PbhPalette('nova', 'Rosa nova', Color(0xFF200B1D), Color(0xFFFF62BB)),
+    PbhPalette('emerald', 'Esmeralda', Color(0xFF071D18), Color(0xFF26D6AE)),
     PbhPalette(
       'founder',
       'Legado do fundador',
       Color(0xFF100D24),
-      Color(0xFF624CBC),
+      Color(0xFFA78BFA),
       founderOnly: true,
     ),
   ];
@@ -64,14 +64,14 @@ class PbhPalette extends ThemeExtension<PbhPalette> {
   Color get orangeLight => Color.lerp(accent, Colors.white, .4)!;
   Color get orangeDim => accent.withValues(alpha: .2);
   Color get textPrimary => Colors.white;
-  Color get textSecondary => const Color(0xFFBFC3CD);
-  Color get textTertiary => const Color(0xFFA6ADB9);
+  Color get textSecondary => const Color(0xFFCDD4E0);
+  Color get textTertiary => const Color(0xFFAFBBD0);
   Color get success => accent;
   Color get inactive => tint(.2);
   Color get onAccent =>
       accent.computeLuminance() > .18 ? Colors.black : Colors.white;
   List<Color> get featuredGradient => [
-    Color.lerp(surface, accent, .13)!,
+    Color.lerp(surface, accent, .14)!,
     backgroundElevated,
   ];
   @override

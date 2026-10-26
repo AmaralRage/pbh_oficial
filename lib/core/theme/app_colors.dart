@@ -20,16 +20,16 @@ class AppColors {
   static const Color borderSubtle = Color(0xFF1F1F1F);
 
   // Acento — laranja intenso (cor de marca)
-  static const Color orange = Color(0xFFFF5A1F);
+  static const Color orange = Color(0xFFFF6B2C);
   static const Color orangeLight = Color(0xFFFF8A4D);
   static const Color orangeDim = Color(
-    0x33FF5A1F,
+    0x33FF6B2C,
   ); // 20% opacidade, para fundos de badge
 
   // Texto
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFA3A3A3);
-  static const Color textTertiary = Color(0xFF6E6E6E);
+  static const Color textSecondary = Color(0xFFCDD4E0);
+  static const Color textTertiary = Color(0xFFAFBBD0);
 
   // Estados
   static const Color success =

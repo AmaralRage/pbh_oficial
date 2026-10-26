@@ -5,18 +5,17 @@ import '../core/navigation/app_transitions.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/challenge_model.dart';
-import '../models/program_model.dart';
 import '../services/challenge_service.dart';
 import '../services/habit_service.dart';
 import '../widgets/animated_entry.dart';
 import '../widgets/featured_challenge_card.dart';
-import '../widgets/program_card.dart';
+import '../widgets/program_recommendations.dart';
+import '../widgets/home_journey_panel.dart';
 import '../widgets/section_header.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/habit_sync_notice.dart';
 import '../widgets/weekday_selector.dart';
 import 'habits_screen.dart';
-import 'program_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.onNavigate, this.onOpenHabits});
@@ -217,6 +216,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: LinearProgressIndicator(minHeight: 2),
               ),
             const SizedBox(height: 24),
+            if (!_loading)
+              HomeJourneyPanel(
+                key: ValueKey('journey-$_loadVersion'),
+                pendingHabits: (_selectedHabitCount - _todayCompleted).clamp(
+                  0,
+                  _selectedHabitCount,
+                ),
+                activeChallenge: _activeChallenge != null,
+                onHabits:
+                    widget.onOpenHabits ??
+                    () => Navigator.of(context).push(
+                      fadeSlideRoute(
+                        HabitsScreen(onNavigate: widget.onNavigate),
+                      ),
+                    ),
+                onChallenges: () => widget.onNavigate(1),
+                onContent: () => widget.onNavigate(2),
+              ),
             HabitSyncNotice(
               pending: _pendingChanges,
               cached: _habitService.isUsingCachedData,
@@ -300,27 +317,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(height: 14),
-            ...programCatalog
-                .take(2)
-                .toList()
-                .asMap()
-                .entries
-                .map(
-                  (entry) => AnimatedEntry(
-                    delayMs: 370 + entry.key * 55,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ProgramCard(
-                        program: entry.value,
-                        onTap: () => Navigator.of(context).push(
-                          fadeSlideRoute(
-                            ProgramDetailScreen(program: entry.value),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+            const ProgramRecommendations(),
           ],
         ),
       ),

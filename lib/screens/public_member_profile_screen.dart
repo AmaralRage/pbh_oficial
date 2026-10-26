@@ -9,6 +9,8 @@ import '../widgets/profile_identity_card.dart';
 import '../widgets/profile_achievement_seals.dart';
 import '../widgets/profile_theme_scope.dart';
 import '../widgets/stat_card.dart';
+import '../widgets/personal_goal_card.dart';
+import '../services/personal_goal_service.dart';
 
 class PublicMemberProfileScreen extends StatefulWidget {
   const PublicMemberProfileScreen({super.key, required this.userId});
@@ -138,6 +140,11 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
                 founder: profile.founder,
               ),
               const SizedBox(height: 22),
+              PublicGoalCard(
+                key: ValueKey('goal-${profile.id}-$_version'),
+                userId: profile.id,
+                service: PersonalGoalService(client: _service.client),
+              ),
               if (!profile.hasProgress)
                 Container(
                   padding: const EdgeInsets.all(18),

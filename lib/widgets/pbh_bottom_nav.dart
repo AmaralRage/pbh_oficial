@@ -69,7 +69,7 @@ class PbhBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 62,
+          height: 66,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (index) {
@@ -150,7 +150,13 @@ class _NavButton extends StatelessWidget {
                               color: context.pbhColors.orangeLight,
                             )
                           : AppTextStyles.navLabel)
-                      .copyWith(fontSize: 9),
+                      .copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: isActive
+                            ? context.pbhColors.orangeLight
+                            : context.pbhColors.textTertiary,
+                      ),
               child: Text(
                 data.label,
                 maxLines: 1,

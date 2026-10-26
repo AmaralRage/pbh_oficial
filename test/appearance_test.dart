@@ -7,6 +7,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pbh_oficial/core/theme/pbh_palette.dart';
+import 'package:pbh_oficial/core/theme/app_theme.dart';
 import 'package:pbh_oficial/models/profile_style.dart';
 import 'package:pbh_oficial/services/appearance_service.dart';
 import 'package:pbh_oficial/widgets/theme_choices.dart';
@@ -28,13 +29,53 @@ class _PaletteProbeState extends State<PaletteProbe> {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  test('palettes have readable text and founder remains exclusive', () {
+  testWidgets('palettes have readable text and founder remains exclusive', (
+    tester,
+  ) async {
     double contrast(Color a, Color b) {
       final x = a.computeLuminance(), y = b.computeLuminance();
       return (x > y ? x + .05 : y + .05) / (x > y ? y + .05 : x + .05);
     }
 
     for (final palette in PbhPalette.catalog) {
+      final theme = AppTheme.forPalette(palette);
+      final chipLabel = WidgetStateProperty.resolveAs(
+        theme.chipTheme.labelStyle!,
+        {WidgetState.selected},
+      );
+      expect(
+        contrast(chipLabel.color!, theme.chipTheme.selectedColor!),
+        greaterThanOrEqualTo(4.5),
+        reason: '${palette.id}: filtro selecionado',
+      );
+      expect(
+        contrast(
+          theme.inputDecorationTheme.hintStyle!.color!,
+          theme.inputDecorationTheme.fillColor!,
+        ),
+        greaterThanOrEqualTo(4.5),
+        reason: '${palette.id}: dica de preenchimento',
+      );
+      for (final background in [
+        palette.background,
+        palette.surface,
+        palette.surfaceElevated,
+        palette.surfacePressed,
+        ...palette.featuredGradient,
+      ]) {
+        for (final foreground in [
+          palette.textPrimary,
+          palette.textSecondary,
+          palette.textTertiary,
+          palette.accent,
+        ]) {
+          expect(
+            contrast(foreground, background),
+            greaterThanOrEqualTo(4.5),
+            reason: '${palette.id}: texto/destaque sobre $background',
+          );
+        }
+      }
       expect(
         contrast(palette.textPrimary, palette.surface),
         greaterThanOrEqualTo(4.5),

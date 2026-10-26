@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/community_post_model.dart';
+import '../models/community_topics.dart';
 import '../services/community_service.dart';
 import '../services/minute_clock.dart';
 import '../screens/public_member_profile_screen.dart';
@@ -768,14 +769,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         : '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
-  String _topicLabel(String topic) => switch (topic) {
-    'disciplina' => 'Disciplina',
-    'treino' => 'Treino',
-    'leitura' => 'Leitura',
-    'proposito' => 'Propósito',
-    'reflexao' => 'Reflexão',
-    _ => topic,
-  };
+  String _topicLabel(String topic) => communityTopics[topic] ?? topic;
 
   Widget _postAvatar(CommunityPostModel post) {
     final placeholder = Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'admin_content_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/theme/app_colors.dart';
@@ -365,6 +366,17 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
         final content = <Widget>[
           _pageHeading(),
           const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => const AdminContentScreen(),
+              )),
+              icon: const Icon(Icons.library_books_outlined),
+              label: const Text('Gerenciar programas e aulas'),
+            ),
+          ),
+          const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(

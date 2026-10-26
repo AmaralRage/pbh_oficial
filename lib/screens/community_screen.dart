@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/community_post_model.dart';
+import '../models/community_topics.dart';
 import '../services/community_service.dart';
 import '../widgets/community_post_card.dart';
 import '../widgets/filter_chip_row.dart';
@@ -68,13 +69,6 @@ final _sampleCommunityPosts = <CommunityPostModel>[
   ),
 ];
 
-const _communityTopics = <String, String>{
-  'disciplina': 'Disciplina',
-  'treino': 'Treino',
-  'leitura': 'Leitura',
-  'proposito': 'Propósito',
-  'reflexao': 'Reflexão',
-};
 const _weeklyPrompts = <String>[
   'Qual compromisso pequeno você conseguiu manter esta semana?',
   'O que ajudou você a recuperar o foco nos últimos dias?',
@@ -110,14 +104,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     'Populares',
     'Salvos',
   ];
-  static const _topicFilters = [
-    'Todos os temas',
-    'Disciplina',
-    'Treino',
-    'Leitura',
-    'Propósito',
-    'Reflexão',
-  ];
+  static final _topicFilters = ['Todos os temas', ...communityTopics.values];
   List<CommunityPostModel> _posts = const [];
   CommunityStats? _stats;
   bool _loading = true;
@@ -128,9 +115,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
   String? _error;
   String? _loadMoreError;
 
-  String? get _selectedTopic => _topicIndex == 0
-      ? null
-      : _communityTopics.keys.elementAt(_topicIndex - 1);
+  String? get _selectedTopic =>
+      _topicIndex == 0 ? null : communityTopics.keys.elementAt(_topicIndex - 1);
   String get _weeklyPrompt =>
       _weeklyPrompts[(DateTime.now().difference(DateTime(2026, 1, 5)).inDays ~/
               7) %
@@ -300,7 +286,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     if (prompt != null) contentController.text = '$prompt\n\n';
     final tagController = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    var selectedTopic = _selectedTopic ?? _communityTopics.keys.first;
+    var selectedTopic = _selectedTopic ?? communityTopics.keys.first;
     final publish = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -331,7 +317,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   DropdownButtonFormField<String>(
                     value: selectedTopic,
                     decoration: const InputDecoration(labelText: 'Tema'),
-                    items: _communityTopics.entries
+                    items: communityTopics.entries
                         .map(
                           (entry) => DropdownMenuItem(
                             value: entry.key,

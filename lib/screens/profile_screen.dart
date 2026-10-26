@@ -8,6 +8,7 @@ import '../models/profile_achievement.dart';
 import '../models/profile_style.dart';
 import '../widgets/profile_identity_card.dart';
 import '../widgets/profile_theme_scope.dart';
+import '../widgets/personal_goal_card.dart';
 import 'appearance_screen.dart';
 import '../services/auth_service.dart';
 import '../services/profile_achievement_service.dart';
@@ -89,6 +90,11 @@ class ProfileScreen extends StatelessWidget {
               ),
             ],
             _ProfileProgress(onEdit: onEditProfile),
+            const SizedBox(height: 16),
+            PersonalGoalCard(
+              isAuthenticated: isAuthenticated,
+              onSignIn: onOpenSignIn,
+            ),
             const SizedBox(height: 18),
             OutlinedButton.icon(
               onPressed: () => Navigator.of(context).push(
