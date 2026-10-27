@@ -16,6 +16,35 @@ class TestCustomization extends ProfileCustomizationService {
 }
 
 void main() {
+  test(
+    'nebula variants persist for founder and invalid variants fall back safely',
+    () {
+      for (final variant in ProfileStyle.nebulaVariants) {
+        final style = ProfileStyle.fromMetadata({
+          'profile_style': const ProfileStyle(
+            coverEffect: 'legacy',
+          ).copyWith(coverVariant: variant.id).toMap(),
+        }, founder: true).validated(founder: true, completed: 0, earned: []);
+        expect(style.coverVariant, variant.id);
+        expect(style.coverEffect, 'legacy');
+        expect(style.copyWith(coverIntensity: .8).coverVariant, variant.id);
+        final member = style.validated(
+          founder: false,
+          completed: 0,
+          earned: [],
+        );
+        expect(member.coverEffect, 'shimmer');
+        expect(member.coverVariant, 'royal');
+      }
+      expect(ProfileStyle.fromMetadata({}).coverVariant, 'royal');
+      expect(
+        ProfileStyle.fromMetadata({
+          'profile_style': {'cover_variant': 'unknown'},
+        }).coverVariant,
+        'royal',
+      );
+    },
+  );
   test('every animated option offers intensity; none does not', () {
     for (final option in [
       ...ProfileStyle.frameEffects,
@@ -189,10 +218,11 @@ void main() {
       'jpeg',
     );
   });
-  for (final cover in [false, true]) {
+  for (final format in ['avatar', 'jpeg', 'gif', 'html']) {
+    final cover = format != 'avatar';
     for (final fail in [false, true]) {
       test(
-        'upload then save metadata; failed save cleans only the new upload (fail=$fail, cover=$cover)',
+        'upload then save metadata; failed save cleans only the new upload (fail=$fail, format=$format)',
         () async {
           final requests = <http.Request>[];
           final user = {
@@ -260,7 +290,17 @@ void main() {
               featured: ['platinum', 'challenges'],
             ),
             photo: cover ? null : Uint8List.fromList([255, 216, 255]),
-            coverPhoto: cover ? Uint8List.fromList([255, 216, 255]) : null,
+            coverPhoto: !cover
+                ? null
+                : format == 'gif'
+                ? Uint8List.fromList(ascii.encode('GIF89a'))
+                : format == 'html'
+                ? Uint8List.fromList(
+                    utf8.encode(
+                      '<!doctype html><html><body>Arte</body></html>',
+                    ),
+                  )
+                : Uint8List.fromList([255, 216, 255]),
           );
           if (fail) {
             await expectLater(save, throwsA(isA<AuthException>()));
@@ -283,6 +323,15 @@ void main() {
             (r) => r.method == 'POST' && r.url.path.contains('/storage/'),
           );
           expect(uploadIndex, lessThan(requests.indexOf(updated)));
+          if (format == 'html' || format == 'gif') {
+            expect(
+              requests[uploadIndex].body.toLowerCase(),
+              contains(
+                'content-type: ${format == 'html' ? 'text/plain' : 'image/gif'}',
+              ),
+            );
+            expect(data['cover_url'], endsWith('.$format'));
+          }
           final deleted = requests.singleWhere((r) => r.method == 'DELETE');
           expect(
             deleted.url.path,

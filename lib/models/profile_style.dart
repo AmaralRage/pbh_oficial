@@ -40,6 +40,7 @@ class ProfileStyle {
     this.profileTheme = 'app',
     this.frameIntensity = .5,
     this.coverIntensity = .5,
+    this.coverVariant = 'royal',
   });
   final String frame;
   final String cover;
@@ -50,6 +51,29 @@ class ProfileStyle {
   final String profileTheme;
   final double frameIntensity;
   final double coverIntensity;
+  final String coverVariant;
+  static const nebulaVariants = [
+    ProfileStyleOption(
+      'royal',
+      'Nebulosa Imperial',
+      Color(0xFFB779FF),
+      founderOnly: true,
+    ),
+    ProfileStyleOption(
+      'astral',
+      'Energia Astral',
+      Color(0xFF1EF5F2),
+      founderOnly: true,
+    ),
+    ProfileStyleOption(
+      'eclipse',
+      'Eclipse Cósmico',
+      Color(0xFFFF9B45),
+      founderOnly: true,
+    ),
+  ];
+  static String safeCoverVariant(Object? value) =>
+      nebulaVariants.any((o) => o.id == value) ? value as String : 'royal';
   static const weatherEffects = {'rain', 'snow', 'fireflies'};
   static const seasonalEffects = {'halloween', 'christmas', 'new_year'};
   static bool hasIntensity(String effect) =>
@@ -117,6 +141,7 @@ class ProfileStyle {
   static const covers = [
     ProfileStyleOption('ember', 'Essência PBH', Color(0xFFC84C24)),
     ProfileStyleOption('night', 'Noite', Color(0xFF494B79)),
+    ProfileStyleOption('bonfire', 'Fogueira das Almas', Color(0xFFFF872F)),
     ProfileStyleOption('forest', 'Constância', Color(0xFF297D68), minimum: 1),
     ProfileStyleOption('gold', 'Excelência', Color(0xFFAC7B2B), minimum: 30),
     ProfileStyleOption(
@@ -143,6 +168,7 @@ class ProfileStyle {
       profileTheme: value('profile_theme', 'app'),
       frameIntensity: safeIntensity(map['frame_intensity']),
       coverIntensity: safeIntensity(map['cover_intensity']),
+      coverVariant: safeCoverVariant(map['cover_variant']),
       featured: map['featured'] is List
           ? (map['featured'] as List)
                 .whereType<String>()
@@ -162,6 +188,7 @@ class ProfileStyle {
     String? profileTheme,
     double? frameIntensity,
     double? coverIntensity,
+    String? coverVariant,
   }) => ProfileStyle(
     frame: frame ?? this.frame,
     cover: cover ?? this.cover,
@@ -172,6 +199,7 @@ class ProfileStyle {
     profileTheme: profileTheme ?? this.profileTheme,
     frameIntensity: safeIntensity(frameIntensity ?? this.frameIntensity),
     coverIntensity: safeIntensity(coverIntensity ?? this.coverIntensity),
+    coverVariant: safeCoverVariant(coverVariant ?? this.coverVariant),
   );
   Map<String, dynamic> toMap() => {
     'frame': frame,
@@ -182,6 +210,7 @@ class ProfileStyle {
     'profile_theme': profileTheme,
     'frame_intensity': safeIntensity(frameIntensity),
     'cover_intensity': safeIntensity(coverIntensity),
+    'cover_variant': safeCoverVariant(coverVariant),
     if (featured != null) 'featured': featured,
   };
   ProfileStyle validated({
@@ -207,6 +236,7 @@ class ProfileStyle {
       coverEffect: option(coverEffects, coverEffect, 'shimmer'),
       frameIntensity: safeIntensity(frameIntensity),
       coverIntensity: safeIntensity(coverIntensity),
+      coverVariant: founder ? safeCoverVariant(coverVariant) : 'royal',
       profileTheme: profileTheme == 'app'
           ? 'app'
           : PbhPalette.resolve(profileTheme, founder: founder).id,

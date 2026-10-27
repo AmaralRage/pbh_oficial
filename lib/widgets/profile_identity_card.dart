@@ -5,6 +5,7 @@ import '../core/theme/app_text_styles.dart';
 import '../models/profile_achievement.dart';
 import '../models/profile_style.dart';
 import 'profile_ornament.dart';
+import 'profile_cover_media.dart';
 
 /// Bounded images with isolated decorative animations.
 class ProfileIdentityCard extends StatelessWidget {
@@ -20,6 +21,8 @@ class ProfileIdentityCard extends StatelessWidget {
     this.coverPhoto,
     this.founder = false,
     this.onEdit,
+    this.onEditCover,
+    this.onEditPhoto,
   });
   final String name;
   final String bio;
@@ -31,6 +34,8 @@ class ProfileIdentityCard extends StatelessWidget {
   final Uint8List? coverPhoto;
   final bool founder;
   final VoidCallback? onEdit;
+  final VoidCallback? onEditCover;
+  final VoidCallback? onEditPhoto;
   @override
   Widget build(BuildContext context) {
     final frame = ProfileStyle.frames
@@ -91,35 +96,26 @@ class ProfileIdentityCard extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          cover.withValues(alpha: .7),
-                          const Color(0xFF17171C),
-                        ],
+                        colors: style.cover == 'bonfire'
+                            ? const [
+                                Color(0xFF090D1B),
+                                Color(0xFF161524),
+                                Color(0xFF080A13),
+                              ]
+                            : [
+                                cover.withValues(alpha: .7),
+                                const Color(0xFF17171C),
+                              ],
                       ),
                     ),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        if (coverPhoto != null)
-                          Image.memory(
-                            coverPhoto!,
-                            fit: BoxFit.cover,
-                            cacheWidth: 1024,
-                          )
-                        else if (coverUrl?.isNotEmpty == true)
-                          Image.network(
-                            coverUrl!,
-                            fit: BoxFit.cover,
-                            cacheWidth: 1024,
-                            errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(
-                                Icons.broken_image_outlined,
-                                color: Colors.white54,
-                              ),
-                            ),
-                          ),
+                        if (coverPhoto != null || coverUrl?.isNotEmpty == true)
+                          ProfileCoverMedia(bytes: coverPhoto, url: coverUrl),
                         if (coverPhoto == null &&
-                            coverUrl?.isNotEmpty != true) ...[
+                            coverUrl?.isNotEmpty != true &&
+                            style.cover != 'bonfire') ...[
                           Positioned(
                             right: -22,
                             top: -65,
@@ -141,10 +137,13 @@ class ProfileIdentityCard extends StatelessWidget {
                                   .color,
                               effect: style.coverEffect,
                               intensity: style.coverIntensity,
+                              variant: style.coverVariant,
                               founder: founder,
                             ),
                           ),
-                        if (coverPhoto == null && coverUrl?.isNotEmpty != true)
+                        if (coverPhoto == null &&
+                            coverUrl?.isNotEmpty != true &&
+                            style.cover != 'bonfire')
                           Positioned(
                             right: 24,
                             top: 26,
@@ -199,6 +198,34 @@ class ProfileIdentityCard extends StatelessWidget {
                       founder: founder,
                       effect: style.frameEffect,
                       intensity: style.frameIntensity,
+                    ),
+                  ),
+                if (onEditCover != null)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.black.withValues(alpha: .8),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: onEditCover,
+                      icon: const Icon(Icons.wallpaper_rounded, size: 18),
+                      label: const Text('Editar capa'),
+                    ),
+                  ),
+                if (onEditPhoto != null)
+                  Positioned(
+                    left: 86,
+                    bottom: 0,
+                    child: IconButton.filled(
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                      ),
+                      tooltip: 'Editar foto e moldura',
+                      onPressed: onEditPhoto,
+                      icon: const Icon(Icons.photo_camera_outlined, size: 20),
                     ),
                   ),
                 if (onEdit != null)

@@ -25,6 +25,8 @@ Deno.test('public weather effects preserve intensity, privacy and founder restri
     `);
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261026001000_profile_weather_effects.sql', import.meta.url)));
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261026001100_profile_seasonal_effects.sql', import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261027000500_founder_nebula_variants.sql', import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261027000600_bonfire_cover.sql', import.meta.url)));
     const read = async () => (await db.query<{ profile: any }>(
       'select public.community_member_profile($1) as profile', [owner],
     )).rows[0].profile;
@@ -37,6 +39,12 @@ Deno.test('public weather effects preserve intensity, privacy and founder restri
     assert.equal(defaults.style.frame_intensity, .5);
     assert.equal(defaults.style.cover_intensity, .5);
     assert.equal(defaults.progress, undefined);
+    await db.exec('reset role');
+    await setStyle({cover:'bonfire',cover_effect:'embers'});
+    await db.exec('set role authenticated');
+    const bonfire=await read();
+    assert.equal(bonfire.style.cover,'bonfire');
+    assert.equal(bonfire.style.cover_effect,'embers');
     for (const effect of ['rain', 'snow', 'fireflies', 'halloween', 'christmas', 'new_year']) {
       await db.exec('reset role');
       await setStyle({ frame_effect: effect, cover_effect: effect, frame_intensity: .2, cover_intensity: .9 });
@@ -59,6 +67,18 @@ Deno.test('public weather effects preserve intensity, privacy and founder restri
     result = await read();
     assert.equal(result.style.frame_intensity, .5);
     assert.equal(result.style.cover_intensity, .5);
+    await setStyle({cover_effect:'legacy',cover_variant:'astral'});
+    assert.equal((await read()).style.cover_effect,'shimmer');
+    assert.equal((await read()).style.cover_variant,'royal');
+    await db.exec("update auth.users set email='amaralaragao31@gmail.com',email_confirmed_at=now()");
+    for(const variant of ['royal','astral','eclipse']) {
+      await setStyle({cover_effect:'legacy',cover_variant:variant});
+      result=await read();
+      assert.equal(result.style.cover_effect,'legacy');
+      assert.equal(result.style.cover_variant,variant);
+    }
+    await setStyle({cover_effect:'legacy',cover_variant:'unknown'});
+    assert.equal((await read()).style.cover_variant,'royal');
     await db.exec(`update public.profiles set is_public=false; set role authenticated`);
     assert.equal(await read(), null);
     await db.exec(`reset role; update public.profiles set is_public=true;

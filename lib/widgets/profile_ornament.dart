@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'bonfire_art.dart';
 
 /// Paint-only decoration: the image and profile text never rebuild on a tick.
 class ProfileOrnament extends StatefulWidget {
@@ -10,12 +12,14 @@ class ProfileOrnament extends StatefulWidget {
     this.founder = false,
     this.effect,
     this.intensity = .5,
+    this.variant = 'royal',
   });
   final Color color;
   final bool frame;
   final bool founder;
   final String? effect;
   final double intensity;
+  final String variant;
   @override
   State<ProfileOrnament> createState() => _ProfileOrnamentState();
 }
@@ -60,7 +64,8 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
   @override
   void didUpdateWidget(covariant ProfileOrnament oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.effect != widget.effect) {
+    if (oldWidget.effect != widget.effect ||
+        oldWidget.variant != widget.variant) {
       _motion.stop();
       _motion.value = 0;
       _enabled =
@@ -128,6 +133,7 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
                   ? 'meteors'
                   : 'shimmer'),
           widget.intensity.isFinite ? widget.intensity.clamp(0, 1) : .5,
+          widget.variant,
         ),
         size: Size.infinite,
       ),
@@ -136,6 +142,14 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
 }
 
 class _OrnamentPainter extends CustomPainter {
+  static final _stormDrops = (() {
+    final random = math.Random(571903);
+    return List.generate(
+      330,
+      (_) => List.generate(8, (_) => random.nextDouble(), growable: false),
+      growable: false,
+    );
+  })();
   // Independent random attributes, generated once. Keeping them stable between
   // frames prevents particles from flickering or jumping when intensity changes.
   static final _weatherParticles = (() {
@@ -153,6 +167,7 @@ class _OrnamentPainter extends CustomPainter {
     this.founder,
     this.effect,
     this.intensity,
+    this.variant,
   ) : super(repaint: motion);
   final Animation<double> motion;
   final Color color;
@@ -160,11 +175,24 @@ class _OrnamentPainter extends CustomPainter {
   final bool founder;
   final String effect;
   final double intensity;
+  final String variant;
   @override
   void paint(Canvas canvas, Size size) {
     // Whole cycles keep the loop seamless while every effect supports intensity.
     final t = (motion.value * (1 + (intensity * 3).round())) % 1;
     if (effect == 'none') return;
+    if (!frame && effect == 'meteors') {
+      _meteorShower(canvas, size, motion.value);
+      return;
+    }
+    if (!frame && effect == 'embers') {
+      _soulEmbers(canvas, size, motion.value);
+      return;
+    }
+    if (!frame && effect == 'legacy') {
+      _nebula(canvas, size, t);
+      return;
+    }
     if (!frame && (effect == 'christmas' || effect == 'halloween')) {
       _themedCover(canvas, size, t);
       return;
@@ -318,24 +346,6 @@ class _OrnamentPainter extends CustomPainter {
         return;
       }
     }
-    if (effect == 'embers') {
-      final embers = (9 + intensity * 24).round();
-      for (var i = 0; i < embers; i++) {
-        final phase = (t + i / embers) % 1;
-        final x =
-            size.width * ((i * 73 % 307) / 307) +
-            math.sin(phase * math.pi * 2 + i) * 10;
-        final y = size.height * (1 - phase);
-        canvas.drawCircle(
-          Offset(x, y),
-          .8 + (i % 3) * .45,
-          Paint()
-            ..color = color.withValues(alpha: math.sin(phase * math.pi) * .6),
-        );
-      }
-      canvas.restore();
-      return;
-    }
     // A small fixed constellation; no particles, blur layers or random allocations.
     for (var i = 0; i < ((founder ? 8 : 4) + intensity * 14).round(); i++) {
       final x = ((i * 73 + 19) % 307) / 307 * size.width;
@@ -381,6 +391,10 @@ class _OrnamentPainter extends CustomPainter {
   }
 
   void _weather(Canvas canvas, Size size, double t) {
+    if (effect == 'rain') {
+      _storm(canvas, size, motion.value);
+      return;
+    }
     canvas.save();
     final bounds = Offset.zero & size;
     if (frame) {
@@ -398,38 +412,21 @@ class _OrnamentPainter extends CustomPainter {
     }
     final count = ((frame ? 38 : 24) + intensity * (frame ? 90 : 72)).round();
     final speed = 2 + (intensity * 3).round();
-    final tint = effect == 'rain'
-        ? const Color(0xFF83CFFF)
-        : effect == 'snow'
+    final tint = effect == 'snow'
         ? const Color(0xFFE0F4FF)
         : const Color(0xFFBBF878);
     final paint = Paint()..strokeCap = StrokeCap.round;
     for (var i = 0; i < count; i++) {
       final particle = _weatherParticles[i];
       final depth = particle[2];
-      final laps = effect == 'rain'
-          ? speed + (depth * 5).round()
-          : 1 + (depth * speed).round();
+      final laps = 1 + (depth * speed).round();
       final phase = (t * laps + particle[1]) % 1;
       final drift = math.sin(t * math.pi * 2 + particle[3] * math.pi * 2);
-      final wind = math.sin(t * math.pi * 2) * (effect == 'rain' ? 3 : 5);
+      final wind = math.sin(t * math.pi * 2) * 5;
       final x =
-          particle[0] * size.width +
-          drift *
-              (effect == 'rain' ? 1 + particle[4] * 3 : 4 + particle[4] * 12) +
-          wind;
+          particle[0] * size.width + drift * (4 + particle[4] * 12) + wind;
       final y = phase * (size.height + 48) - 24;
-      if (effect == 'rain') {
-        final length = 4 + particle[5] * 10 + intensity * 4;
-        paint
-          ..color = tint.withValues(alpha: .18 + depth * .35 + intensity * .12)
-          ..strokeWidth = .45 + depth * .85;
-        canvas.drawLine(
-          Offset(x + length * (.08 + particle[6] * .2), y - length),
-          Offset(x, y),
-          paint,
-        );
-      } else if (effect == 'snow') {
+      if (effect == 'snow') {
         paint.color = tint.withValues(alpha: .25 + particle[7] * .5);
         canvas.drawCircle(Offset(x, y), .55 + depth * 1.6, paint);
       } else {
@@ -443,6 +440,537 @@ class _OrnamentPainter extends CustomPainter {
         paint.color = tint.withValues(alpha: .2 + glow * .65);
         canvas.drawCircle(point, .8 + glow * .6, paint);
       }
+    }
+    canvas.restore();
+  }
+
+  void _meteorShower(Canvas canvas, Size size, double t) {
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    final angle = t * math.pi * 2;
+    final stars = (size.width * size.height / 550).floor().clamp(
+      12,
+      _stormDrops.length,
+    );
+    for (var i = 0; i < stars; i++) {
+      final p = _stormDrops[i];
+      final alpha =
+          (.2 + p[2] * .55) *
+          (.75 + .25 * math.sin(angle * (1 + (p[3] * 3).round()) + p[4] * 7));
+      canvas.drawCircle(
+        Offset(p[0] * size.width, p[1] * size.height),
+        .3 + p[5] * 1.1,
+        Paint()..color = const Color(0xFFDFEDFF).withValues(alpha: alpha),
+      );
+    }
+    // Persistent seeded events keep the loop smooth, with independent lifetimes
+    // and cyan/violet trails rather than two identical fixed shooting stars.
+    final count = (10 + intensity * 26).round();
+    final seconds = t * 12;
+    for (var i = 0; i < count; i++) {
+      final p = _stormDrops[150 + i];
+      final start = (i + p[0] * .65) * 12 / count;
+      final age = (seconds - start + 12) % 12;
+      final lifetime = .45 + p[1] * .45;
+      if (age >= lifetime) continue;
+      final alpha = math
+          .min(1.0, math.min(age / .12, (lifetime - age) / .2))
+          .clamp(0.0, 1.0);
+      final speed = 260 + p[2] * 300;
+      final velocity = Offset(-speed * .85, speed * .48);
+      final head =
+          Offset(
+            p[3] * (size.width + 140) - 60,
+            -35 + p[4] * size.height * .6,
+          ) +
+          velocity * age;
+      final length = 55 + p[5] * 110;
+      final tail = head - velocity / velocity.distance * length;
+      final thick = .8 + p[6] * 1.5;
+      final hue = p[7] < .35 ? 195.0 : 245.0;
+      final tint = HSLColor.fromAHSL(1, hue, 1, .8).toColor();
+      canvas.drawLine(
+        tail,
+        head,
+        Paint()
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = thick * 5
+          ..shader = ui.Gradient.linear(
+            tail,
+            head,
+            [tint.withValues(alpha: 0), tint.withValues(alpha: alpha * .14)],
+            const [0, 1],
+          ),
+      );
+      canvas.drawLine(
+        tail,
+        head,
+        Paint()
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = thick * 2
+          ..shader = ui.Gradient.linear(
+            tail,
+            head,
+            [
+              tint.withValues(alpha: 0),
+              tint.withValues(alpha: alpha * .45),
+              Colors.white.withValues(alpha: alpha),
+            ],
+            const [0, .7, 1],
+          ),
+      );
+      _nebulaGlow(canvas, head, thick * 5, tint, alpha * .25);
+      canvas.drawCircle(
+        head,
+        thick * 1.3,
+        Paint()..color = Colors.white.withValues(alpha: alpha),
+      );
+    }
+    canvas.restore();
+  }
+
+  void _soulEmbers(Canvas canvas, Size size, double t) {
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    final angle = t * math.pi * 2;
+    final count = (70 + intensity * 160).round();
+    final scale = math.max(.65, size.width / 850);
+    for (var i = 0; i < count; i++) {
+      final p = _stormDrops[i];
+      final phase = (p[1] + t * (3 + (p[2] * 5 + intensity * 2).round())) % 1;
+      final startX = p[7] < .55
+          ? size.width * (.73 + p[0] * .18)
+          : -20 + p[0] * (size.width + 40);
+      final vx = (p[3] - .5) * .68;
+      final vy = -(.55 + p[2] * 1.15);
+      final age = phase * (80 + p[5] * 130);
+      final x =
+          startX +
+          vx * age * scale +
+          math.sin(age * .034 + p[4] * 6.28) * 12 * scale;
+      final y =
+          size.height * (.78 + p[5] * .30) +
+          vy * age * scale -
+          age * age * .001 * scale;
+      final opacity = math.max(
+        0.0,
+        math.min(1.0, math.min(phase * 9, (1 - phase) * 1.4)),
+      );
+      final r = (.65 + p[6] * 2.45) * scale;
+      final hue = p[4] > .65
+          ? 43.0
+          : p[4] > .22
+          ? 25.0
+          : 10.0;
+      Color tint(double lightness, double alpha) =>
+          HSLColor.fromAHSL(alpha, hue, 1, lightness).toColor();
+      final point = Offset(x, y);
+      canvas.drawCircle(
+        point,
+        r * 7,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              tint(.70, opacity * .8),
+              tint(.52, opacity * .35),
+              tint(.40, 0),
+            ],
+            stops: const [0, .2, 1],
+          ).createShader(Rect.fromCircle(center: point, radius: r * 7)),
+      );
+      final trail = 5 + p[0] * 17;
+      canvas.drawLine(
+        point,
+        point + Offset(-vx * trail * .45, -vy * trail * .7),
+        Paint()
+          ..strokeWidth = r * .8
+          ..strokeCap = StrokeCap.round
+          ..color = tint(.67, opacity * .35),
+      );
+      canvas.drawCircle(
+        point,
+        r * .65,
+        Paint()
+          ..color = HSLColor.fromAHSL(
+            opacity,
+            hue + 10,
+            1,
+            p[4] > .65 ? .85 : .65,
+          ).toColor(),
+      );
+    }
+    paintBonfireArt(canvas, size, angle, intensity);
+    canvas.restore();
+  }
+
+  void _storm(Canvas canvas, Size size, double t) {
+    canvas.save();
+    if (frame) {
+      final center = size.center(Offset.zero);
+      final radius = size.shortestSide / 2;
+      canvas.clipPath(
+        Path()
+          ..fillType = PathFillType.evenOdd
+          ..addOval(Rect.fromCircle(center: center, radius: radius))
+          ..addOval(Rect.fromCircle(center: center, radius: radius - 7)),
+      );
+    } else {
+      canvas.clipRect(Offset.zero & size);
+    }
+    final scale = (size.height / 280).clamp(.3, 1.5);
+    for (var i = 0; i < 12; i++) {
+      final p = _stormDrops[i];
+      final radius = (65 + p[2] * 115) * scale;
+      final span = size.width + radius * 2;
+      final center = Offset(
+        (p[0] * span + t * span) % span - radius,
+        -20 * scale + p[1] * (size.height * .38 + 20 * scale),
+      );
+      _nebulaGlow(
+        canvas,
+        center,
+        radius,
+        const Color(0xFF97B1D1),
+        .018 + p[4] * .052,
+      );
+    }
+    final count = (size.width * .43 * (.4 + intensity * 1.2)).round().clamp(
+      24,
+      _stormDrops.length,
+    );
+    final paint = Paint()
+      ..strokeWidth = 1.15 * scale
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < count; i++) {
+      final p = _stormDrops[i];
+      final laps =
+          ((340 + p[2] * 430) *
+                  scale *
+                  12 /
+                  (size.height + 60 * scale) *
+                  (.65 + intensity * .7))
+              .round()
+              .clamp(1, 100);
+      final y =
+          ((p[1] + t * laps) % 1) * (size.height + 60 * scale) - 30 * scale;
+      final span = size.width + 60 * scale;
+      final x = ((p[0] - t) % 1) * span - 30 * scale;
+      final length = (9 + p[3] * 15) * scale;
+      paint.color = const Color(0xFFAACFF8).withValues(alpha: .12 + p[4] * .48);
+      canvas.drawLine(Offset(x, y), Offset(x - 4 * scale, y + length), paint);
+    }
+    // Irregular, brief strikes; their frequency is independent of the rain speed.
+    // At paused time zero no flash is drawn, including reduced-motion mode.
+    final strikes = 3 + (intensity * 3).round();
+    final seconds = t * 12;
+    for (var strike = 0; strike < strikes; strike++) {
+      final seed = _stormDrops[200 + strike];
+      final start = (strike + .25 + seed[0] * .35) * 12 / strikes;
+      final age = seconds - start;
+      if (age < 0 || age > .28) continue;
+      final life = 1 - age / .28;
+      final alpha = math.min(1.0, life * 1.8);
+      final endY = size.height * (.55 + seed[1] * .39);
+      final segments = (endY / (24 * scale)).ceil().clamp(4, 28);
+      var point = Offset(size.width * (.12 + seed[2] * .76), -8 * scale);
+      final main = Path()..moveTo(point.dx, point.dy);
+      final branches = Path();
+      for (var k = 0; k < segments; k++) {
+        final p = _stormDrops[(strike * 31 + k + 40) % _stormDrops.length];
+        point = Offset(
+          point.dx + (p[0] - .5) * 64 * scale,
+          -8 * scale + (endY + 8 * scale) * (k + 1) / segments,
+        );
+        main.lineTo(point.dx, point.dy);
+        if (k > 1 && k < segments - 1 && p[4] < .23) {
+          var branch = point;
+          branches.moveTo(branch.dx, branch.dy);
+          for (var j = 0; j < 2 + (p[5] * 3).round(); j++) {
+            final b =
+                _stormDrops[(strike * 43 + k * 5 + j + 100) %
+                    _stormDrops.length];
+            branch += Offset(
+              (b[0] - .5) * 68 * scale,
+              (12 + b[1] * 15) * scale,
+            );
+            branches.lineTo(branch.dx, branch.dy);
+          }
+        }
+      }
+      final glow = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(
+        main,
+        glow
+          ..strokeWidth = 18 * scale
+          ..color = const Color(0xFF64B0FF).withValues(alpha: alpha * .06),
+      );
+      canvas.drawPath(
+        main,
+        glow
+          ..strokeWidth = 10 * scale
+          ..color = const Color(0xFF64B0FF).withValues(alpha: alpha * .22),
+      );
+      canvas.drawPath(
+        main,
+        glow
+          ..strokeWidth = 3 * scale
+          ..color = const Color(0xFF80C6FF).withValues(alpha: alpha * .9),
+      );
+      canvas.drawPath(
+        main,
+        glow
+          ..strokeWidth = 1.2 * scale
+          ..color = Colors.white.withValues(alpha: alpha),
+      );
+      canvas.drawPath(
+        branches,
+        glow
+          ..strokeWidth = 1.1 * scale
+          ..color = const Color(0xFFABD8FF).withValues(alpha: alpha * .7),
+      );
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..color = const Color(
+            0xFFBDDAFF,
+          ).withValues(alpha: (.35 + seed[3] * .4) * life * .23),
+      );
+    }
+    canvas.restore();
+  }
+
+  void _nebulaGlow(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Color color,
+    double alpha,
+  ) {
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            color.withValues(alpha: alpha),
+            color.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromCircle(center: center, radius: radius)),
+    );
+  }
+
+  // Transparent adaptation of the supplied founder artwork, without its sample
+  // city background, avatar or any additional profile decorations.
+  void _nebula(Canvas canvas, Size size, double t) {
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    final angle = t * math.pi * 2;
+    final strength = .65 + intensity * .7;
+    final scale = (size.height / 230).clamp(.5, 1.5);
+    if (variant == 'astral') {
+      for (var j = 0; j < 7; j++) {
+        final x0 =
+            size.width * (.09 + j * .145) +
+            math.sin(angle + j * 1.7) * size.width * .035;
+        final path = Path();
+        for (var k = 0; k <= 32; k++) {
+          final y = size.height * k / 32;
+          final x =
+              x0 +
+              math.sin(k * .32 + angle + j) * size.width * .026 +
+              math.sin(k * .12 - angle + j) * size.width * .015;
+          if (k == 0) {
+            path.moveTo(x, y);
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+        final tint = j.isOdd
+            ? const Color(0xFF12F0DF)
+            : const Color(0xFF3091FF);
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = size.width * .10
+            ..shader = LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                tint.withValues(alpha: 0),
+                tint.withValues(alpha: .18 * strength),
+                tint.withValues(alpha: .08 * strength),
+                tint.withValues(alpha: 0),
+              ],
+              stops: const [0, .28, .68, 1],
+            ).createShader(Offset.zero & size),
+        );
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2
+            ..color =
+                (j.isOdd ? const Color(0xFF8BFFE6) : const Color(0xFF82C9FF))
+                    .withValues(alpha: .32 * strength),
+        );
+      }
+      for (var arc = 0; arc < 3; arc++) {
+        final path = Path();
+        for (var k = 0; k <= 22; k++) {
+          final q = k / 22;
+          final x =
+              size.width * (.16 + arc * .30) +
+              math.sin(q * 8 + angle + arc) * size.width * .065 +
+              math.sin(k * 3.9 + arc * 11) * size.width * .007;
+          final y = size.height * (.08 + q * .82);
+          if (k == 0) {
+            path.moveTo(x, y);
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = arc == 1 ? 1.6 : 1
+            ..color =
+                (arc == 1 ? const Color(0xFFE2FFFF) : const Color(0xFF37FBE7))
+                    .withValues(
+                      alpha:
+                          (.35 + .20 * math.pow(math.sin(angle + arc), 2)) *
+                          strength,
+                    ),
+        );
+      }
+      _nebulaGlow(
+        canvas,
+        Offset(size.width * (.5 + math.sin(angle) * .08), size.height * .48),
+        size.width * .19,
+        const Color(0xFF0AFBD7),
+        .085 * strength,
+      );
+      final count = (60 + intensity * 100).round().clamp(
+        0,
+        _weatherParticles.length,
+      );
+      for (var i = 0; i < count; i++) {
+        final p = _weatherParticles[i];
+        final x =
+            (p[0] * size.width + math.sin(angle + i) * 8 + size.width) %
+            size.width;
+        final y = ((p[1] - t * (1 + (p[2] * 3).round())) % 1) * size.height;
+        final tint = i % 4 == 0
+            ? const Color(0xFFE9FFFF)
+            : i % 3 == 0
+            ? const Color(0xFF35F9BA)
+            : const Color(0xFF49BFFF);
+        canvas.drawCircle(
+          Offset(x, y),
+          (.5 + p[4] * 1.2) * scale,
+          Paint()
+            ..color = tint.withValues(
+              alpha: .22 + .55 * (.5 + .5 * math.sin(angle + i)),
+            ),
+        );
+      }
+    } else {
+      final palette = variant == 'eclipse'
+          ? const [
+              Color(0xFFFF9B45),
+              Color(0xFFE34CBA),
+              Color(0xFF793BFF),
+              Color(0xFFFFE3A1),
+            ]
+          : const [
+              Color(0xFFB779FF),
+              Color(0xFF664DFF),
+              Color(0xFF47E5FF),
+              Color(0xFFFF6FD9),
+            ];
+      for (var j = 0; j < 5; j++) {
+        final center = Offset(
+          size.width * (.13 + j * .19 + math.sin(angle + j * 1.8) * .07),
+          size.height * (.27 + .12 * math.sin(j * 2.3 + angle)),
+        );
+        _nebulaGlow(
+          canvas,
+          center,
+          math.max(size.width, size.height) * (.18 + .04 * math.sin(j + angle)),
+          palette[j % 4],
+          .065 * strength,
+        );
+      }
+      for (var layer = 0; layer < 3; layer++) {
+        final path = Path();
+        final phase = angle + layer * 2.2;
+        for (var i = 0; i <= 64; i++) {
+          final x = size.width * i / 64;
+          final y =
+              size.height * (.32 + layer * .17) +
+              math.sin(x / size.width * 11 + phase) *
+                  size.height *
+                  (.09 + layer * .015) +
+              math.sin(x / size.width * 22 - phase) * size.height * .026;
+          if (i == 0) {
+            path.moveTo(x, y);
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = (16 + layer * 5) * scale
+            ..color = palette[layer].withValues(alpha: .12 * strength),
+        );
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.25
+            ..color = palette[layer].withValues(alpha: .32 * strength),
+        );
+      }
+      final count = (45 + intensity * 80).round().clamp(
+        0,
+        _weatherParticles.length,
+      );
+      for (var i = 0; i < count; i++) {
+        final p = _weatherParticles[i];
+        final phase = p[3] * math.pi * 2;
+        final point = Offset(
+          (p[0] * size.width +
+                  math.sin(angle + phase) * 9 * (.3 + p[2]) +
+                  size.width) %
+              size.width,
+          (p[1] * size.height - math.cos(angle + phase) * 4 + size.height) %
+              size.height,
+        );
+        final twinkle =
+            .5 + .5 * math.sin(angle * (1 + (p[2] * 2).round()) + phase);
+        final tint = i % 5 == 0 ? palette[2] : Colors.white;
+        canvas.drawCircle(
+          point,
+          (.4 + p[4] * 1.2) * (.6 + twinkle * .4) * scale,
+          Paint()..color = tint.withValues(alpha: .12 + .55 * twinkle),
+        );
+        if (i % 17 == 0 && twinkle > .85) {
+          _star(canvas, point, 4 * scale, palette[i % 4].withValues(alpha: .6));
+        }
+      }
+      _nebulaGlow(
+        canvas,
+        Offset(size.width * (.72 + .02 * math.sin(angle)), size.height * .28),
+        size.width * .17,
+        palette[2],
+        .06 * strength,
+      );
     }
     canvas.restore();
   }
@@ -981,5 +1509,6 @@ class _OrnamentPainter extends CustomPainter {
       oldDelegate.founder != founder ||
       oldDelegate.effect != effect ||
       oldDelegate.intensity != intensity ||
+      oldDelegate.variant != variant ||
       oldDelegate.motion != motion;
 }

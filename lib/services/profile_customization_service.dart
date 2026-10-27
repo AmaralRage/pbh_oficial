@@ -8,6 +8,7 @@ import 'challenge_service.dart';
 import 'community_service.dart';
 import 'habit_service.dart';
 import 'profile_achievement_service.dart';
+import 'profile_cover_document.dart';
 
 class ProfileUnlocks {
   const ProfileUnlocks(this.completed, this.earned);
@@ -83,6 +84,19 @@ class ProfileCustomizationService {
     throw ArgumentError('Use uma foto PNG, JPEG ou WebP.');
   }
 
+  static String coverType(Uint8List bytes) {
+    if (bytes.isEmpty || bytes.length > ProfileCoverDocument.maxBytes)
+      throw ArgumentError('Escolha uma capa de até 5 MB.');
+    if (bytes.length >= 6 &&
+        ['GIF87a', 'GIF89a'].contains(String.fromCharCodes(bytes.take(6))))
+      return 'gif';
+    if (ProfileCoverDocument.looksLikeHtml(bytes)) {
+      ProfileCoverDocument.decode(bytes);
+      return 'html';
+    }
+    return imageType(bytes);
+  }
+
   Future<void> save({
     required String name,
     required String bio,
@@ -127,13 +141,16 @@ class ProfileCustomizationService {
         avatar = bucket.getPublicUrl(path);
       }
       if (coverPhoto != null) {
-        final type = imageType(coverPhoto);
+        final type = coverType(coverPhoto);
         final path =
             '${user.id}/${DateTime.now().microsecondsSinceEpoch}.$type';
         await covers.uploadBinary(
           path,
           coverPhoto,
-          fileOptions: FileOptions(contentType: 'image/$type', upsert: false),
+          fileOptions: FileOptions(
+            contentType: type == 'html' ? 'text/plain' : 'image/$type',
+            upsert: false,
+          ),
         );
         uploaded.add((bucket: 'profile-covers', path: path));
         coverUrl = covers.getPublicUrl(path);

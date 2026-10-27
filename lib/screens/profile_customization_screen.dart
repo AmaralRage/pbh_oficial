@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_selector/file_selector.dart' as files;
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/profile_style.dart';
@@ -38,6 +39,9 @@ class _ProfileCustomizationScreenState
   bool _saving = false;
   bool _picking = false;
   bool _loading = true;
+  String _section = 'profile';
+  final _editorKey = GlobalKey();
+  final _scrollController = ScrollController();
   String? _error;
   late final bool _founder;
   late final String? _account;
@@ -87,28 +91,50 @@ class _ProfileCustomizationScreenState
   Future<void> _pick({bool cover = false}) async {
     setState(() => _picking = true);
     try {
-      final file = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: cover ? 1600 : 1024,
-        maxHeight: cover ? 900 : 1024,
-        imageQuality: 85,
-        requestFullMetadata: false,
-      );
+      final file = cover
+          ? await files.openFile(
+              acceptedTypeGroups: [
+                const files.XTypeGroup(
+                  label: 'Capas',
+                  extensions: [
+                    'png',
+                    'jpg',
+                    'jpeg',
+                    'webp',
+                    'gif',
+                    'html',
+                    'htm',
+                  ],
+                  uniformTypeIdentifiers: ['public.image', 'public.html'],
+                ),
+              ],
+            )
+          : await ImagePicker().pickImage(
+              source: ImageSource.gallery,
+              maxWidth: cover ? 1600 : 1024,
+              maxHeight: cover ? 900 : 1024,
+              imageQuality: 85,
+              requestFullMetadata: false,
+            );
       if (file == null) return;
       if (await file.length() > 5 * 1024 * 1024)
         throw ArgumentError('Escolha uma imagem de até 5 MB.');
       final bytes = await file.readAsBytes();
-      ProfileCustomizationService.imageType(bytes);
-      final codec = await ui.instantiateImageCodec(
-        bytes,
-        targetWidth: 256,
-        allowUpscaling: false,
-      );
-      try {
-        final frame = await codec.getNextFrame();
-        frame.image.dispose();
-      } finally {
-        codec.dispose();
+      final type = cover
+          ? ProfileCustomizationService.coverType(bytes)
+          : ProfileCustomizationService.imageType(bytes);
+      if (type != 'html') {
+        final codec = await ui.instantiateImageCodec(
+          bytes,
+          targetWidth: 256,
+          allowUpscaling: false,
+        );
+        try {
+          final frame = await codec.getNextFrame();
+          frame.image.dispose();
+        } finally {
+          codec.dispose();
+        }
       }
       if (!mounted) return;
       setState(() {
@@ -124,8 +150,9 @@ class _ProfileCustomizationScreenState
     } catch (_) {
       if (mounted)
         setState(
-          () => _error =
-              'Não foi possível abrir a imagem. Use PNG, JPEG ou WebP de até 5 MB.',
+          () => _error = cover
+              ? 'Não foi possível abrir a capa. Use PNG, JPEG, WebP, GIF ou HTML completo em UTF-8, até 5 MB.'
+              : 'Não foi possível abrir a imagem. Use PNG, JPEG ou WebP de até 5 MB.',
         );
     } finally {
       if (mounted) setState(() => _picking = false);
@@ -165,6 +192,7 @@ class _ProfileCustomizationScreenState
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _name.dispose();
     _bio.dispose();
     super.dispose();
@@ -174,21 +202,28 @@ class _ProfileCustomizationScreenState
     padding: const EdgeInsets.only(top: 26, bottom: 12),
     child: Text(label, style: AppTextStyles.titleMedium),
   );
-  Widget _profilePreview(ProfileUnlocks progress) => ProfileThemeScope(
-    themeId: _style.profileTheme,
-    founder: _founder,
-    builder: (context) => ProfileIdentityCard(
-      name: _name.text.trim().isEmpty ? 'Seu nome' : _name.text.trim(),
-      bio: _bio.text.trim(),
-      style: _style,
-      earned: progress.earned,
-      founder: _founder,
-      photo: _photo,
-      avatarUrl: _removePhoto ? null : _avatar,
-      coverPhoto: _coverPhoto,
-      coverUrl: _removeCover ? null : _coverUrl,
-    ),
-  );
+  Widget _profilePreview(ProfileUnlocks progress, {bool editable = true}) =>
+      ProfileThemeScope(
+        themeId: _style.profileTheme,
+        founder: _founder,
+        builder: (context) => ProfileIdentityCard(
+          name: _name.text.trim().isEmpty ? 'Seu nome' : _name.text.trim(),
+          bio: _bio.text.trim(),
+          style: _style,
+          earned: progress.earned,
+          founder: _founder,
+          photo: _photo,
+          avatarUrl: _removePhoto ? null : _avatar,
+          coverPhoto: _coverPhoto,
+          coverUrl: _removeCover ? null : _coverUrl,
+          onEditCover: editable && !_saving && !_picking
+              ? () => _openSection('cover')
+              : null,
+          onEditPhoto: editable && !_saving && !_picking
+              ? () => _openSection('photo')
+              : null,
+        ),
+      );
   Future<void> _enlargePreview(ProfileUnlocks progress) => showDialog<void>(
     context: context,
     builder: (ctx) => Dialog.fullscreen(
@@ -213,7 +248,7 @@ class _ProfileCustomizationScreenState
                 maxScale: 2.5,
                 child: Center(
                   child: SingleChildScrollView(
-                    child: _profilePreview(progress),
+                    child: _profilePreview(progress, editable: false),
                   ),
                 ),
               ),
@@ -223,6 +258,22 @@ class _ProfileCustomizationScreenState
       ),
     ),
   );
+  void _openSection(String section) {
+    FocusScope.of(context).unfocus();
+    setState(() => _section = section);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _editorKey.currentContext;
+      if (!mounted || target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 280),
+        alignment: 0,
+      );
+    });
+  }
+
   void _restoreAppearance() {
     if (_savedStyle == null) return;
     setState(() {
@@ -315,7 +366,28 @@ class _ProfileCustomizationScreenState
     return PopScope(
       canPop: !_saving,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Personalizar perfil')),
+        appBar: AppBar(
+          title: const Text('Personalizar perfil'),
+          actions: [
+            if (!_loading && progress != null)
+              IconButton(
+                tooltip: 'Voltar à prévia',
+                icon: const Icon(Icons.preview_outlined),
+                onPressed: () {
+                  FocusScope.of(context).unfocus();
+                  if (_scrollController.hasClients) {
+                    _scrollController.animateTo(
+                      0,
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 280),
+                      curve: Curves.easeOut,
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : progress == null
@@ -332,6 +404,7 @@ class _ProfileCustomizationScreenState
                 ),
               )
             : ListView(
+                controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
                   Text('Sua identidade no PBH', style: AppTextStyles.headline),
@@ -342,231 +415,302 @@ class _ProfileCustomizationScreenState
                   ),
                   const SizedBox(height: 20),
                   _profilePreview(progress),
-                  Wrap(
-                    spacing: 8,
+                  const SizedBox(height: 12),
+                  Row(
                     children: [
-                      TextButton.icon(
-                        onPressed: () => _enlargePreview(progress),
-                        icon: const Icon(Icons.zoom_in),
-                        label: const Text('Ampliar prévia'),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _enlargePreview(progress),
+                          icon: const Icon(Icons.zoom_in),
+                          label: const Text('Ampliar prévia'),
+                        ),
                       ),
-                      TextButton.icon(
+                      const SizedBox(width: 8),
+                      IconButton.outlined(
                         onPressed: _saving || _picking
                             ? null
                             : _restoreAppearance,
                         icon: const Icon(Icons.undo),
-                        label: const Text('Restaurar aparência salva'),
+                        tooltip: 'Restaurar aparência salva',
                       ),
                     ],
-                  ),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      TextButton.icon(
-                        onPressed: _saving || _picking ? null : () => _pick(),
-                        icon: const Icon(Icons.photo_library_outlined),
-                        label: Text(_picking ? 'Abrindo…' : 'Escolher foto'),
-                      ),
-                      if (_photo != null || _avatar?.isNotEmpty == true)
-                        TextButton(
-                          onPressed: _saving || _picking
-                              ? null
-                              : () => setState(() {
-                                  _photo = null;
-                                  _removePhoto = true;
-                                }),
-                          child: const Text('Restaurar foto padrão'),
-                        ),
-                    ],
-                  ),
-                  Text(
-                    'A foto fica visível nas suas publicações quando seu perfil é público.',
-                    style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
-                    controller: _name,
-                    enabled: !_saving,
-                    maxLength: 40,
-                    onChanged: (_) => setState(() {}),
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome de exibição',
-                    ),
-                  ),
-                  TextField(
-                    controller: _bio,
-                    enabled: !_saving,
-                    maxLength: 120,
-                    maxLines: 3,
-                    onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(labelText: 'Sobre você'),
-                  ),
-                  _heading('Tema do perfil'),
-                  ThemeChoices(
-                    selected: _style.profileTheme,
-                    founder: _founder,
-                    allowFollowApp: true,
-                    onSelected: _saving
-                        ? null
-                        : (id) => setState(
-                            () => _style = _style.copyWith(profileTheme: id),
-                          ),
-                  ),
-                  _heading('Moldura da foto'),
-                  _options(
-                    ProfileStyle.frames,
-                    _style.frame,
-                    (id) => _style = _style.copyWith(frame: id),
-                  ),
-                  _heading('Animação da moldura'),
-                  ProfileEffectPicker(
-                    options: ProfileStyle.frameEffects,
-                    selected: _style.frameEffect,
-                    optionsBuilder: (options) => _options(
-                      options,
-                      _style.frameEffect,
-                      (id) => _style = _style.copyWith(frameEffect: id),
-                    ),
-                  ),
-                  if (ProfileStyle.hasIntensity(_style.frameEffect))
-                    _intensity(frame: true),
-                  _heading('Capa do perfil'),
                   Wrap(
+                    key: _editorKey,
                     spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      OutlinedButton.icon(
-                        onPressed: _saving || _picking
-                            ? null
-                            : () => _pick(cover: true),
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
-                        label: const Text('Enviar minha capa'),
-                      ),
-                      if (_customCover)
-                        TextButton(
-                          onPressed: _saving || _picking
+                      for (final item in const [
+                        ('profile', 'Perfil', Icons.person_outline),
+                        ('photo', 'Foto', Icons.account_circle_outlined),
+                        ('cover', 'Capa', Icons.wallpaper_rounded),
+                        ('badges', 'Selos', Icons.workspace_premium_outlined),
+                      ])
+                        ChoiceChip(
+                          selected: _section == item.$1,
+                          showCheckmark: false,
+                          avatar: Icon(
+                            item.$3,
+                            size: 18,
+                            color: _section == item.$1
+                                ? context.pbhColors.onAccent
+                                : Colors.white,
+                          ),
+                          label: Text(item.$2),
+                          labelStyle: TextStyle(
+                            color: _section == item.$1
+                                ? context.pbhColors.onAccent
+                                : Colors.white,
+                          ),
+                          onSelected: _saving || _picking
                               ? null
-                              : () => setState(() {
-                                  _coverPhoto = null;
-                                  _removeCover = true;
-                                }),
-                          child: const Text('Usar capa do PBH'),
+                              : (_) => setState(() => _section = item.$1),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Use uma imagem horizontal. PNG, JPEG ou WebP, até 5 MB. Ela será ajustada ao centro da capa.',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  _options(
-                    ProfileStyle.covers,
-                    _customCover ? '' : _style.cover,
-                    (id) {
-                      _style = _style.copyWith(cover: id);
-                      _coverPhoto = null;
-                      _removeCover = true;
-                    },
-                  ),
-                  _heading('Animação sobre a capa'),
-                  Text(
-                    'Os efeitos também aparecem sobre a sua capa enviada. Veja a prévia no topo.',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  ProfileEffectPicker(
-                    options: ProfileStyle.coverEffects,
-                    selected: _style.coverEffect,
-                    optionsBuilder: (options) => _options(
-                      options,
-                      _style.coverEffect,
-                      (id) => _style = _style.copyWith(coverEffect: id),
+                  if (_section == 'photo') ...[
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        TextButton.icon(
+                          onPressed: _saving || _picking ? null : () => _pick(),
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: Text(_picking ? 'Abrindo…' : 'Escolher foto'),
+                        ),
+                        if (_photo != null || _avatar?.isNotEmpty == true)
+                          TextButton(
+                            onPressed: _saving || _picking
+                                ? null
+                                : () => setState(() {
+                                    _photo = null;
+                                    _removePhoto = true;
+                                  }),
+                            child: const Text('Restaurar foto padrão'),
+                          ),
+                      ],
                     ),
-                  ),
-                  if (ProfileStyle.hasIntensity(_style.coverEffect))
-                    _intensity(frame: false),
-                  _heading('Título'),
-                  DropdownButtonFormField<String>(
-                    initialValue: _style.title,
-                    isExpanded: true,
-                    items: [
-                      const DropdownMenuItem(
-                        value: 'member',
-                        child: Text('Membro do PBH'),
-                      ),
-                      if (_founder)
-                        const DropdownMenuItem(
-                          value: 'founder',
-                          child: Text('Fundador do PBH'),
-                        ),
-                      for (final badge in progress.earned)
-                        DropdownMenuItem(
-                          value: badge.id,
-                          child: Text(
-                            badge.title,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                    onChanged: _saving
-                        ? null
-                        : (value) => setState(
-                            () => _style = _style.copyWith(title: value),
-                          ),
-                  ),
-                  _heading('Selos em destaque'),
-                  Text(
-                    'Escolha até 3. A ordem de seleção será a ordem da sua vitrine.',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  if (progress.earned.isEmpty)
                     Text(
-                      'Conclua desafios para conquistar seus primeiros selos.',
+                      'A foto fica visível nas suas publicações quando seu perfil é público.',
                       style: AppTextStyles.bodySmall,
                     ),
-                  for (final badge in progress.earned)
-                    Builder(
-                      builder: (_) {
-                        final selected = _style
-                            .highlights(progress.earned)
-                            .map((e) => e.id)
-                            .toList();
-                        final index = selected.indexOf(badge.id);
-                        return CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          secondary: Icon(badge.icon, color: badge.color),
-                          title: Text(badge.title),
-                          subtitle: index < 0
+                  ],
+                  if (_section == 'profile') ...[
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _name,
+                      enabled: !_saving,
+                      maxLength: 40,
+                      onChanged: (_) => setState(() {}),
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome de exibição',
+                      ),
+                    ),
+                    TextField(
+                      controller: _bio,
+                      enabled: !_saving,
+                      maxLength: 120,
+                      maxLines: 3,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Sobre você',
+                      ),
+                    ),
+                    _heading('Tema do perfil'),
+                    ThemeChoices(
+                      selected: _style.profileTheme,
+                      founder: _founder,
+                      allowFollowApp: true,
+                      onSelected: _saving
+                          ? null
+                          : (id) => setState(
+                              () => _style = _style.copyWith(profileTheme: id),
+                            ),
+                    ),
+                  ],
+                  if (_section == 'photo') ...[
+                    _heading('Moldura da foto'),
+                    _options(
+                      ProfileStyle.frames,
+                      _style.frame,
+                      (id) => _style = _style.copyWith(frame: id),
+                    ),
+                    _heading('Animação da moldura'),
+                    ProfileEffectPicker(
+                      options: ProfileStyle.frameEffects,
+                      selected: _style.frameEffect,
+                      optionsBuilder: (options) => _options(
+                        options,
+                        _style.frameEffect,
+                        (id) => _style = _style.copyWith(frameEffect: id),
+                      ),
+                    ),
+                    if (ProfileStyle.hasIntensity(_style.frameEffect))
+                      _intensity(frame: true),
+                  ],
+                  if (_section == 'cover') ...[
+                    _heading('Capa do perfil'),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _saving || _picking
                               ? null
-                              : Text('Destaque ${index + 1}'),
-                          value: index >= 0,
-                          onChanged: _saving
-                              ? null
-                              : (value) {
-                                  if (value == true && selected.length >= 3) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Remova um selo para escolher outro. O limite é 3.',
-                                        ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  setState(() {
-                                    value == true
-                                        ? selected.add(badge.id)
-                                        : selected.remove(badge.id);
-                                    _style = _style.copyWith(
-                                      featured: selected,
-                                    );
-                                  });
-                                },
+                              : () => _pick(cover: true),
+                          icon: const Icon(Icons.add_photo_alternate_outlined),
+                          label: const Text('Enviar minha capa'),
+                        ),
+                        if (_customCover)
+                          TextButton(
+                            onPressed: _saving || _picking
+                                ? null
+                                : () => setState(() {
+                                    _coverPhoto = null;
+                                    _removeCover = true;
+                                  }),
+                            child: const Text('Usar capa do PBH'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'PNG, JPEG, WebP, GIF animado ou arte HTML, até 5 MB. O HTML deve conter suas imagens e estilos no próprio arquivo. Os efeitos continuam sobre a capa.',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    _options(
+                      ProfileStyle.covers,
+                      _customCover ? '' : _style.cover,
+                      (id) {
+                        _style = _style.copyWith(
+                          cover: id,
+                          coverEffect: id == 'bonfire' ? 'embers' : null,
                         );
+                        _coverPhoto = null;
+                        _removeCover = true;
                       },
                     ),
+                    _heading('Animação sobre a capa'),
+                    Text(
+                      'Os efeitos também aparecem sobre a sua capa enviada. Veja a prévia no topo.',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    ProfileEffectPicker(
+                      options: ProfileStyle.coverEffects,
+                      selected: _style.coverEffect,
+                      optionsBuilder: (options) => _options(
+                        options,
+                        _style.coverEffect,
+                        (id) => _style = _style.copyWith(coverEffect: id),
+                      ),
+                    ),
+                    if (_founder && _style.coverEffect == 'legacy') ...[
+                      _heading('Variante da nebulosa'),
+                      _options(
+                        ProfileStyle.nebulaVariants,
+                        _style.coverVariant,
+                        (id) => _style = _style.copyWith(coverVariant: id),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _style.coverVariant == 'astral'
+                            ? 'Auroras verticais, arcos de plasma e partículas ascendentes.'
+                            : _style.coverVariant == 'eclipse'
+                            ? 'Ondas de âmbar, magenta e violeta com estrelas cintilantes.'
+                            : 'Nuvens e ondas de roxo, azul e ciano com estrelas cintilantes.',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                    ],
+                    if (ProfileStyle.hasIntensity(_style.coverEffect))
+                      _intensity(frame: false),
+                  ],
+                  if (_section == 'badges') ...[
+                    _heading('Título'),
+                    DropdownButtonFormField<String>(
+                      initialValue: _style.title,
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem(
+                          value: 'member',
+                          child: Text('Membro do PBH'),
+                        ),
+                        if (_founder)
+                          const DropdownMenuItem(
+                            value: 'founder',
+                            child: Text('Fundador do PBH'),
+                          ),
+                        for (final badge in progress.earned)
+                          DropdownMenuItem(
+                            value: badge.id,
+                            child: Text(
+                              badge.title,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: _saving
+                          ? null
+                          : (value) => setState(
+                              () => _style = _style.copyWith(title: value),
+                            ),
+                    ),
+                    _heading('Selos em destaque'),
+                    Text(
+                      'Escolha até 3. A ordem de seleção será a ordem da sua vitrine.',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    if (progress.earned.isEmpty)
+                      Text(
+                        'Conclua desafios para conquistar seus primeiros selos.',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                    for (final badge in progress.earned)
+                      Builder(
+                        builder: (_) {
+                          final selected = _style
+                              .highlights(progress.earned)
+                              .map((e) => e.id)
+                              .toList();
+                          final index = selected.indexOf(badge.id);
+                          return CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            secondary: Icon(badge.icon, color: badge.color),
+                            title: Text(badge.title),
+                            subtitle: index < 0
+                                ? null
+                                : Text('Destaque ${index + 1}'),
+                            value: index >= 0,
+                            onChanged: _saving
+                                ? null
+                                : (value) {
+                                    if (value == true && selected.length >= 3) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Remova um selo para escolher outro. O limite é 3.',
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    setState(() {
+                                      value == true
+                                          ? selected.add(badge.id)
+                                          : selected.remove(badge.id);
+                                      _style = _style.copyWith(
+                                        featured: selected,
+                                      );
+                                    });
+                                  },
+                          );
+                        },
+                      ),
+                  ],
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 14),

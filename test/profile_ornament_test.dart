@@ -5,6 +5,75 @@ import 'package:pbh_oficial/models/profile_style.dart';
 import 'package:pbh_oficial/widgets/mobile_app_viewport.dart';
 
 void main() {
+  testWidgets('storm renders its strikes throughout a cycle on cover and rim', (
+    tester,
+  ) async {
+    for (final frame in [false, true]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: frame ? 96 : 390,
+              height: frame ? 96 : 132,
+              child: ProfileOrnament(
+                color: Colors.blue,
+                frame: frame,
+                effect: 'rain',
+                intensity: 1,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      for (var i = 0; i < 120; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'storm frame:$frame step:$i',
+        );
+      }
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets(
+    'all founder nebula variants render, update and respect reduced motion',
+    (tester) async {
+      for (final variant in ProfileStyle.nebulaVariants) {
+        for (final reduced in [false, true]) {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: MediaQuery(
+                data: MediaQueryData(disableAnimations: reduced),
+                child: Center(
+                  child: SizedBox(
+                    width: 390,
+                    height: 132,
+                    child: ProfileOrnament(
+                      color: Colors.cyan,
+                      effect: 'legacy',
+                      variant: variant.id,
+                      founder: true,
+                      intensity: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pump(const Duration(milliseconds: 16));
+          await tester.pump(const Duration(milliseconds: 1300));
+          expect(tester.takeException(), isNull, reason: variant.id);
+          expect(
+            tester.binding.transientCallbackCount,
+            reduced ? 0 : greaterThan(0),
+          );
+        }
+      }
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets('all cover effects repaint in the centered desktop viewport', (
     tester,
   ) async {
