@@ -41,6 +41,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _loadError;
   int _loadVersion = 0;
   bool? _tabActive;
+  String? _primaryLabel;
+  VoidCallback? _primaryAction;
+  String get _nextActionLabel =>
+      _primaryLabel ??
+      (_todayCompleted < _selectedHabitCount
+          ? 'Registrar os hábitos de hoje'
+          : _activeChallenge != null
+          ? 'Avançar no desafio ativo'
+          : 'Explorar uma nova aula');
+  void _openNextAction() {
+    if (_primaryAction != null) {
+      _primaryAction!();
+      return;
+    }
+    if (_todayCompleted < _selectedHabitCount) {
+      if (widget.onOpenHabits != null) {
+        widget.onOpenHabits!();
+      } else {
+        Navigator.of(
+          context,
+        ).push(fadeSlideRoute(HabitsScreen(onNavigate: widget.onNavigate)));
+      }
+    } else {
+      widget.onNavigate(_activeChallenge != null ? 1 : 2);
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -83,6 +109,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted)
       setState(() {
         _loading = true;
+        _primaryLabel = null;
+        _primaryAction = null;
         _loadError = null;
       });
     try {
@@ -180,26 +208,59 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             AnimatedEntry(
               delayMs: 60,
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '$greeting, $greetingName.',
-                    style: AppTextStyles.brandHeadline,
-                  ),
-                  if (isProjectLeader) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Líder do projeto PBH Oficial',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: context.pbhColors.orange,
-                      ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$greeting, $greetingName.',
+                          style: AppTextStyles.brandHeadline,
+                        ),
+                        if (isProjectLeader) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Líder do projeto PBH Oficial',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: context.pbhColors.orange,
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Seja intencional em cada escolha.',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ],
+                      ],
                     ),
-                  ] else ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Seja intencional em cada escolha.',
-                      style: AppTextStyles.bodySmall,
+                  ),
+                  if (!_loading && _loadError == null) ...[
+                    const SizedBox(width: 12),
+                    IconButton.outlined(
+                      tooltip: _nextActionLabel,
+                      onPressed: _openNextAction,
+                      style: IconButton.styleFrom(
+                        foregroundColor: context.pbhColors.orange,
+                        backgroundColor: context.pbhColors.surface,
+                        side: BorderSide(
+                          color: context.pbhColors.orange.withValues(
+                            alpha: .35,
+                          ),
+                        ),
+                        minimumSize: const Size(48, 48),
+                      ),
+                      icon: Icon(
+                        _nextActionLabel.startsWith('Continuar')
+                            ? Icons.play_circle_outline_rounded
+                            : _todayCompleted < _selectedHabitCount
+                            ? Icons.task_alt_rounded
+                            : _activeChallenge != null
+                            ? Icons.flag_outlined
+                            : Icons.play_circle_outline_rounded,
+                      ),
                     ),
                   ],
                 ],
@@ -303,6 +364,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             if (!_loading) ...[
               const SizedBox(height: 24),
               HomeJourneyPanel(
+                showAction: false,
+                onActionReady: (label, action) {
+                  if (mounted)
+                    setState(() {
+                      _primaryLabel = label;
+                      _primaryAction = action;
+                    });
+                },
                 key: ValueKey('journey-$_loadVersion'),
                 pendingHabits: (_selectedHabitCount - _todayCompleted).clamp(
                   0,

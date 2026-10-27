@@ -7,9 +7,11 @@ class LessonNotesEditor extends StatefulWidget {
     required this.programId,
     required this.lessonId,
     this.service,
+    this.focusNode,
   });
   final String programId, lessonId;
   final LessonNotesService? service;
+  final FocusNode? focusNode;
   @override
   State<LessonNotesEditor> createState() => _LessonNotesEditorState();
 }
@@ -183,6 +185,7 @@ class _LessonNotesEditorState extends State<LessonNotesEditor> {
               ),
             const SizedBox(height: 12),
             TextField(
+              focusNode: widget.focusNode,
               controller: _controller,
               enabled: !_loading && !_saving,
               minLines: 3,

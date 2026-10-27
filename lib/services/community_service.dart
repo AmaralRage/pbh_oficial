@@ -10,6 +10,8 @@ class CommunityComment {
     this.avatarUrl,
     required this.content,
     required this.createdAt,
+    this.editedAt,
+    this.replyToId,
   });
 
   final String id;
@@ -18,6 +20,8 @@ class CommunityComment {
   final String? avatarUrl;
   final String content;
   final DateTime createdAt;
+  final DateTime? editedAt;
+  final String? replyToId;
 
   factory CommunityComment.fromMap(Map<String, dynamic> row) =>
       CommunityComment(
@@ -27,6 +31,10 @@ class CommunityComment {
         avatarUrl: row['author_avatar_url'] as String?,
         content: row['content'] as String,
         createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
+        editedAt: DateTime.tryParse(
+          row['edited_at'] as String? ?? '',
+        )?.toLocal(),
+        replyToId: row['reply_to_id'] as String?,
       );
 }
 
@@ -214,6 +222,7 @@ class CommunityService {
     String postId,
     String content, {
     bool isSample = false,
+    String? replyToId,
   }) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para comentar.');
@@ -223,7 +232,22 @@ class CommunityService {
       postColumn: postId,
       'user_id': userId,
       'content': content.trim(),
+      if (replyToId != null) 'reply_to_id': replyToId,
     });
+  }
+
+  Future<void> editComment(
+    String id,
+    String content, {
+    bool isSample = false,
+  }) async {
+    if (_userId == null) throw StateError('Entre na sua conta para editar.');
+    if (content.trim().isEmpty || content.trim().length > 1000)
+      throw ArgumentError('Escreva até 1000 caracteres.');
+    await _client.rpc(
+      'edit_community_comment',
+      params: {'p_id': id, 'p_content': content.trim(), 'p_sample': isSample},
+    );
   }
 
   Future<void> deleteComment(String commentId, {bool isSample = false}) async {

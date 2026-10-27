@@ -471,6 +471,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(complete);
     await tester.pumpAndSettle();
+    expect(find.text('Escrever uma reflexão'), findsOneWidget);
+    expect(find.text('Definir meu próximo passo'), findsOneWidget);
+    await tester.tap(find.text('Voltar ao programa'));
+    await tester.pumpAndSettle();
     expect(find.text('1 de 4 aulas concluídas'), findsOneWidget);
     expect(find.text('Continuar programa'), findsOneWidget);
   });

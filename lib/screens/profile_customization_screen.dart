@@ -10,6 +10,7 @@ import '../services/profile_customization_service.dart';
 import '../widgets/profile_identity_card.dart';
 import '../widgets/profile_theme_scope.dart';
 import '../widgets/theme_choices.dart';
+import '../widgets/profile_effect_picker.dart';
 
 class ProfileCustomizationScreen extends StatefulWidget {
   const ProfileCustomizationScreen({super.key});
@@ -24,6 +25,7 @@ class _ProfileCustomizationScreenState
   final _name = TextEditingController();
   final _bio = TextEditingController();
   late ProfileStyle _style;
+  ProfileStyle? _savedStyle;
   ProfileUnlocks? _unlocks;
   String? _avatar;
   Uint8List? _photo;
@@ -69,6 +71,7 @@ class _ProfileCustomizationScreenState
           completed: unlocks.completed,
           earned: unlocks.earned,
         );
+        _savedStyle ??= _style;
       });
     } catch (_) {
       if (mounted)
@@ -171,6 +174,69 @@ class _ProfileCustomizationScreenState
     padding: const EdgeInsets.only(top: 26, bottom: 12),
     child: Text(label, style: AppTextStyles.titleMedium),
   );
+  Widget _profilePreview(ProfileUnlocks progress) => ProfileThemeScope(
+    themeId: _style.profileTheme,
+    founder: _founder,
+    builder: (context) => ProfileIdentityCard(
+      name: _name.text.trim().isEmpty ? 'Seu nome' : _name.text.trim(),
+      bio: _bio.text.trim(),
+      style: _style,
+      earned: progress.earned,
+      founder: _founder,
+      photo: _photo,
+      avatarUrl: _removePhoto ? null : _avatar,
+      coverPhoto: _coverPhoto,
+      coverUrl: _removeCover ? null : _coverUrl,
+    ),
+  );
+  Future<void> _enlargePreview(ProfileUnlocks progress) => showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Prévia do perfil'),
+          leading: IconButton(
+            tooltip: 'Fechar prévia',
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+        ),
+        body: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Use dois dedos ou o gesto de zoom para ampliar.'),
+            ),
+            Expanded(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 2.5,
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: _profilePreview(progress),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  void _restoreAppearance() {
+    if (_savedStyle == null) return;
+    setState(() {
+      _style = _savedStyle!;
+      _photo = null;
+      _coverPhoto = null;
+      _removePhoto = false;
+      _removeCover = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Alterações da aparência desfeitas.')),
+    );
+  }
+
   Widget _intensity({required bool frame}) {
     final value = frame ? _style.frameIntensity : _style.coverIntensity;
     final label = frame ? 'Intensidade da moldura' : 'Intensidade da capa';
@@ -275,22 +341,23 @@ class _ProfileCustomizationScreenState
                     style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: 20),
-                  ProfileThemeScope(
-                    themeId: _style.profileTheme,
-                    founder: _founder,
-                    builder: (context) => ProfileIdentityCard(
-                      name: _name.text.trim().isEmpty
-                          ? 'Seu nome'
-                          : _name.text.trim(),
-                      bio: _bio.text.trim(),
-                      style: _style,
-                      earned: progress.earned,
-                      founder: _founder,
-                      photo: _photo,
-                      avatarUrl: _removePhoto ? null : _avatar,
-                      coverPhoto: _coverPhoto,
-                      coverUrl: _removeCover ? null : _coverUrl,
-                    ),
+                  _profilePreview(progress),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => _enlargePreview(progress),
+                        icon: const Icon(Icons.zoom_in),
+                        label: const Text('Ampliar prévia'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _saving || _picking
+                            ? null
+                            : _restoreAppearance,
+                        icon: const Icon(Icons.undo),
+                        label: const Text('Restaurar aparência salva'),
+                      ),
+                    ],
                   ),
                   Wrap(
                     spacing: 8,
@@ -353,10 +420,14 @@ class _ProfileCustomizationScreenState
                     (id) => _style = _style.copyWith(frame: id),
                   ),
                   _heading('Animação da moldura'),
-                  _options(
-                    ProfileStyle.frameEffects,
-                    _style.frameEffect,
-                    (id) => _style = _style.copyWith(frameEffect: id),
+                  ProfileEffectPicker(
+                    options: ProfileStyle.frameEffects,
+                    selected: _style.frameEffect,
+                    optionsBuilder: (options) => _options(
+                      options,
+                      _style.frameEffect,
+                      (id) => _style = _style.copyWith(frameEffect: id),
+                    ),
                   ),
                   if (ProfileStyle.hasIntensity(_style.frameEffect))
                     _intensity(frame: true),
@@ -404,10 +475,14 @@ class _ProfileCustomizationScreenState
                     style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: 12),
-                  _options(
-                    ProfileStyle.coverEffects,
-                    _style.coverEffect,
-                    (id) => _style = _style.copyWith(coverEffect: id),
+                  ProfileEffectPicker(
+                    options: ProfileStyle.coverEffects,
+                    selected: _style.coverEffect,
+                    optionsBuilder: (options) => _options(
+                      options,
+                      _style.coverEffect,
+                      (id) => _style = _style.copyWith(coverEffect: id),
+                    ),
                   ),
                   if (ProfileStyle.hasIntensity(_style.coverEffect))
                     _intensity(frame: false),

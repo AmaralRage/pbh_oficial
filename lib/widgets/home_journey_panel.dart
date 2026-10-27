@@ -16,12 +16,16 @@ class HomeJourneyPanel extends StatefulWidget {
     required this.onContent,
     this.programService,
     this.reviewService,
+    this.showAction = true,
+    this.onActionReady,
   });
   final int pendingHabits;
   final bool activeChallenge;
   final VoidCallback onHabits, onChallenges, onContent;
   final ProgramService? programService;
   final WeeklyReviewService? reviewService;
+  final bool showAction;
+  final void Function(String label, VoidCallback action)? onActionReady;
   @override
   State<HomeJourneyPanel> createState() => _HomeJourneyPanelState();
 }
@@ -82,11 +86,31 @@ class _HomeJourneyPanelState extends State<HomeJourneyPanel> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+      if (mounted)
+        widget.onActionReady?.call(_actionLabel, () {
+          _next();
+        });
     }
+  }
+
+  String get _actionLabel {
+    if (widget.pendingHabits > 0) return 'Registrar os hábitos de hoje';
+    final p = _ongoing;
+    if (p != null) {
+      final next = _state?.nextLessonId(p);
+      return 'Continuar: ${p.lessons.firstWhere((l) => l.id == next, orElse: () => p.lessons.first).title}';
+    }
+    return widget.activeChallenge
+        ? 'Avançar no desafio ativo'
+        : 'Explorar uma nova aula';
   }
 
   Future<void> _next() async {
     if (_opening) return;
+    if (widget.pendingHabits > 0) {
+      widget.onHabits();
+      return;
+    }
     final p = _ongoing;
     if (p == null) {
       if (widget.pendingHabits > 0) {
@@ -158,14 +182,7 @@ class _HomeJourneyPanelState extends State<HomeJourneyPanel> {
       );
     }
     final p = _ongoing, review = _review;
-    final next = p == null ? null : _state?.nextLessonId(p);
-    final label = p != null
-        ? 'Continuar: ${p.lessons.firstWhere((l) => l.id == next, orElse: () => p.lessons.first).title}'
-        : widget.pendingHabits > 0
-        ? 'Registrar os hábitos de hoje'
-        : widget.activeChallenge
-        ? 'Avançar no desafio ativo'
-        : 'Explorar uma nova aula';
+    final label = _actionLabel;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -175,28 +192,29 @@ class _HomeJourneyPanelState extends State<HomeJourneyPanel> {
             service: _programs,
             onChanged: _load,
           ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Seu próximo passo',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                if (p != null) Text(p.title),
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  onPressed: _opening ? null : _next,
-                  icon: const Icon(Icons.arrow_forward),
-                  label: Text(label),
-                ),
-              ],
+        if (widget.showAction)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Seu próximo passo',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  if (p != null) Text(p.title),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: _opening ? null : _next,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: Text(label),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
         if (review != null)
           Card(
             child: Padding(

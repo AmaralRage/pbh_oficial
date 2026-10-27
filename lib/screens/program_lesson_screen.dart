@@ -10,6 +10,8 @@ import '../services/habit_reminder_service.dart';
 import '../services/program_service.dart';
 import '../widgets/lesson_media_card.dart';
 import '../widgets/lesson_notes_editor.dart';
+import '../services/personal_goal_service.dart';
+import '../widgets/text_entry_dialog.dart';
 
 class ProgramLessonScreen extends StatefulWidget {
   const ProgramLessonScreen({
@@ -32,6 +34,14 @@ class _ProgramLessonScreenState extends State<ProgramLessonScreen> {
   bool _addingHabit = false;
   bool _completed = false;
   String? _error;
+  final _notesKey = GlobalKey();
+  final _notesFocus = FocusNode();
+  @override
+  void dispose() {
+    _notesFocus.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +65,10 @@ class _ProgramLessonScreenState extends State<ProgramLessonScreen> {
   }
 
   Future<void> _complete() async {
+    if (_completed || widget.preview) {
+      Navigator.pop(context, true);
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -67,13 +81,124 @@ class _ProgramLessonScreenState extends State<ProgramLessonScreen> {
         );
       }
       if (!mounted) return;
-      Navigator.pop(context, true);
+      setState(() => _completed = true);
+      final action = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        builder: (ctx) => SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Aula concluída. Qual será seu próximo passo?',
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    leading: const Icon(Icons.edit_note),
+                    title: const Text('Escrever uma reflexão'),
+                    subtitle: const Text(
+                      'Registre o que você quer levar desta aula.',
+                    ),
+                    onTap: () => Navigator.pop(ctx, 'notes'),
+                  ),
+                  if (widget.lesson.habitKey != null)
+                    ListTile(
+                      leading: const Icon(Icons.add_task),
+                      title: const Text('Adicionar o hábito à rotina'),
+                      onTap: () => Navigator.pop(ctx, 'habit'),
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.flag_outlined),
+                    title: const Text('Definir meu próximo passo'),
+                    onTap: () => Navigator.pop(ctx, 'goal'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, 'back'),
+                    child: const Text('Voltar ao programa'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      if (!mounted) return;
+      if (action == 'back') {
+        Navigator.pop(context, true);
+      } else if (action == 'notes') {
+        final notesContext = _notesKey.currentContext;
+        if (notesContext != null)
+          await Scrollable.ensureVisible(
+            notesContext,
+            duration: Duration(
+              milliseconds: MediaQuery.disableAnimationsOf(context) ? 0 : 250,
+            ),
+          );
+        if (mounted) _notesFocus.requestFocus();
+      } else if (action == 'habit') {
+        await _addHabit();
+      } else if (action == 'goal') {
+        await _setNextStep();
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Não foi possível salvar. Tente novamente.');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _setNextStep() async {
+    final goals = PersonalGoalService();
+    try {
+      widget.service.ensureCurrentAccount();
+      final current = await goals.load();
+      widget.service.ensureCurrentAccount();
+      if (!mounted) return;
+      final suggested = widget.lesson.practice;
+      final result = await showDialog<String>(
+        context: context,
+        builder: (_) => TextEntryDialog(
+          title: current == null
+              ? 'Meu próximo passo'
+              : 'Próximo passo: ${current['title']}',
+          initialText:
+              current?['next_step'] as String? ??
+              suggested.substring(0, suggested.length.clamp(0, 300)),
+          maxLength: 300,
+          hint: 'Uma ação possível para hoje',
+          saveLabel: 'Salvar próximo passo',
+          description: current?['is_public'] == true
+              ? 'Seu objetivo é público. Este próximo passo também ficará visível.'
+              : 'Este próximo passo ficará privado na sua conta.',
+        ),
+      );
+      if (result == null || result.isEmpty || !mounted) return;
+      widget.service.ensureCurrentAccount();
+      final title = 'Praticar: ${widget.lesson.title}';
+      await goals.save(
+        current?['title'] as String? ??
+            title.substring(0, title.length.clamp(0, 180)),
+        result,
+        current?['is_public'] == true,
+      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Próximo passo salvo no seu objetivo pessoal.'),
+          ),
+        );
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => _error =
+              'Entre na sua conta e confira a conexão para salvar seu próximo passo.',
+        );
     }
   }
 
@@ -187,6 +312,8 @@ class _ProgramLessonScreenState extends State<ProgramLessonScreen> {
             if (_error != null) ...[Text(_error!), const SizedBox(height: 12)],
             if (!widget.preview) ...[
               LessonNotesEditor(
+                key: _notesKey,
+                focusNode: _notesFocus,
                 programId: widget.program.id,
                 lessonId: lesson.id,
                 service: widget.service.notesService(),

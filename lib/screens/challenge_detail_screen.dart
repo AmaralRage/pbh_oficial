@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/challenge_celebration.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/theme/app_colors.dart';
@@ -97,6 +98,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       return;
     }
     final previous = _todayComplete;
+    final wasCompleted = _challenge.status == ChallengeStatus.completed;
     setState(() {
       _todayComplete = !_todayComplete;
       _busy = true;
@@ -104,6 +106,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     try {
       await _service.toggleToday(_challenge.id, previous);
       await _load();
+      if (mounted &&
+          _error == null &&
+          !wasCompleted &&
+          _challenge.status == ChallengeStatus.completed) {
+        await ChallengeCelebration.show(context, _challenge);
+      }
     } catch (error) {
       if (mounted) {
         setState(() => _todayComplete = previous);

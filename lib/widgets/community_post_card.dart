@@ -9,6 +9,7 @@ import '../core/theme/app_text_styles.dart';
 import '../models/community_post_model.dart';
 import '../models/community_topics.dart';
 import 'community_comment_avatar.dart';
+import 'text_entry_dialog.dart';
 import '../services/community_service.dart';
 import '../services/minute_clock.dart';
 import '../screens/public_member_profile_screen.dart';
@@ -36,6 +37,8 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     with SingleTickerProviderStateMixin {
   final _service = CommunityService();
   final _commentController = TextEditingController();
+  CommunityComment? _replyTarget;
+  final _commentEditDrafts = <String, String>{};
   late bool _liked;
   late int _likeCount;
   late int _commentCount;
@@ -378,28 +381,67 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                                 ),
                                 subtitle: Padding(
                                   padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    comment.content,
-                                    style: AppTextStyles.bodySmall,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (comment.replyToId != null)
+                                        Text(
+                                          'Em resposta a ${comments.where((c) => c.id == comment.replyToId).map((c) => c.author).firstOrNull ?? 'um comentário anterior'}',
+                                          style: AppTextStyles.statLabel,
+                                        ),
+                                      Text(
+                                        comment.content,
+                                        style: AppTextStyles.bodySmall,
+                                      ),
+                                      if (comment.editedAt != null)
+                                        Text(
+                                          'editado',
+                                          style: AppTextStyles.statLabel,
+                                        ),
+                                    ],
                                   ),
                                 ),
-                                trailing:
-                                    widget.isAuthenticated &&
-                                        comment.userId == _service.currentUserId
-                                    ? IconButton(
-                                        tooltip: 'Excluir meu comentário',
-                                        onPressed: _busy
-                                            ? null
-                                            : () => _deleteComment(
-                                                comment,
-                                                comments,
-                                                refreshSheet,
-                                              ),
-                                        icon: Icon(
-                                          Icons.delete_outline_rounded,
-                                          color: context.pbhColors.textTertiary,
-                                          size: 20,
-                                        ),
+                                trailing: widget.isAuthenticated
+                                    ? PopupMenuButton<String>(
+                                        tooltip: 'Opções do comentário',
+                                        enabled: !_busy,
+                                        itemBuilder: (_) => [
+                                          const PopupMenuItem(
+                                            value: 'reply',
+                                            child: Text('Responder'),
+                                          ),
+                                          if (comment.userId ==
+                                              _service.currentUserId) ...[
+                                            const PopupMenuItem(
+                                              value: 'edit',
+                                              child: Text('Editar'),
+                                            ),
+                                            const PopupMenuItem(
+                                              value: 'delete',
+                                              child: Text('Excluir'),
+                                            ),
+                                          ],
+                                        ],
+                                        onSelected: (value) {
+                                          if (_busy) return;
+                                          if (value == 'reply')
+                                            refreshSheet(
+                                              () => _replyTarget = comment,
+                                            );
+                                          else if (value == 'edit')
+                                            _editComment(
+                                              comment,
+                                              comments,
+                                              refreshSheet,
+                                            );
+                                          else
+                                            _deleteComment(
+                                              comment,
+                                              comments,
+                                              refreshSheet,
+                                            );
+                                        },
                                       )
                                     : null,
                               );
@@ -407,6 +449,23 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                           ),
                   ),
                   const SizedBox(height: 12),
+                  if (widget.isAuthenticated && _replyTarget != null)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Respondendo a ${_replyTarget!.author}',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Cancelar resposta',
+                          onPressed: () =>
+                              refreshSheet(() => _replyTarget = null),
+                          icon: const Icon(Icons.close, size: 18),
+                        ),
+                      ],
+                    ),
                   if (widget.isAuthenticated)
                     Row(
                       children: [
@@ -481,15 +540,17 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     StateSetter refreshSheet,
   ) async {
     final content = _commentController.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty || _busy) return;
     setState(() => _busy = true);
     try {
       await _service.addComment(
         widget.post.id,
         content,
         isSample: widget.post.isSample,
+        replyToId: _replyTarget?.id,
       );
       _commentController.clear();
+      _replyTarget = null;
       final visibleLimit = comments.length < 30 ? 30 : comments.length + 1;
       final refreshed = await _service.fetchComments(
         widget.post.id,
@@ -506,6 +567,49 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       if (mounted) _showError(error);
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _editComment(
+    CommunityComment comment,
+    List<CommunityComment> comments,
+    StateSetter refreshSheet,
+  ) async {
+    final edited = await showDialog<String>(
+      context: context,
+      builder: (_) => TextEntryDialog(
+        title: 'Editar comentário',
+        initialText: _commentEditDrafts[comment.id] ?? comment.content,
+        maxLength: 1000,
+      ),
+    );
+    if (edited == null || edited == comment.content || !mounted) return;
+    _commentEditDrafts[comment.id] = edited;
+    setState(() => _busy = true);
+    refreshSheet(() {});
+    try {
+      await _service.editComment(
+        comment.id,
+        edited,
+        isSample: widget.post.isSample,
+      );
+      _commentEditDrafts.remove(comment.id);
+      final updated = await _service.fetchComments(
+        widget.post.id,
+        isSample: widget.post.isSample,
+        limit: comments.length < 30 ? 30 : comments.length,
+      );
+      comments
+        ..clear()
+        ..addAll(updated);
+      refreshSheet(() {});
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        refreshSheet(() {});
+      }
     }
   }
 
