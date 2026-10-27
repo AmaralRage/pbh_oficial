@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -29,6 +30,86 @@ class _PaletteProbeState extends State<PaletteProbe> {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'reduced effects survive service recreation on the same device',
+    () async {
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.empty();
+      final first = AppearanceService();
+      await first.bind(null);
+      await first.setReducedEffects(true);
+      final next = AppearanceService();
+      await next.bind(null);
+      expect(next.reducedEffects, isTrue);
+      first.dispose();
+      next.dispose();
+    },
+  );
+  testWidgets(
+    'rendered chips remain readable with enlarged text in every palette',
+    (tester) async {
+      for (final palette in PbhPalette.catalog) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.forPalette(palette),
+            home: MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+              child: Scaffold(
+                body: Wrap(
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Choice'),
+                      selected: false,
+                      onSelected: (_) {},
+                    ),
+                    ChoiceChip(
+                      label: const Text('Chosen'),
+                      selected: true,
+                      onSelected: (_) {},
+                    ),
+                    FilterChip(
+                      label: const Text('Filter'),
+                      selected: false,
+                      onSelected: (_) {},
+                    ),
+                    FilterChip(
+                      label: const Text('Filtered'),
+                      selected: true,
+                      onSelected: (_) {},
+                    ),
+                    const ChoiceChip(label: Text('Disabled'), selected: false),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        for (final label in ['Choice', 'Filter', 'Disabled']) {
+          expect(
+            tester
+                .renderObject<RenderParagraph>(find.text(label))
+                .text
+                .style!
+                .color,
+            palette.textPrimary,
+            reason: '${palette.id}:$label',
+          );
+        }
+        for (final label in ['Chosen', 'Filtered']) {
+          expect(
+            tester
+                .renderObject<RenderParagraph>(find.text(label))
+                .text
+                .style!
+                .color,
+            palette.onAccent,
+            reason: '${palette.id}:$label',
+          );
+        }
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
   testWidgets('palettes have readable text and founder remains exclusive', (
     tester,
   ) async {
@@ -40,11 +121,11 @@ void main() {
     for (final palette in PbhPalette.catalog) {
       final theme = AppTheme.forPalette(palette);
       final chipLabel = WidgetStateProperty.resolveAs(
-        theme.chipTheme.labelStyle!,
+        theme.chipTheme.labelStyle!.color!,
         {WidgetState.selected},
       );
       expect(
-        contrast(chipLabel.color!, theme.chipTheme.selectedColor!),
+        contrast(chipLabel, theme.chipTheme.selectedColor!),
         greaterThanOrEqualTo(4.5),
         reason: '${palette.id}: filtro selecionado',
       );

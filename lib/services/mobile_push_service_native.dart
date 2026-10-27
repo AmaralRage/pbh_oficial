@@ -8,6 +8,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'initial_notification_permission.dart';
+import 'routine_local_notification_scheduler.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleListener;
 
 class MobilePushService {
   static bool get isSupported => Platform.isAndroid;
@@ -24,6 +26,7 @@ class MobilePushService {
   static StreamSubscription<String>? _refresh;
   static StreamSubscription<RemoteMessage>? _messages;
   static Future<void> _pending = Future.value();
+  static AppLifecycleListener? _lifecycle;
   static final _notifications = FlutterLocalNotificationsPlugin();
 
   static Future<String> _installation() async {
@@ -75,7 +78,7 @@ class MobilePushService {
             enableVibration: false,
           ),
         );
-        _messages ??= FirebaseMessaging.onMessage.listen((message) {
+        _messages ??= FirebaseMessaging.onMessage.listen((message) async {
           if (_pausedUser == _client?.auth.currentUser?.id &&
               _pausedUser != null) {
             return;
@@ -84,7 +87,15 @@ class MobilePushService {
             return;
           final notice = message.notification;
           if (notice == null) return;
-          final silent = message.data['silent'] == 'true';
+          if (!await deviceEnabled) return;
+          final sound =
+              await SharedPreferencesAsync().getBool(
+                'pbh.notifications.${_client!.auth.currentUser?.id}.sound',
+              ) ??
+              true;
+          if (_client?.auth.currentUser?.id != message.data['recipient_id'])
+            return;
+          final silent = message.data['silent'] == 'true' || !sound;
           unawaited(
             _notifications.show(
               48000,
@@ -124,6 +135,7 @@ class MobilePushService {
       (_) => _syncSoon(),
     );
     _syncSoon();
+    _lifecycle ??= AppLifecycleListener(onResume: _syncSoon);
     unawaited(_requestInitialPermission());
   }
 
@@ -148,7 +160,23 @@ class MobilePushService {
       InitialNotificationPermission.enabledKey,
       false,
     );
-    await unregister();
+    try {
+      await unregister();
+    } finally {
+      await RoutineLocalNotificationScheduler.cancel();
+    }
+  }
+
+  static Future<void> setSound(bool enabled) async {
+    final account = _client?.auth.currentUser?.id ?? 'guest';
+    await SharedPreferencesAsync().setBool(
+      'pbh.notifications.$account.sound',
+      enabled,
+    );
+    if (_ready && await deviceEnabled) {
+      await _pending;
+      await _sync();
+    }
   }
 
   static void _syncSoon() {
@@ -179,8 +207,16 @@ class MobilePushService {
     final installation = await _installation();
     if (client.auth.currentUser?.id != user) return false;
     await client.rpc(
-      'register_native_push',
-      params: {'p_installation_id': installation, 'p_token': token},
+      'register_native_push_v2',
+      params: {
+        'p_installation_id': installation,
+        'p_token': token,
+        'p_sound_enabled':
+            await SharedPreferencesAsync().getBool(
+              'pbh.notifications.$user.sound',
+            ) ??
+            true,
+      },
     );
     return true;
   }

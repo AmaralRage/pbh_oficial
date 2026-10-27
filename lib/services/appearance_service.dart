@@ -16,6 +16,14 @@ class AppearanceService extends ChangeNotifier {
   String? _account;
   PbhPalette _palette = PbhPalette.catalog.first;
   PbhPalette get palette => _palette;
+  bool _reducedEffects = false;
+  bool get reducedEffects => _reducedEffects;
+  Future<void> setReducedEffects(bool value) async {
+    await storage.setBool('pbh.appearance.reduced_effects', value);
+    _reducedEffects = value;
+    notifyListeners();
+  }
+
   bool get founder => AuthService.isProjectLeader(_client?.auth.currentUser);
   Future<void> bind(SupabaseClient? client) async {
     await _subscription?.cancel();
@@ -38,6 +46,8 @@ class AppearanceService extends ChangeNotifier {
     String? cached;
     try {
       cached = await storage.getString('pbh.appearance.$account');
+      _reducedEffects =
+          await storage.getBool('pbh.appearance.reduced_effects') ?? false;
     } catch (_) {}
     if (version != _generation) return;
     final remote = user?.userMetadata?['app_theme'];

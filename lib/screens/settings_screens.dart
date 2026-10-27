@@ -103,6 +103,17 @@ class _NotificationSettingsScreenState
   Future<void> _toggleSound(bool value) async {
     setState(() => _sound = value);
     await NotificationPreferences.setSound(value);
+    if (MobilePushService.isSupported) {
+      try {
+        await MobilePushService.setSound(value);
+      } catch (_) {
+        if (mounted)
+          setState(
+            () => _pushStatus =
+                'Som salvo neste aparelho. A sincronização será tentada ao reabrir o app.',
+          );
+      }
+    }
   }
 
   Future<void> _activatePush() async {

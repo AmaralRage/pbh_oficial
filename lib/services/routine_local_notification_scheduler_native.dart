@@ -5,6 +5,9 @@ import 'package:timezone/data/latest_all.dart' as timezone_data;
 import 'package:timezone/timezone.dart' as timezone;
 
 import 'routine_local_reminder.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'initial_notification_permission.dart';
 
 class RoutineLocalNotificationScheduler {
   static const _channelId = 'pbh_habit_routine';
@@ -75,6 +78,15 @@ class RoutineLocalNotificationScheduler {
     List<RoutineLocalReminder> reminders,
   ) async {
     await _initialize();
+    final storage = SharedPreferencesAsync();
+    if (await storage.getBool(InitialNotificationPermission.enabledKey) ==
+        false) {
+      await cancel();
+      return;
+    }
+    final account = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
+    final sound =
+        await storage.getBool('pbh.notifications.$account.sound') ?? true;
     for (final id in _notificationIds) {
       await _plugin.cancel(id);
     }
@@ -118,12 +130,14 @@ class RoutineLocalNotificationScheduler {
         next,
         NotificationDetails(
           android: AndroidNotificationDetails(
-            _channelId,
+            sound ? _channelId : '${_channelId}_silent',
             'Rotina de habitos',
             channelDescription:
                 'Lembretes personalizados para cada tarefa da rotina.',
             importance: Importance.high,
             priority: Priority.high,
+            playSound: sound,
+            enableVibration: sound,
             icon: 'ic_stat_pbh_prominent',
             color: const Color(0xFF6D28D9),
             largeIcon: DrawableResourceAndroidBitmap(
@@ -133,7 +147,7 @@ class RoutineLocalNotificationScheduler {
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: false,
-            presentSound: true,
+            presentSound: sound,
             threadIdentifier: 'pbh-habit-routine',
           ),
         ),

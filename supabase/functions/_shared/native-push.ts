@@ -3,6 +3,9 @@ import { importPKCS8, SignJWT } from 'npm:jose@6';
 
 type Announcement = { id: string; title: string; message: string; audience: string; sound_enabled?: boolean; destination_url?: string | null };
 let cached: { token: string; expires: number } | undefined;
+export function isNativePushSilent(announcementSound?: boolean, deviceSound?: boolean): boolean {
+  return announcementSound === false || deviceSound === false;
+}
 
 async function credentials() {
   const raw = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON');
@@ -30,7 +33,7 @@ export async function sendNativeAnnouncement(admin: SupabaseClient, announcement
   const expired: string[] = [];
   for (let offset = 0; ; offset += 100) {
     const { data: devices, error } = await admin.from('native_push_tokens')
-      .select('installation_id,user_id,token').order('installation_id').range(offset, offset + 99);
+      .select('installation_id,user_id,token,sound_enabled').order('installation_id').range(offset, offset + 99);
     if (error) throw error;
     if (!devices?.length) break;
     let profiles = admin.from('profiles').select('id').in('id', devices.map((d) => d.user_id));
@@ -47,10 +50,10 @@ export async function sendNativeAnnouncement(admin: SupabaseClient, announcement
       auth ??= await credentials();
       // Recheck ownership before delivery; logging out removes this record.
       const { data: current, error: currentError } = await admin.from('native_push_tokens')
-        .select('user_id,token').eq('installation_id', device.installation_id).maybeSingle();
+        .select('user_id,token,sound_enabled').eq('installation_id', device.installation_id).maybeSingle();
       if (currentError) throw currentError;
       if (!current || current.user_id !== device.user_id || current.token !== device.token) continue;
-      const silent = announcement.sound_enabled === false;
+      const silent = isNativePushSilent(announcement.sound_enabled, current.sound_enabled);
       let accepted = false;
       try {
         const response = await fetch(`https://fcm.googleapis.com/v1/projects/${auth.project}/messages:send`, {

@@ -77,14 +77,15 @@ class ProfileAchievementSeals extends StatefulWidget {
                   ),
                 ),
                 Text(
-                  'SELO CONQUISTADO',
+                  badge.kindLabel,
                   style: AppTextStyles.eyebrow
                       .copyWith(color: context.pbhColors.orangeLight)
                       .copyWith(color: badge.color),
                 ),
                 const SizedBox(height: 20),
                 LayoutBuilder(
-                  builder: (context, constraints) => badge.artAsset != null
+                  builder: (context, constraints) =>
+                      badge.artAsset != null && !reduced
                       ? DeferredSealArt(
                           preview: Image.asset(
                             badge.artAsset!,
@@ -114,6 +115,12 @@ class ProfileAchievementSeals extends StatefulWidget {
                   badge.description,
                   textAlign: TextAlign.center,
                   style: AppTextStyles.body.copyWith(height: 1.6),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Como conquistar: ${badge.requirement}',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySmall,
                 ),
                 if (badge.artAsset != null) ...[
                   const SizedBox(height: 16),
@@ -155,6 +162,7 @@ class _ProfileAchievementSealsState extends State<ProfileAchievementSeals> {
     // Prepare the engine after the profile has rendered, not on the tap.
     Future<void>.delayed(const Duration(milliseconds: 700), () {
       if (mounted &&
+          !MediaQuery.disableAnimationsOf(context) &&
           (ModalRoute.isCurrentOf(context) ?? true) &&
           widget.achievements.any((badge) => badge.htmlAsset != null)) {
         SupremeSealArt.warmUp();

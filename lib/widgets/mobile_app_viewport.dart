@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 
 /// Mantém as rotas e seus overlays dentro da mesma largura de celular.
 class MobileAppViewport extends StatelessWidget {
-  const MobileAppViewport({super.key, required this.child});
+  const MobileAppViewport({
+    super.key,
+    required this.child,
+    this.reduceEffects = false,
+  });
 
   static const double maxWidth = 430;
   final Widget child;
+  final bool reduceEffects;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -21,7 +26,10 @@ class MobileAppViewport extends StatelessWidget {
             height: constraints.maxHeight,
             child: ClipRect(
               child: MediaQuery(
-                data: media.copyWith(size: Size(width, media.size.height)),
+                data: media.copyWith(
+                  size: Size(width, media.size.height),
+                  disableAnimations: media.disableAnimations || reduceEffects,
+                ),
                 child: ColoredBox(
                   color: Theme.of(context).scaffoldBackgroundColor,
                   child: child,

@@ -45,8 +45,10 @@ class PbhOficialApp extends StatelessWidget {
         title: 'PBH Oficial',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.forPalette(AppearanceService.instance.palette),
-        builder: (context, child) =>
-            MobileAppViewport(child: child ?? const SizedBox.shrink()),
+        builder: (context, child) => MobileAppViewport(
+          reduceEffects: AppearanceService.instance.reducedEffects,
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: const AppStartupScreen(
           initialize: initializeApp,
           child: LaunchScreen(),

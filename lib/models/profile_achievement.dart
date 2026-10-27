@@ -22,6 +22,24 @@ class ProfileAchievement {
   final String? htmlAsset;
   final String? category;
   final String? artCaption;
+  String get kindLabel => id.startsWith('supreme_')
+      ? 'SELO CONCEDIDO'
+      : id == 'streak'
+      ? 'SELO DE DEDICAÇÃO'
+      : id == 'community'
+      ? 'MARCO DA COMUNIDADE'
+      : 'CONQUISTA DE DESAFIOS';
+  String get requirement => id.startsWith('supreme_')
+      ? 'Selo concedido pelo fundador ou reservado à identidade do fundador. Não é liberado apenas pela duração de um desafio.'
+      : id == 'platinum'
+      ? 'Concluir todos os desafios do catálogo.'
+      : id == 'streak'
+      ? 'Manter a sequência de dedicação indicada no selo.'
+      : id == 'challenges'
+      ? 'Concluir a quantidade de desafios indicada no título.'
+      : id == 'community'
+      ? 'Ter a quantidade de pessoas acompanhando sua jornada indicada no título.'
+      : 'Concluir o desafio correspondente a este selo.';
 
   static const challenges50 = ProfileAchievement(
     id: 'challenges',

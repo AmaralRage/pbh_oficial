@@ -369,6 +369,11 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
               ),
               const SizedBox(height: 24),
               Text('Troféus dos desafios', style: AppTextStyles.titleMedium),
+              const SizedBox(height: 6),
+              Text(
+                'Bronze: até 7 dias · Prata: até 14 dias · Ouro: acima de 14 dias. A platina exige concluir todo o catálogo.',
+                style: AppTextStyles.bodySmall,
+              ),
               const SizedBox(height: 12),
               FilterChipRow(
                 options: _achievementFilters,
@@ -989,13 +994,7 @@ class _AchievementCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _TrophyMedallion(
-                tier: tier,
-                size: tier == _TrophyTier.gold || tier == _TrophyTier.silver
-                    ? 64
-                    : 54,
-                locked: !unlocked,
-              ),
+              _TrophyMedallion(tier: tier, size: 64, locked: !unlocked),
               const SizedBox(width: 13),
               Expanded(
                 child: Column(
@@ -1027,7 +1026,7 @@ class _AchievementCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${tier.label} • Complete ${challenge.totalDays} dias',
+                      '${tier.label} • ${unlocked ? '${challenge.totalDays} dias concluídos' : challenge.achievementStatus}',
                       style: AppTextStyles.statLabel.copyWith(
                         color: tier.color,
                       ),
@@ -1047,7 +1046,7 @@ class _AchievementCard extends StatelessWidget {
                     const SizedBox(height: 5),
                     Text(
                       unlocked
-                          ? 'CONQUISTADO  •  +${tier.points} PONTOS'
+                          ? '${challenge.achievementStatus} • +${tier.points} pontos'
                           : active
                           ? '${challenge.currentDay}/${challenge.totalDays} dias • em andamento'
                           : 'Bloqueado • ${challenge.totalDays} dias',
@@ -1086,50 +1085,30 @@ class _TrophyMedallion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = tier.color;
     final artwork = switch (tier) {
       _TrophyTier.gold => 'assets/images/trofeu_ouro_pbh.png',
       _TrophyTier.silver => 'assets/images/trofeu_prata_pbh.png',
-      _ => null,
+      _TrophyTier.bronze => 'assets/images/trofeu_bronze_pbh.png',
+      _TrophyTier.platinum => 'assets/images/trofeu_platina_pbh.png',
     };
-    if (artwork != null) {
-      return RepaintBoundary(
-        child: Opacity(
-          opacity: locked ? .35 : 1,
-          child: SizedBox.square(
-            dimension: size,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(size * .2),
-              child: Image.asset(
-                artwork,
-                fit: BoxFit.contain,
-                cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
-                    .ceil(),
-                semanticLabel: locked
-                    ? 'Troféu de ${tier.label.toLowerCase()} PBH bloqueado'
-                    : 'Troféu de ${tier.label.toLowerCase()} PBH',
-              ),
+    return RepaintBoundary(
+      child: Opacity(
+        opacity: locked ? .35 : 1,
+        child: SizedBox.square(
+          dimension: size,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(size * .2),
+            child: Image.asset(
+              artwork,
+              fit: BoxFit.contain,
+              cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+                  .ceil(),
+              semanticLabel: locked
+                  ? 'Troféu de ${tier.label.toLowerCase()} PBH bloqueado'
+                  : 'Troféu de ${tier.label.toLowerCase()} PBH',
             ),
           ),
         ),
-      );
-    }
-    return Opacity(
-      opacity: locked ? .35 : 1,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color.withOpacity(.24), context.pbhColors.background],
-          ),
-          border: Border.all(color: color.withOpacity(locked ? .25 : .75)),
-          boxShadow: locked
-              ? null
-              : [BoxShadow(color: color.withOpacity(.16), blurRadius: 14)],
-        ),
-        child: Icon(tier.icon, color: color, size: size * .52),
       ),
     );
   }

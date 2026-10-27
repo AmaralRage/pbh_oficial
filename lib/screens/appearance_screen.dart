@@ -13,6 +13,7 @@ class AppearanceScreen extends StatefulWidget {
 class _AppearanceScreenState extends State<AppearanceScreen> {
   late String _selected = AppearanceService.instance.palette.id;
   bool _saving = false;
+  bool _effectsSaving = false;
   String? _error;
   Future<void> _save() async {
     setState(() {
@@ -58,6 +59,33 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                 'Escolha as cores de todas as telas. Veja a prévia aqui e aplique quando gostar.',
               ),
               const SizedBox(height: 24),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Efeitos reduzidos'),
+                subtitle: const Text(
+                  'Pausa animações decorativas e usa imagens estáticas nos troféus. Salvo neste aparelho.',
+                ),
+                value: AppearanceService.instance.reducedEffects,
+                onChanged: _effectsSaving
+                    ? null
+                    : (value) async {
+                        setState(() => _effectsSaving = true);
+                        try {
+                          await AppearanceService.instance.setReducedEffects(
+                            value,
+                          );
+                        } catch (_) {
+                          if (mounted)
+                            setState(
+                              () => _error =
+                                  'Não foi possível salvar a preferência de efeitos.',
+                            );
+                        } finally {
+                          if (mounted) setState(() => _effectsSaving = false);
+                        }
+                      },
+              ),
+              const SizedBox(height: 12),
               ThemeChoices(
                 selected: _selected,
                 founder: AppearanceService.instance.founder,

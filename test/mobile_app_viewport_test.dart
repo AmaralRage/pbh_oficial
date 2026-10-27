@@ -3,6 +3,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pbh_oficial/widgets/mobile_app_viewport.dart';
 
 void main() {
+  testWidgets('reduced effects preserve the system accessibility preference', (
+    tester,
+  ) async {
+    for (final system in [true, false]) {
+      for (final app in [true, false]) {
+        bool? reduced;
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: system),
+              child: MobileAppViewport(reduceEffects: app, child: child!),
+            ),
+            home: Builder(
+              builder: (context) {
+                reduced = MediaQuery.disableAnimationsOf(context);
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+        expect(reduced, system || app);
+      }
+    }
+  });
   for (final width in [390.0, 1920.0]) {
     testWidgets('viewport centers and reports its actual width on $width', (
       tester,

@@ -165,6 +165,10 @@ class _OrnamentPainter extends CustomPainter {
     // Whole cycles keep the loop seamless while every effect supports intensity.
     final t = (motion.value * (1 + (intensity * 3).round())) % 1;
     if (effect == 'none') return;
+    if (!frame && (effect == 'christmas' || effect == 'halloween')) {
+      _themedCover(canvas, size, t);
+      return;
+    }
     if (effect == 'halloween' ||
         effect == 'christmas' ||
         effect == 'new_year') {
@@ -438,6 +442,235 @@ class _OrnamentPainter extends CustomPainter {
         canvas.drawCircle(point, 3 + glow * 2, paint);
         paint.color = tint.withValues(alpha: .2 + glow * .65);
         canvas.drawCircle(point, .8 + glow * .6, paint);
+      }
+    }
+    canvas.restore();
+  }
+
+  // Canvas-only adaptation of the supplied cover demo. The real cover image
+  // remains below this transparent, clipped decoration; no sample background.
+  void _themedCover(Canvas canvas, Size size, double t) {
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    final angle = t * math.pi * 2;
+    final scale = (size.height / 230).clamp(.5, 1.5);
+    if (effect == 'christmas') {
+      const lights = [
+        Color(0xFFFF555E),
+        Color(0xFFF7E56C),
+        Color(0xFF6CFFAD),
+        Color(0xFF88CCFF),
+      ];
+      for (var i = 0; i < 11; i++) {
+        final x = (i + .5) * size.width / 11;
+        final y = (14 + math.sin(i * .9) * 8) * scale;
+        canvas.drawLine(
+          Offset(i * size.width / 11, 0),
+          Offset(x, y),
+          Paint()
+            ..color = const Color(0xFF5D6B79)
+            ..strokeWidth = 1,
+        );
+        final alpha = .65 + .35 * math.sin(angle * 2 + i);
+        final color = lights[i % lights.length];
+        final point = Offset(x, y);
+        final glowRadius = 12 * scale;
+        canvas.drawCircle(
+          point,
+          glowRadius,
+          Paint()
+            ..shader = RadialGradient(
+              colors: [
+                color.withValues(alpha: alpha * .45),
+                color.withValues(alpha: 0),
+              ],
+            ).createShader(Rect.fromCircle(center: point, radius: glowRadius)),
+        );
+        canvas.drawCircle(
+          point,
+          4.5 * scale,
+          Paint()..color = color.withValues(alpha: alpha),
+        );
+      }
+      _christmasTree(canvas, size, angle);
+      final count = (40 + intensity * 90).round().clamp(
+        0,
+        _weatherParticles.length,
+      );
+      for (var i = 0; i < count; i++) {
+        final p = _weatherParticles[i];
+        final phase = (p[1] + t * (1 + (p[2] * 2).round())) % 1;
+        final x =
+            p[0] * size.width + math.sin(angle * 3 + p[3] * 7) * 7 * scale;
+        final y = phase * (size.height + 30) - 15;
+        canvas.drawCircle(
+          Offset(x, y),
+          (1.1 + p[4] * 2.7) * scale,
+          Paint()..color = const Color(0xFFF2F9FF).withValues(alpha: .65),
+        );
+      }
+    } else {
+      final fogBounds = Rect.fromLTRB(
+        0,
+        size.height * .55,
+        size.width,
+        size.height,
+      );
+      canvas.drawRect(
+        fogBounds,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x00764D9A), Color(0x4DB58EE3)],
+          ).createShader(fogBounds),
+      );
+      canvas.drawCircle(
+        Offset(size.width * .85, size.height * .23),
+        25 * scale,
+        Paint()..color = const Color(0xFFF4A64C).withValues(alpha: .5),
+      );
+      final count = (16 + intensity * 32).round();
+      for (var i = 0; i < count; i++) {
+        final p = _weatherParticles[i];
+        final radius = (4 + p[4] * 8) * scale;
+        final span = size.width + radius * 6;
+        final x =
+            ((p[0] + t * (1 + (p[2] * 2).round())) % 1) * span - radius * 3;
+        if (p[7] >= .7) {
+          final point = Offset(
+            x,
+            size.height * .85 + math.sin(angle + p[3] * 7) * 10 * scale,
+          );
+          final bounds = Rect.fromCenter(
+            center: point,
+            width: radius * 10,
+            height: radius * 4,
+          );
+          canvas.drawOval(
+            bounds,
+            Paint()
+              ..shader = RadialGradient(
+                colors: [
+                  const Color(0xFF9B7EB3).withValues(alpha: .12),
+                  const Color(0xFF9B7EB3).withValues(alpha: 0),
+                ],
+              ).createShader(bounds),
+          );
+          continue;
+        }
+        final y =
+            size.height * (.12 + p[1] * .65) +
+            math.sin(angle * 4 + p[3] * 7) * 3 * scale;
+        final wing = math.sin(angle * 12 + p[3] * 7) * radius * .5;
+        canvas.save();
+        canvas.translate(x, y);
+        final bat = Path()
+          ..moveTo(0, 0)
+          ..quadraticBezierTo(-radius, -radius - wing, -radius * 2, 0)
+          ..quadraticBezierTo(-radius, -radius * .1, 0, radius * .25)
+          ..quadraticBezierTo(radius, -radius * .1, radius * 2, 0)
+          ..quadraticBezierTo(radius, -radius - wing, 0, 0)
+          ..close();
+        canvas.drawPath(bat, Paint()..color = const Color(0xFF120D24));
+        canvas.restore();
+      }
+    }
+    canvas.restore();
+  }
+
+  void _christmasTree(Canvas canvas, Size size, double angle) {
+    final scale = math.min(1.0, math.min(size.width / 540, size.height / 230));
+    canvas.save();
+    canvas.translate(size.width - 52 * scale, size.height - 12 * scale);
+    canvas.scale(scale);
+    canvas.drawRect(
+      const Rect.fromLTWH(-5, -26, 10, 25),
+      Paint()..color = const Color(0xFF54351D),
+    );
+    const greens = [Color(0xFF075C3E), Color(0xFF08754B), Color(0xFF0B6843)];
+    for (var k = 0; k < 3; k++) {
+      final y = -119.0 + k * 31;
+      final half = 29.0 + k * 12;
+      final branch = Path()
+        ..moveTo(0, y)
+        ..lineTo(-half, y + 61)
+        ..quadraticBezierTo(0, y + 53, half, y + 61)
+        ..close();
+      canvas.drawPath(branch, Paint()..color = greens[k]);
+    }
+    const ornaments = [
+      Color(0xFFFFDC6D),
+      Color(0xFFFF617E),
+      Color(0xFF78D9FF),
+      Color(0xFFF5F4FF),
+    ];
+    for (var i = 0; i < 19; i++) {
+      final y = -99.0 + (i % 5) * 17 + (i ~/ 5) * 3;
+      final spread = (y + 122) * .35;
+      final point = Offset(math.sin(i * 2.4) * spread, y);
+      final color = ornaments[i % 4];
+      final alpha = .55 + .45 * math.sin(angle * 3 + i * 1.7);
+      canvas.drawCircle(
+        point,
+        9,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              color.withValues(alpha: alpha * .4),
+              color.withValues(alpha: 0),
+            ],
+          ).createShader(Rect.fromCircle(center: point, radius: 9)),
+      );
+      canvas.drawCircle(
+        point,
+        2.5,
+        Paint()..color = color.withValues(alpha: alpha),
+      );
+    }
+    const starCenter = Offset(0, -125);
+    canvas.drawCircle(
+      starCenter,
+      20,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            const Color(0xFFFFDC67).withValues(alpha: .3),
+            const Color(0x00FFDC67),
+          ],
+        ).createShader(Rect.fromCircle(center: starCenter, radius: 20)),
+    );
+    final star = Path();
+    for (var i = 0; i < 8; i++) {
+      final a = i * math.pi / 4;
+      final r = i.isOdd ? 2.2 : 11.0;
+      final p = starCenter + Offset(math.cos(a), math.sin(a)) * r;
+      if (i == 0) {
+        star.moveTo(p.dx, p.dy);
+      } else {
+        star.lineTo(p.dx, p.dy);
+      }
+    }
+    canvas.drawPath(star..close(), Paint()..color = const Color(0xFFFFDF77));
+    const gifts = [
+      (-35.0, -16.0, 25.0, 20.0, Color(0xFFE74B68), Color(0xFFFFE1A0)),
+      (-8.0, -12.0, 22.0, 16.0, Color(0xFF557EF0), Color(0xFFF4CF74)),
+      (20.0, -20.0, 27.0, 24.0, Color(0xFFB66AF0), Color(0xFFFFE5A3)),
+    ];
+    for (final (x, y, w, h, color, ribbon) in gifts) {
+      canvas.drawRect(Rect.fromLTWH(x, y, w, h), Paint()..color = color);
+      final paint = Paint()..color = ribbon;
+      canvas.drawRect(Rect.fromLTWH(x + w * .43, y, w * .14, h), paint);
+      canvas.drawRect(Rect.fromLTWH(x, y + h * .4, w, 3), paint);
+      paint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      for (final tilt in [-.4, .4]) {
+        canvas.save();
+        canvas.translate(x + w * .5, y - 3);
+        canvas.rotate(tilt);
+        canvas.drawOval(const Rect.fromLTWH(-6, -3, 12, 6), paint);
+        canvas.restore();
       }
     }
     canvas.restore();

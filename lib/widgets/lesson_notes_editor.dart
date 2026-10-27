@@ -123,9 +123,64 @@ class _LessonNotesEditorState extends State<LessonNotesEditor> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Privadas, salvas neste aparelho e separadas por conta.',
+            Text(
+              _service.conflict
+                  ? 'Há outra versão na sua conta. Seu rascunho foi preservado neste aparelho. Copie o que deseja manter antes de abrir a versão da conta.'
+                  : _service.syncPending
+                  ? 'Salvas neste aparelho. Sincronização pendente; tente novamente com conexão.'
+                  : _service.canSync
+                  ? 'Privadas e sincronizadas com sua conta.'
+                  : 'Privadas, salvas neste aparelho. Entre na sua conta para sincronizar entre aparelhos.',
             ),
+            if (_service.conflict)
+              TextButton(
+                onPressed: _saving
+                    ? null
+                    : () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Abrir a versão da conta?'),
+                            content: const Text(
+                              'O texto do campo será substituído. Copie antes qualquer trecho que queira manter.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancelar'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Abrir'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed != true || !mounted) return;
+                        setState(() => _saving = true);
+                        try {
+                          final text = await _service.useRemote(
+                            widget.programId,
+                            widget.lessonId,
+                          );
+                          if (mounted)
+                            setState(() {
+                              _controller.text = text;
+                              _dirty = false;
+                              _error = null;
+                            });
+                        } catch (_) {
+                          if (mounted)
+                            setState(
+                              () => _error =
+                                  'Não foi possível carregar a versão da conta.',
+                            );
+                        } finally {
+                          if (mounted) setState(() => _saving = false);
+                        }
+                      },
+                child: const Text('Abrir versão da conta'),
+              ),
             const SizedBox(height: 12),
             TextField(
               controller: _controller,
@@ -147,10 +202,15 @@ class _LessonNotesEditorState extends State<LessonNotesEditor> {
                 ),
             ],
             FilledButton(
-              onPressed: _loading || _saving || !_dirty ? null : _save,
+              onPressed:
+                  _loading || _saving || (!_dirty && !_service.syncPending)
+                  ? null
+                  : _save,
               child: Text(
                 _saving
                     ? 'Salvando…'
+                    : _service.syncPending && !_dirty
+                    ? 'Tentar sincronizar'
                     : _dirty
                     ? 'Salvar anotação'
                     : _controller.text.isEmpty

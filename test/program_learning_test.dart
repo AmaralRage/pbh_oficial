@@ -317,6 +317,14 @@ void main() {
             'started': params['p_started'],
             'saved_at': params['p_saved_at'],
             'opened_at': params['p_opened_at'],
+            'completed_at': {
+              ...Map<String, dynamic>.from(
+                remote['completed_at'] as Map? ?? {},
+              ),
+              ...Map<String, dynamic>.from(
+                params['p_completed_at'] as Map? ?? {},
+              ),
+            },
             'completed': {
               ...List<String>.from(remote['completed'] as List),
               ...List<String>.from(params['p_completed'] as List),

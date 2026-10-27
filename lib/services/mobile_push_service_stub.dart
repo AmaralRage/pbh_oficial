@@ -9,4 +9,5 @@ class MobilePushService {
       throw UnsupportedError('Push nativo indisponível nesta plataforma.');
   static Future<void> unregister() async {}
   static Future<void> disable() async {}
+  static Future<void> setSound(bool enabled) async {}
 }

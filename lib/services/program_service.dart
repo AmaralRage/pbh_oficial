@@ -21,7 +21,7 @@ class ProgramProgress {
   final String savedAt;
   final String openedAt;
   final bool pending;
-  // Datas conhecidas neste aparelho; conclusões antigas não recebem datas inventadas.
+  // Datas sincronizadas quando conhecidas; conclusões antigas não recebem datas inventadas.
   final Map<String, String> completedAt;
   int completedCount(ProgramModel program) =>
       program.lessons.where((l) => completed.contains(l.id)).length;
@@ -169,7 +169,13 @@ class ProgramService {
       for (final row in rows) {
         final id = row['program_id'] as String;
         if (!result.containsKey(id)) continue;
-        final merged = result[id]!.merge(ProgramProgress.fromJson(row));
+        final remote = ProgramProgress.fromJson(row);
+        var merged = result[id]!.merge(remote);
+        if (merged.completedAt.entries.any(
+          (e) => remote.completedAt[e.key] != e.value,
+        )) {
+          merged = await _sync(id, merged);
+        }
         await _write(id, merged);
         result[id] = merged;
       }
@@ -241,13 +247,14 @@ class ProgramService {
     _checkAccount();
     final row = await _client
         .rpc(
-          'merge_content_progress',
+          'merge_content_progress_v2',
           params: {
             'p_program_id': id,
             'p_saved': progress.saved,
             'p_saved_at': progress.savedAt.isEmpty ? null : progress.savedAt,
             'p_started': progress.started,
             'p_completed': progress.completed.toList(),
+            'p_completed_at': progress.completedAt,
             'p_opened_at': progress.openedAt.isEmpty ? null : progress.openedAt,
           },
         )

@@ -217,7 +217,7 @@ class _HomeJourneyPanelState extends State<HomeJourneyPanel> {
                     review.previousHabits,
                   ),
                   _metric(
-                    'aulas concluídas neste aparelho',
+                    'aulas concluídas',
                     review.lessons,
                     review.previousLessons,
                   ),

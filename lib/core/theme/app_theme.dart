@@ -62,13 +62,13 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: palette.surface,
         selectedColor: palette.accent,
-        labelStyle: WidgetStateTextStyle.resolveWith(
-          (states) => TextStyle(
-            color: states.contains(WidgetState.selected)
+        labelStyle: TextStyle(
+          color: WidgetStateColor.resolveWith(
+            (states) => states.contains(WidgetState.selected)
                 ? palette.onAccent
                 : palette.textPrimary,
-            fontWeight: FontWeight.w600,
           ),
+          fontWeight: FontWeight.w600,
         ),
         secondaryLabelStyle: TextStyle(
           color: palette.onAccent,

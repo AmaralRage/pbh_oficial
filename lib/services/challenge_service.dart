@@ -458,6 +458,7 @@ class ChallengeService {
     );
     final joined = <String>{};
     final counts = <String, int>{};
+    final achieved = <String, DateTime>{};
     if (userId != null && !leaderCompleted) {
       final joinedRows = await _client
           .from('user_challenges')
@@ -465,6 +466,20 @@ class ChallengeService {
           .eq('user_id', userId);
       joined.addAll(joinedRows.map((row) => row['challenge_id'] as String));
       counts.addAll(await completionCounts());
+      try {
+        final dates =
+            await _client.rpc('my_challenge_achievement_dates') as List;
+        if (_userId != userId) throw StateError('A conta mudou.');
+        for (final date in dates) {
+          final parsed = DateTime.tryParse(
+            date['completed_on'] as String? ?? '',
+          );
+          if (parsed != null) achieved[date['challenge_id'] as String] = parsed;
+        }
+      } catch (_) {
+        if (_userId != userId) rethrow;
+        // Dates are optional for older databases; never invent a date.
+      }
     }
     return catalog.map((row) {
       final id = row['id'] as String;
@@ -488,6 +503,7 @@ class ChallengeService {
         description: row['description'] as String,
         totalDays: days,
         currentDay: count,
+        achievedOn: achieved[id],
         level: level,
         status: status,
         icon: _iconFor(row['icon_key'] as String),

@@ -1,5 +1,13 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { sendNativeAnnouncement } from './native-push.ts';
+import { sendNativeAnnouncement, isNativePushSilent } from './native-push.ts';
+
+Deno.test('either the member or the announcement can mute push sound', () => {
+  for (const [announcement, device, silent] of [
+    [true,true,false], [true,false,true], [false,true,true], [false,false,true],
+  ]) {
+    if (isNativePushSilent(announcement,device)!==silent) throw new Error('Sound preference ignored');
+  }
+});
 
 const announcement = { id: 'announcement', title: 'Test', message: 'Body', audience: 'admins' };
 const device = { installation_id: 'installation', user_id: 'member', token: 'private-device-token' };

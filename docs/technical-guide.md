@@ -1,5 +1,8 @@
 # PBH Oficial
 
+> Atualização de 27/10/2026: consulte também [sincronização, notificações e distribuição](reliability-and-release.md)
+> para as migrations novas, a assinatura e os APKs com nome padronizado.
+
 ## Executar no navegador
 
 Se `flutter run -d chrome` encerrar com `WipError -32000 Cannot find context with
