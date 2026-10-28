@@ -1,4 +1,7 @@
 import 'dart:ui' as ui;
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +10,48 @@ import 'package:pbh_oficial/services/supreme_seal_document.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'reopening platinum after an asset refresh rebuilds its sound bridge',
+    () async {
+      const asset = 'assets/images/Trofeu_Platina_PBH.html';
+      final original = await rootBundle.loadString(asset);
+      var revision = 'first-preview';
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMessageHandler('flutter/assets', (message) async {
+        final path = utf8.decode(
+          message!.buffer.asUint8List(
+            message.offsetInBytes,
+            message.lengthInBytes,
+          ),
+        );
+        if (path != asset) return null;
+        return ByteData.sublistView(
+          Uint8List.fromList(utf8.encode('$original<!--$revision-->')),
+        );
+      });
+      addTearDown(() {
+        messenger.setMockMessageHandler('flutter/assets', null);
+        rootBundle.evict(asset);
+      });
+      rootBundle.evict(asset);
+      final first = await supremeSealDocument(
+        reducedMotion: false,
+        celebrate: true,
+        assetPath: asset,
+      );
+      expect(first, contains('first-preview'));
+      revision = 'updated-preview';
+      rootBundle.evict(asset);
+      final updated = await supremeSealDocument(
+        reducedMotion: false,
+        celebrate: true,
+        assetPath: asset,
+      );
+      expect(updated, contains('updated-preview'));
+      expect(updated, contains("parent.postMessage('pbh-platinum-start','*')"));
+    },
+  );
   test(
     'mobile optimization preserves every trophy animation and script',
     () async {
@@ -20,7 +65,7 @@ void main() {
         completedIds: {'iron_body', 'digital_fast', 'daily_reading', 'wake_5'},
       );
       for (final badge in additional.where(
-        (badge) => badge.htmlAsset != null,
+        (badge) => badge.htmlAsset != null && badge.id != 'platinum',
       )) {
         final original = await rootBundle.loadString(badge.htmlAsset!);
         final optimized = await supremeSealDocument(
@@ -111,6 +156,45 @@ void main() {
       expect(source, contains('troféu cristalino azul e prata'));
       expect(source, contains('@keyframes sheen'));
       expect(source, isNot(contains('<section class="card">')));
+    },
+  );
+  test(
+    'platinum profile animation omits unlock sequence; celebration is opt-in',
+    () async {
+      const asset = 'assets/images/Trofeu_Platina_PBH.html';
+      final normal = await supremeSealDocument(
+        reducedMotion: false,
+        assetPath: asset,
+      );
+      final unlock = await supremeSealDocument(
+        reducedMotion: false,
+        assetPath: asset,
+        celebrate: true,
+      );
+      final reduced = await supremeSealDocument(
+        reducedMotion: true,
+        assetPath: asset,
+        celebrate: true,
+      );
+      for (final source in [normal, unlock, reduced]) {
+        expect(source, contains('var bm=document.getElementById("beams")'));
+        expect(source, isNot(contains('<div class="controls">')));
+        expect(source, isNot(contains('fonts.googleapis.com')));
+      }
+      expect(normal, isNot(contains('function play()')));
+      expect(normal, isNot(contains('pbh-platinum-start')));
+      expect(normal, isNot(contains('<canvas class="fx"')));
+      expect(normal, contains('@keyframes float'));
+      expect(unlock, contains('function play()'));
+      expect(unlock, contains("event.animationName!=='revealBadge'"));
+      expect(unlock, contains("parent.postMessage('pbh-platinum-start','*')"));
+      expect(unlock, contains('<canvas class="fx"'));
+      expect(reduced, isNot(contains('function play()')));
+      expect(reduced, isNot(contains('pbh-platinum-start')));
+      expect(reduced, contains('*{animation:none!important}'));
+      Directory('build').createSync(recursive: true);
+      File('build/platinum-profile-verified.html').writeAsStringSync(normal);
+      File('build/platinum-unlock-verified.html').writeAsStringSync(unlock);
     },
   );
   test(

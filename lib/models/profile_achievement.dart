@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'challenge_journey.dart';
 
 class ProfileAchievement {
   const ProfileAchievement({
@@ -32,7 +33,9 @@ class ProfileAchievement {
   String get requirement => id.startsWith('supreme_')
       ? 'Selo concedido pelo fundador ou reservado à identidade do fundador. Não é liberado apenas pela duração de um desafio.'
       : id == 'platinum'
-      ? 'Concluir todos os desafios do catálogo.'
+      ? 'Concluir todos os desafios da Jornada Original PBH (57 desafios).'
+      : id == 'knowledge_platinum'
+      ? 'Concluir os cinco desafios da Jornada do Conhecimento.'
       : id == 'streak'
       ? 'Manter a sequência de dedicação indicada no selo.'
       : id == 'challenges'
@@ -71,12 +74,25 @@ class ProfileAchievement {
     id: 'platinum',
     title: 'Platina PBH',
     description:
-        'Todos os troféus de desafios do catálogo foram conquistados. Um símbolo de dedicação, excelência e superação no PBH.',
+        'Todos os 57 desafios da Jornada Original PBH foram conquistados. Um símbolo de dedicação, excelência e superação no PBH.',
     icon: Icons.workspace_premium_rounded,
     color: Color(0xFFE4F4FF),
     artAsset: 'assets/images/trofeu_platina_pbh.png',
     htmlAsset: 'assets/images/Trofeu_Platina_PBH.html',
     category: 'PLATINA',
+  );
+
+  static const knowledgePlatinum = ProfileAchievement(
+    id: 'knowledge_platinum',
+    title: 'Mente desperta',
+    description:
+        'Você concluiu os cinco desafios da Jornada do Conhecimento: leitura, anotações, estudo, explicação e aplicação. Sua platina celebra o conhecimento colocado em prática.',
+    icon: Icons.workspace_premium_rounded,
+    color: Color(0xFFE4F4FF),
+    artAsset: 'assets/images/trofeu_platina_pbh.png',
+    htmlAsset: 'assets/images/Trofeu_Platina_PBH.html',
+    artCaption: 'JORNADA DO CONHECIMENTO • PLATINA PBH',
+    category: 'CONHECIMENTO',
   );
 
   static const supremeSeals = [
@@ -141,9 +157,12 @@ class ProfileAchievement {
     for (final seal in supremeSeals) {
       if (isProjectLeader || manualAwards.contains(seal.id)) badges.add(seal);
     }
-    if (totalChallenges > 0 && completedChallenges == totalChallenges) {
+    if (ChallengeJourney.original.unlocked(completedIds) ||
+        (totalChallenges == 57 && completedChallenges == 57)) {
       badges.add(platinum);
     }
+    if (ChallengeJourney.knowledge.unlocked(completedIds))
+      badges.add(knowledgePlatinum);
     for (final days in [
       5000,
       3650,

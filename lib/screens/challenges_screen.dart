@@ -4,6 +4,7 @@ import '../core/navigation/app_transitions.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/challenge_model.dart';
+import '../models/challenge_journey.dart';
 import '../models/profile_achievement.dart';
 import '../widgets/profile_achievement_seals.dart';
 import '../services/challenge_service.dart';
@@ -36,6 +37,12 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
   bool _loading = true;
   String? _error;
   List<ChallengeModel> _challenges = const [];
+  ChallengeJourney _journey = ChallengeJourney.original;
+  List<ChallengeModel> get _journeyChallenges =>
+      _challenges.where((c) => _journey.challengeIds.contains(c.id)).toList();
+  ProfileAchievement get _journeyPlatinum => _journey.id == 'knowledge'
+      ? ProfileAchievement.knowledgePlatinum
+      : ProfileAchievement.platinum;
   bool? _tabActive;
 
   @override
@@ -59,13 +66,12 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     'Bloqueados',
   ];
 
-  List<ChallengeModel> get _completedChallenges => _challenges
+  List<ChallengeModel> get _completedChallenges => _journeyChallenges
       .where((challenge) => challenge.status == ChallengeStatus.completed)
       .toList();
 
   bool get _supremeUnlocked =>
-      _challenges.isNotEmpty &&
-      _completedChallenges.length == _challenges.length;
+      _journey.unlocked(_completedChallenges.map((c) => c.id).toSet());
 
   int get _achievementPoints => _completedChallenges.fold<int>(
     _supremeUnlocked ? 100 : 0,
@@ -73,7 +79,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
   );
 
   ChallengeModel? get _activeChallenge {
-    for (final challenge in _challenges) {
+    for (final challenge in _journeyChallenges) {
       if (challenge.status == ChallengeStatus.active) return challenge;
     }
     return null;
@@ -115,20 +121,20 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
   List<ChallengeModel> get _filteredChallenges {
     final byStatus = switch (_filterIndex) {
       1 =>
-        _challenges
+        _journeyChallenges
             .where((challenge) => challenge.status == ChallengeStatus.active)
             .toList(),
       2 =>
-        _challenges
+        _journeyChallenges
             .where(
               (challenge) => challenge.status == ChallengeStatus.notStarted,
             )
             .toList(),
       3 =>
-        _challenges
+        _journeyChallenges
             .where((challenge) => challenge.status == ChallengeStatus.completed)
             .toList(),
-      _ => _challenges,
+      _ => _journeyChallenges,
     };
     final search = _searchController.text.trim().toLowerCase();
     return search.isEmpty
@@ -146,14 +152,14 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     return switch (_achievementFilterIndex) {
       1 => _completedChallenges,
       2 =>
-        _challenges
+        _journeyChallenges
             .where((item) => item.status == ChallengeStatus.active)
             .toList(),
       3 =>
-        _challenges
+        _journeyChallenges
             .where((item) => item.status == ChallengeStatus.notStarted)
             .toList(),
-      _ => _challenges,
+      _ => _journeyChallenges,
     };
   }
 
@@ -221,6 +227,44 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                         }
                       }),
                     ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final journey in ChallengeJourney.all)
+                          ChoiceChip(
+                            label: Text(
+                              journey.id == 'original'
+                                  ? 'Original PBH'
+                                  : 'Conhecimento',
+                            ),
+                            avatar: Icon(
+                              journey.icon,
+                              size: 18,
+                              color: _journey.id == journey.id
+                                  ? context.pbhColors.onAccent
+                                  : journey.color,
+                            ),
+                            labelStyle: TextStyle(
+                              color: _journey.id == journey.id
+                                  ? context.pbhColors.onAccent
+                                  : context.pbhColors.textPrimary,
+                            ),
+                            selected: _journey.id == journey.id,
+                            onSelected: (_) => setState(() {
+                              _journey = journey;
+                              _filterIndex = 0;
+                              _achievementFilterIndex = 0;
+                              _searchController.clear();
+                            }),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(_journey.title, style: AppTextStyles.titleMedium),
+                    const SizedBox(height: 6),
+                    Text(_journey.description, style: AppTextStyles.bodySmall),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -328,7 +372,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     }
 
     final earned = _completedChallenges.length + (_supremeUnlocked ? 1 : 0);
-    final total = _challenges.length + 1;
+    final total = _journey.challengeIds.length + 1;
     final progress = total == 0
         ? 0.0
         : (earned / total).clamp(0.0, 1.0).toDouble();
@@ -342,6 +386,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _TrophySummaryCard(
+                journey: _journey,
                 earned: earned,
                 total: total,
                 points: _achievementPoints,
@@ -364,14 +409,15 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
               const SizedBox(height: 20),
               _SupremeTrophyCard(
                 completedCount: _completedChallenges.length,
-                challengeCount: _challenges.length,
+                challengeCount: _journey.challengeIds.length,
+                badge: _journeyPlatinum,
                 unlocked: _supremeUnlocked,
               ),
               const SizedBox(height: 24),
               Text('Troféus dos desafios', style: AppTextStyles.titleMedium),
               const SizedBox(height: 6),
               Text(
-                'Bronze: até 7 dias · Prata: até 14 dias · Ouro: acima de 14 dias. A platina exige concluir todo o catálogo.',
+                'Bronze: até 7 dias · Prata: até 14 dias · Ouro: acima de 14 dias. A platina exige concluir os desafios desta jornada.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -483,7 +529,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
               const SizedBox(height: 8),
               Text(
                 earnedSupreme
-                    ? 'Você concluiu todos os desafios e desbloqueou a Platina PBH.'
+                    ? 'Você concluiu esta jornada e desbloqueou ${_journeyPlatinum.title}.'
                     : '${tier.label} • ${challenge.title}',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.body,
@@ -708,6 +754,7 @@ class _PageSelectorButtonState extends State<_PageSelectorButton>
 
 class _TrophySummaryCard extends StatelessWidget {
   const _TrophySummaryCard({
+    required this.journey,
     required this.earned,
     required this.total,
     required this.points,
@@ -715,6 +762,7 @@ class _TrophySummaryCard extends StatelessWidget {
     required this.tiers,
   });
   final int earned;
+  final ChallengeJourney journey;
   final int total;
   final int points;
   final double progress;
@@ -741,7 +789,67 @@ class _TrophySummaryCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            const _TrophyMedallion(tier: _TrophyTier.gold, size: 54),
+            Tooltip(
+              message: 'Ampliar capa da coleção',
+              child: Semantics(
+                button: true,
+                label: 'Ampliar capa da coleção',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => showDialog<void>(
+                    context: context,
+                    builder: (ctx) => Dialog.fullscreen(
+                      backgroundColor: Colors.black,
+                      child: Scaffold(
+                        backgroundColor: Colors.black,
+                        appBar: AppBar(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          title: const Text('Capa da coleção'),
+                          leading: IconButton(
+                            tooltip: 'Fechar imagem',
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ),
+                        body: SafeArea(
+                          child: InteractiveViewer(
+                            minScale: 1,
+                            maxScale: 5,
+                            child: SizedBox.expand(
+                              child: Image.asset(
+                                journey.coverAsset,
+                                fit: BoxFit.contain,
+                                semanticLabel:
+                                    'Arte completa: ${journey.title}',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: journey.color.withValues(alpha: .35),
+                      ),
+                    ),
+                    child: Image.asset(
+                      journey.coverAsset,
+                      fit: BoxFit.cover,
+                      alignment: journey.coverAlignment,
+                      cacheWidth: 180,
+                      excludeFromSemantics: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(width: 13),
             Expanded(
               child: Column(
@@ -754,7 +862,10 @@ class _TrophySummaryCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text('Troféus PBH', style: AppTextStyles.titleLarge),
+                  Text(
+                    journey.id == 'original' ? 'Troféus PBH' : 'Conhecimento',
+                    style: AppTextStyles.titleLarge,
+                  ),
                 ],
               ),
             ),
@@ -844,122 +955,94 @@ class _SupremeTrophyCard extends StatelessWidget {
     required this.completedCount,
     required this.challengeCount,
     required this.unlocked,
+    required this.badge,
   });
-  final int completedCount;
-  final int challengeCount;
+  final int completedCount, challengeCount;
   final bool unlocked;
-
+  final ProfileAchievement badge;
   @override
-  Widget build(BuildContext context) {
-    final color = _TrophyTier.platinum.color;
-    final progress = unlocked
-        ? 1.0
-        : challengeCount == 0
-        ? 0.0
-        : (completedCount / challengeCount).clamp(0.0, 1.0).toDouble();
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: context.pbhColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: unlocked ? color.withOpacity(.8) : context.pbhColors.border,
-          width: unlocked ? 1.4 : 1,
-        ),
-        boxShadow: unlocked
-            ? [BoxShadow(color: color.withOpacity(.12), blurRadius: 22)]
-            : null,
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(17),
+    decoration: BoxDecoration(
+      color: context.pbhColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+        color: unlocked ? badge.color : context.pbhColors.border,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (unlocked)
-            Semantics(
-              button: true,
-              label: 'Ver arte da Platina PBH',
-              child: GestureDetector(
-                onTap: () => ProfileAchievementSeals.showDetails(
-                  context,
-                  ProfileAchievement.platinum,
-                ),
-                child: Image.asset(
-                  ProfileAchievement.platinum.artAsset!,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            )
-          else
-            const _TrophyMedallion(
-              tier: _TrophyTier.platinum,
-              size: 60,
-              locked: true,
-            ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Platina PBH',
-                        style: AppTextStyles.titleMedium,
-                      ),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Semantics(
+          button: unlocked,
+          label: unlocked ? 'Ver ${badge.title}' : '${badge.title}, bloqueada',
+          child: InkWell(
+            onTap: unlocked
+                ? () => ProfileAchievementSeals.showDetails(context, badge)
+                : null,
+            child: SizedBox.square(
+              dimension: 60,
+              child: unlocked && badge.artAsset != null
+                  ? Image.asset(badge.artAsset!, fit: BoxFit.contain)
+                  : Icon(
+                      unlocked ? badge.icon : Icons.lock_outline,
+                      color: unlocked
+                          ? badge.color
+                          : context.pbhColors.textTertiary,
+                      size: 40,
                     ),
-                    if (!unlocked)
-                      Icon(
-                        Icons.lock_rounded,
-                        size: 16,
-                        color: context.pbhColors.textTertiary,
-                      )
-                    else
-                      Icon(Icons.check_circle_rounded, size: 18, color: color),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  unlocked
-                      ? 'Todos os troféus de desafios conquistados. Platina PBH desbloqueada!'
-                      : 'Conquiste todos os troféus de desafios do catálogo para desbloquear a Platina PBH.',
-                  style: AppTextStyles.bodySmall,
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 5,
-                    backgroundColor: context.pbhColors.background,
-                    valueColor: AlwaysStoppedAnimation(
-                      unlocked ? color : context.pbhColors.orange,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '$completedCount de $challengeCount troféus conquistados',
-                  style: AppTextStyles.statLabel.copyWith(
-                    color: unlocked ? color : context.pbhColors.textSecondary,
-                  ),
-                ),
-                if (unlocked)
-                  TextButton(
-                    onPressed: () => ProfileAchievementSeals.showDetails(
-                      context,
-                      ProfileAchievement.platinum,
-                    ),
-                    child: const Text('Ver troféu de platina'),
-                  ),
-              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                badge.title,
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: unlocked ? badge.color : context.pbhColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                unlocked
+                    ? 'Todos os desafios desta jornada concluídos. Platina desbloqueada!'
+                    : 'Conquiste os $challengeCount troféus desta jornada para desbloquear esta platina.',
+                style: AppTextStyles.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: LinearProgressIndicator(
+                  value: challengeCount == 0
+                      ? 0
+                      : (completedCount / challengeCount)
+                            .clamp(0, 1)
+                            .toDouble(),
+                  minHeight: 5,
+                  color: badge.color,
+                  backgroundColor: context.pbhColors.background,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$completedCount de $challengeCount troféus conquistados',
+                style: AppTextStyles.statLabel,
+              ),
+              if (unlocked)
+                TextButton(
+                  onPressed: () =>
+                      ProfileAchievementSeals.showDetails(context, badge),
+                  child: const Text('Ver troféu de platina'),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _AchievementCard extends StatelessWidget {

@@ -6,6 +6,9 @@ import '../models/profile_achievement.dart';
 import '../models/profile_style.dart';
 import 'profile_ornament.dart';
 import 'profile_cover_media.dart';
+import 'profile_achievement_dialog.dart';
+import 'supreme_seal_art.dart';
+import '../services/platinum_sound.dart';
 
 /// Bounded images with isolated decorative animations.
 class ProfileIdentityCard extends StatelessWidget {
@@ -50,6 +53,10 @@ class ProfileIdentityCard extends StatelessWidget {
           orElse: () => ProfileStyle.covers.first,
         )
         .color;
+    final miniatures = earned
+        .where((badge) => badge.id == 'platinum')
+        .take(1)
+        .toList();
     Widget fallback() => founder
         ? Image.asset(
             'assets/images/perfil.png',
@@ -83,7 +90,7 @@ class ProfileIdentityCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            height: 174,
+            height: 182,
             child: Stack(
               children: [
                 Positioned(
@@ -168,7 +175,7 @@ class ProfileIdentityCard extends StatelessWidget {
                 ),
                 Positioned(
                   left: 20,
-                  bottom: 0,
+                  bottom: 8,
                   child: Container(
                     width: 96,
                     height: 96,
@@ -189,7 +196,7 @@ class ProfileIdentityCard extends StatelessWidget {
                 if (style.frameEffect != 'none')
                   Positioned(
                     left: 20,
-                    bottom: 0,
+                    bottom: 8,
                     width: 96,
                     height: 96,
                     child: ProfileOrnament(
@@ -198,6 +205,94 @@ class ProfileIdentityCard extends StatelessWidget {
                       founder: founder,
                       effect: style.frameEffect,
                       intensity: style.frameIntensity,
+                    ),
+                  ),
+                if (miniatures.isNotEmpty)
+                  Positioned(
+                    left: 130,
+                    right: 12,
+                    bottom: 0,
+                    height: 42,
+                    child: LayoutBuilder(
+                      builder: (context, bounds) {
+                        // Only the earned project platinum is shown beside the avatar.
+                        final count = (bounds.maxWidth / 42).floor().clamp(
+                          0,
+                          miniatures.length,
+                        );
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            for (final badge in miniatures.take(count))
+                              Tooltip(
+                                message: badge.title,
+                                child: Semantics(
+                                  label: badge.title,
+                                  button: true,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () {
+                                      PlatinumSound.prepareForUnlock();
+                                      showDialog<void>(
+                                        context: context,
+                                        builder: (ctx) =>
+                                            ProfileAchievementDialog(
+                                              badge: badge,
+                                              celebrate: true,
+                                            ),
+                                      );
+                                    },
+                                    child: Container(
+                                      width: 38,
+                                      height: 38,
+                                      margin: const EdgeInsets.only(left: 4),
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: BoxDecoration(
+                                        color: badge.color.withValues(
+                                          alpha: .08,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: badge.color.withValues(
+                                            alpha: .3,
+                                          ),
+                                        ),
+                                      ),
+                                      child:
+                                          badge.id == 'platinum' &&
+                                              !MediaQuery.disableAnimationsOf(
+                                                context,
+                                              )
+                                          ? IgnorePointer(
+                                              child: SupremeSealArt(
+                                                size: 30,
+                                                achievement: badge,
+                                              ),
+                                            )
+                                          : badge.artAsset != null
+                                          ? Image.asset(
+                                              badge.artAsset!,
+                                              fit: BoxFit.contain,
+                                              cacheWidth: 96,
+                                              errorBuilder: (_, __, ___) =>
+                                                  Icon(
+                                                    badge.icon,
+                                                    color: badge.color,
+                                                    size: 24,
+                                                  ),
+                                            )
+                                          : Icon(
+                                              badge.icon,
+                                              color: badge.color,
+                                              size: 24,
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 if (onEditCover != null)
@@ -217,7 +312,7 @@ class ProfileIdentityCard extends StatelessWidget {
                 if (onEditPhoto != null)
                   Positioned(
                     left: 86,
-                    bottom: 0,
+                    bottom: 8,
                     child: IconButton.filled(
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.black,
@@ -228,17 +323,6 @@ class ProfileIdentityCard extends StatelessWidget {
                       icon: const Icon(Icons.photo_camera_outlined, size: 20),
                     ),
                   ),
-                if (onEdit != null)
-                  Positioned(
-                    right: 12,
-                    bottom: 0,
-                    child: IconButton(
-                      onPressed: onEdit,
-                      tooltip: 'Editar perfil',
-                      color: context.pbhColors.orange,
-                      icon: const Icon(Icons.edit_outlined, size: 17),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -247,11 +331,32 @@ class ProfileIdentityCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: AppTextStyles.titleLarge,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: AppTextStyles.titleLarge,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (onEdit != null) ...[
+                      const SizedBox(width: 12),
+                      IconButton.filledTonal(
+                        onPressed: onEdit,
+                        tooltip: 'Editar perfil',
+                        style: IconButton.styleFrom(
+                          backgroundColor: context.pbhColors.orange.withValues(
+                            alpha: .1,
+                          ),
+                          foregroundColor: context.pbhColors.orange,
+                          shape: const CircleBorder(),
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(

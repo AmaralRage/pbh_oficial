@@ -9,6 +9,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/profile_achievement.dart';
 import '../services/profile_achievement_service.dart';
+import '../services/platinum_sound.dart';
 import 'supreme_seal_art.dart';
 import 'deferred_seal_art.dart';
 
@@ -31,6 +32,9 @@ class ProfileAchievementSeals extends StatefulWidget {
   final List<ProfileAchievement> achievements;
 
   static void showDetails(BuildContext context, ProfileAchievement badge) {
+    if (badge.htmlAsset == ProfileAchievement.platinum.htmlAsset) {
+      PlatinumSound.prepareForUnlock();
+    }
     final reduced = MediaQuery.disableAnimationsOf(context);
     showGeneralDialog<void>(
       context: context,
@@ -95,6 +99,11 @@ class ProfileAchievementSeals extends StatefulWidget {
                           ),
                           builder: () => SupremeSealArt(
                             achievement: badge,
+                            onAnimationStarted: () =>
+                                PlatinumSound.playFor(badge),
+                            celebrate:
+                                badge.htmlAsset ==
+                                ProfileAchievement.platinum.htmlAsset,
                             size: math.min(constraints.maxWidth, 300),
                           ),
                         )

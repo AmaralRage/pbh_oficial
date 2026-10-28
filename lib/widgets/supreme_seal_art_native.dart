@@ -31,8 +31,12 @@ class SupremeSealArt extends StatefulWidget {
     super.key,
     required this.size,
     required this.achievement,
+    this.celebrate = false,
+    this.onAnimationStarted,
   });
   final double size;
+  final bool celebrate;
+  final VoidCallback? onAnimationStarted;
   final ProfileAchievement achievement;
   static Future<void> warmUp() => _warmUp();
   @override
@@ -45,6 +49,7 @@ class _SupremeSealArtState extends State<SupremeSealArt>
   bool _started = false;
   bool _ready = false;
   bool _failed = false;
+  bool _animationReported = false;
 
   @override
   void initState() {
@@ -71,10 +76,20 @@ class _SupremeSealArtState extends State<SupremeSealArt>
         return;
       }
       _controller = acquired;
+      await acquired.addJavaScriptChannel(
+        'PbhPlatinumStarted',
+        onMessageReceived: (_) {
+          if (!mounted || !widget.celebrate || _animationReported || reduced)
+            return;
+          _animationReported = true;
+          widget.onAnimationStarted?.call();
+        },
+      );
       final source = await supremeSealDocument(
         reducedMotion: reduced,
         mobileRendering: true,
         assetPath: widget.achievement.htmlAsset!,
+        celebrate: widget.celebrate,
       );
       if (!mounted) return;
       await acquired.setNavigationDelegate(
@@ -84,12 +99,15 @@ class _SupremeSealArtState extends State<SupremeSealArt>
               : NavigationDecision.prevent,
           onPageFinished: (_) async {
             if (!mounted) return;
-            await _play(
-              WidgetsBinding.instance.lifecycleState == null ||
-                  WidgetsBinding.instance.lifecycleState ==
-                      AppLifecycleState.resumed,
-            );
-            if (mounted) setState(() => _ready = true);
+            setState(() => _ready = true);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted)
+                _play(
+                  WidgetsBinding.instance.lifecycleState == null ||
+                      WidgetsBinding.instance.lifecycleState ==
+                          AppLifecycleState.resumed,
+                );
+            });
           },
           onWebResourceError: (error) {
             if (mounted && error.isForMainFrame == true) {
@@ -107,6 +125,7 @@ class _SupremeSealArtState extends State<SupremeSealArt>
   }
 
   Future<void> _play(bool play) async {
+    if (!_ready) return;
     try {
       await _controller?.runJavaScript(
         "document.getElementById('pbh-playback').textContent = ${play ? "''" : "'*{animation-play-state:paused!important}'"};",
@@ -118,6 +137,7 @@ class _SupremeSealArtState extends State<SupremeSealArt>
 
   Future<void> _release(WebViewController controller) async {
     try {
+      await controller.removeJavaScriptChannel('PbhPlatinumStarted');
       await controller.setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (_) => NavigationDecision.prevent,

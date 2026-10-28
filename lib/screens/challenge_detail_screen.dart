@@ -5,6 +5,10 @@ import 'package:share_plus/share_plus.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/challenge_model.dart';
+import '../models/challenge_journey.dart';
+import '../models/profile_achievement.dart';
+import '../widgets/profile_achievement_dialog.dart';
+import '../services/platinum_sound.dart';
 import '../services/challenge_service.dart';
 import '../widgets/official_hero_background.dart';
 
@@ -26,6 +30,7 @@ class ChallengeDetailScreen extends StatefulWidget {
 class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   final _service = ChallengeService();
   late ChallengeModel _challenge;
+  List<ChallengeModel> _catalog = [];
   bool _todayComplete = false;
   bool _loading = true;
   bool _busy = false;
@@ -52,6 +57,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       if (mounted)
         setState(() {
           _challenge = refreshed;
+          _catalog = challenges;
           _todayComplete = completed;
           _loading = false;
           _error = null;
@@ -99,6 +105,22 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     }
     final previous = _todayComplete;
     final wasCompleted = _challenge.status == ChallengeStatus.completed;
+    final journey =
+        ChallengeJourney.knowledge.challengeIds.contains(_challenge.id)
+        ? ChallengeJourney.knowledge
+        : ChallengeJourney.original;
+    Set<String> completedIds() => _catalog
+        .where((c) => c.status == ChallengeStatus.completed)
+        .map((c) => c.id)
+        .toSet();
+    final hadPlatinum = journey.unlocked(completedIds());
+    if (!previous &&
+        !hadPlatinum &&
+        journey.completedCount(completedIds()) ==
+            journey.challengeIds.length - 1 &&
+        _challenge.currentDay + 1 >= _challenge.totalDays) {
+      PlatinumSound.prepareForUnlock();
+    }
     setState(() {
       _todayComplete = !_todayComplete;
       _busy = true;
@@ -110,7 +132,18 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           _error == null &&
           !wasCompleted &&
           _challenge.status == ChallengeStatus.completed) {
-        await ChallengeCelebration.show(context, _challenge);
+        if (!hadPlatinum && journey.unlocked(completedIds())) {
+          final platinum = journey.id == 'knowledge'
+              ? ProfileAchievement.knowledgePlatinum
+              : ProfileAchievement.platinum;
+          await showDialog<void>(
+            context: context,
+            builder: (_) =>
+                ProfileAchievementDialog(badge: platinum, celebrate: true),
+          );
+        } else {
+          await ChallengeCelebration.show(context, _challenge);
+        }
       }
     } catch (error) {
       if (mounted) {

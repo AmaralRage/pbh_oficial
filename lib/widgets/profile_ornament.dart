@@ -181,6 +181,10 @@ class _OrnamentPainter extends CustomPainter {
     // Whole cycles keep the loop seamless while every effect supports intensity.
     final t = (motion.value * (1 + (intensity * 3).round())) % 1;
     if (effect == 'none') return;
+    if (!frame && effect == 'aurora') {
+      _auroraBorealis(canvas, size, motion.value);
+      return;
+    }
     if (!frame && effect == 'meteors') {
       _meteorShower(canvas, size, motion.value);
       return;
@@ -313,39 +317,6 @@ class _OrnamentPainter extends CustomPainter {
     }
     canvas.save();
     canvas.clipRect(Offset.zero & size);
-    if (effect == 'aurora' || effect == 'legacy') {
-      for (var band = 0; band < 3; band++) {
-        final path = Path();
-        for (var step = 0; step <= 20; step++) {
-          final x = size.width * step / 20;
-          final y =
-              size.height *
-              (.35 +
-                  band * .2 +
-                  .15 * math.sin(step * .25 + t * math.pi * 2 + band));
-          if (step == 0) {
-            path.moveTo(x, y);
-          } else {
-            path.lineTo(x, y);
-          }
-        }
-        final tint = effect == 'legacy'
-            ? (band.isEven ? const Color(0xFF70E8FF) : const Color(0xFFBD83FF))
-            : (band.isEven ? color : const Color(0xFFAF9AFF));
-        canvas.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 12 + band * 4
-            ..color = tint.withValues(alpha: .035 + intensity * .12)
-            ..strokeCap = StrokeCap.round,
-        );
-      }
-      if (effect == 'aurora') {
-        canvas.restore();
-        return;
-      }
-    }
     // A small fixed constellation; no particles, blur layers or random allocations.
     for (var i = 0; i < ((founder ? 8 : 4) + intensity * 14).round(); i++) {
       final x = ((i * 73 + 19) % 307) / 307 * size.width;
@@ -376,6 +347,78 @@ class _OrnamentPainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()..color = color.withValues(alpha: .025 + intensity * .12),
+      );
+    }
+    canvas.restore();
+  }
+
+  // Adapted from the supplied aurora_boreal_pbh.html canvas. No background
+  // image or opaque sky is painted: the user's cover remains the base layer.
+  void _auroraBorealis(Canvas canvas, Size size, double phase) {
+    const palette = [Color(0xFF34F7BD), Color(0xFF29D9E8), Color(0xFFB24CFF)];
+    final angle = phase * math.pi * 2;
+    final w = size.width;
+    final h = size.height;
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    final paint = Paint()..blendMode = BlendMode.screen;
+    for (var band = 0; band < 4; band++) {
+      final base = w * (.12 + band * .24);
+      final spread = w * (.11 + band * .015);
+      final alpha = (.09 + intensity * .13) * (1 - band * .1);
+      for (var strip = 0; strip < 52; strip++) {
+        final u = strip / 51;
+        final x =
+            base +
+            (u - .5) * spread * 2 +
+            math.sin(angle + u * 5 + band) * w * .055;
+        final top = h * (.04 + .08 * math.sin(u * 3 + band + angle));
+        final bottom = h * (.66 + .12 * math.sin(u * 4 + band + angle));
+        final width = math.max(1.5, w * .008);
+        final opacity = alpha * (.55 + .45 * math.sin(u * math.pi));
+        final first = palette[(band + strip % 3) % 3];
+        final second = palette[(band + 1) % 3];
+        paint.shader = ui.Gradient.linear(
+          Offset(x, top),
+          Offset(x, bottom),
+          [
+            first.withValues(alpha: 0),
+            first.withValues(alpha: opacity),
+            second.withValues(alpha: opacity),
+            second.withValues(alpha: 0),
+          ],
+          const [0, .2, .63, 1],
+        );
+        final path = Path()..moveTo(x, top);
+        for (var step = 0; step <= 15; step++) {
+          final v = step / 15;
+          path.lineTo(
+            x + math.sin(v * 5 + angle * 2 + band + u * 3) * w * .065,
+            top + (bottom - top) * v,
+          );
+        }
+        for (var step = 15; step >= 0; step--) {
+          final v = step / 15;
+          path.lineTo(
+            x + width + math.sin(v * 5 + angle * 2 + band + u * 3) * w * .065,
+            top + (bottom - top) * v,
+          );
+        }
+        canvas.drawPath(path..close(), paint);
+      }
+    }
+    paint.shader = null;
+    for (var i = 0; i < 115; i++) {
+      final star = _weatherParticles[i];
+      final twinkle = (.45 + .55 * math.sin(angle * 3 + star[3] * 7)).clamp(
+        0.0,
+        1.0,
+      );
+      paint.color = const Color(0xFFDFFAFF).withValues(alpha: twinkle * .8);
+      canvas.drawCircle(
+        Offset(star[0] * w, star[1] * h * .83),
+        .3 + star[2] * 1.1,
+        paint,
       );
     }
     canvas.restore();
