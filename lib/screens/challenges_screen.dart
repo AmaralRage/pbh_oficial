@@ -417,7 +417,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
               Text('Troféus dos desafios', style: AppTextStyles.titleMedium),
               const SizedBox(height: 6),
               Text(
-                'Bronze: até 7 dias · Prata: até 14 dias · Ouro: acima de 14 dias. A platina exige concluir os desafios desta jornada.',
+                'Bronze: até 7 dias · Prata: até 14 dias · Ouro: acima de 14 dias. ${_journey.id == 'knowledge' ? 'O rubi' : 'A platina'} exige concluir os desafios desta jornada.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -918,7 +918,15 @@ class _TrophySummaryCard extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: tiers
-              .map((entry) => _TierCount(tier: entry.key, count: entry.value))
+              .map(
+                (entry) => _TierCount(
+                  tier: entry.key,
+                  count: entry.value,
+                  ruby:
+                      journey.id == 'knowledge' &&
+                      entry.key == _TrophyTier.platinum,
+                ),
+              )
               .toList(),
         ),
       ],
@@ -927,7 +935,12 @@ class _TrophySummaryCard extends StatelessWidget {
 }
 
 class _TierCount extends StatelessWidget {
-  const _TierCount({required this.tier, required this.count});
+  const _TierCount({
+    required this.tier,
+    required this.count,
+    this.ruby = false,
+  });
+  final bool ruby;
   final _TrophyTier tier;
   final int count;
 
@@ -935,16 +948,21 @@ class _TierCount extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
-      color: tier.color.withOpacity(.10),
+      color: (ruby ? ProfileAchievement.knowledgePlatinum.color : tier.color)
+          .withOpacity(.10),
       borderRadius: BorderRadius.circular(10),
       border: Border.all(color: tier.color.withOpacity(.2)),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(tier.icon, size: 15, color: tier.color),
+        Icon(
+          tier.icon,
+          size: 15,
+          color: ruby ? ProfileAchievement.knowledgePlatinum.color : tier.color,
+        ),
         const SizedBox(width: 5),
-        Text('${tier.label} $count', style: AppTextStyles.chip),
+        Text('${ruby ? 'Rubi' : tier.label} $count', style: AppTextStyles.chip),
       ],
     ),
   );
@@ -1008,8 +1026,8 @@ class _SupremeTrophyCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 unlocked
-                    ? 'Todos os desafios desta jornada concluídos. Platina desbloqueada!'
-                    : 'Conquiste os $challengeCount troféus desta jornada para desbloquear esta platina.',
+                    ? 'Todos os desafios desta jornada concluídos. ${badge.isRuby ? 'Rubi desbloqueado!' : 'Platina desbloqueada!'}'
+                    : 'Conquiste os $challengeCount troféus desta jornada para desbloquear ${badge.isRuby ? 'este rubi' : 'esta platina'}.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -1035,7 +1053,11 @@ class _SupremeTrophyCard extends StatelessWidget {
                 TextButton(
                   onPressed: () =>
                       ProfileAchievementSeals.showDetails(context, badge),
-                  child: const Text('Ver troféu de platina'),
+                  child: Text(
+                    badge.isRuby
+                        ? 'Ver troféu de rubi'
+                        : 'Ver troféu de platina',
+                  ),
                 ),
             ],
           ),

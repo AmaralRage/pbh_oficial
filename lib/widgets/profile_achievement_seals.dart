@@ -32,7 +32,7 @@ class ProfileAchievementSeals extends StatefulWidget {
   final List<ProfileAchievement> achievements;
 
   static void showDetails(BuildContext context, ProfileAchievement badge) {
-    if (badge.htmlAsset == ProfileAchievement.platinum.htmlAsset) {
+    if (badge.isJourneyTrophy) {
       PlatinumSound.prepareForUnlock();
     }
     final reduced = MediaQuery.disableAnimationsOf(context);
@@ -91,19 +91,27 @@ class ProfileAchievementSeals extends StatefulWidget {
                   builder: (context, constraints) =>
                       badge.artAsset != null && !reduced
                       ? DeferredSealArt(
-                          preview: Image.asset(
-                            badge.artAsset!,
-                            width: math.min(constraints.maxWidth, 300),
-                            height: math.min(constraints.maxWidth, 300),
-                            fit: BoxFit.contain,
-                          ),
+                          preview: badge.isJourneyTrophy
+                              ? SizedBox.square(
+                                  dimension: math.min(
+                                    constraints.maxWidth,
+                                    300,
+                                  ),
+                                  child: const ColoredBox(
+                                    color: Color(0xFF050D1C),
+                                  ),
+                                )
+                              : Image.asset(
+                                  badge.artAsset!,
+                                  width: math.min(constraints.maxWidth, 300),
+                                  height: math.min(constraints.maxWidth, 300),
+                                  fit: BoxFit.contain,
+                                ),
                           builder: () => SupremeSealArt(
                             achievement: badge,
                             onAnimationStarted: () =>
                                 PlatinumSound.playFor(badge),
-                            celebrate:
-                                badge.htmlAsset ==
-                                ProfileAchievement.platinum.htmlAsset,
+                            celebrate: badge.isJourneyTrophy,
                             size: math.min(constraints.maxWidth, 300),
                           ),
                         )
@@ -450,6 +458,13 @@ class _GrantProfileSealDialogState extends State<GrantProfileSealDialog> {
   bool _busy = false;
   String? _error;
   ProfileAchievement _selectedSeal = ProfileAchievement.supremeSeals.first;
+  static const _supremeCrown = ProfileAchievement(
+    id: 'supreme_crown',
+    title: 'Coroa Suprema',
+    description: 'Moldura concedida pessoalmente pelo fundador.',
+    icon: Icons.workspace_premium,
+    category: 'Moldura exclusiva',
+  );
 
   @override
   void dispose() {
@@ -471,9 +486,7 @@ class _GrantProfileSealDialogState extends State<GrantProfileSealDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Selo ${_selectedSeal.title} concedido à conta informada.',
-          ),
+          content: Text('${_selectedSeal.title} concedida à conta informada.'),
         ),
       );
       Navigator.pop(context);
@@ -494,7 +507,7 @@ class _GrantProfileSealDialogState extends State<GrantProfileSealDialog> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
     child: AlertDialog(
-      title: const Text('Conceder selo supremo'),
+      title: const Text('Conceder reconhecimento'),
       content: SingleChildScrollView(
         child: Form(
           key: _form,
@@ -505,8 +518,8 @@ class _GrantProfileSealDialogState extends State<GrantProfileSealDialog> {
               DropdownButtonFormField<ProfileAchievement>(
                 initialValue: _selectedSeal,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Selo'),
-                items: ProfileAchievement.supremeSeals
+                decoration: const InputDecoration(labelText: 'Reconhecimento'),
+                items: [...ProfileAchievement.supremeSeals, _supremeCrown]
                     .map(
                       (seal) => DropdownMenuItem(
                         value: seal,
@@ -566,7 +579,7 @@ class _GrantProfileSealDialogState extends State<GrantProfileSealDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Conceder selo'),
+              : const Text('Conceder'),
         ),
       ],
     ),

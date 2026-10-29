@@ -4,15 +4,15 @@ import 'package:pbh_oficial/models/profile_achievement.dart';
 
 void main() {
   test(
-    'both journey platinums share the same trophy artwork and animation',
+    'knowledge ruby has its own artwork while retaining earned identity',
     () {
       expect(
         ProfileAchievement.knowledgePlatinum.artAsset,
-        ProfileAchievement.platinum.artAsset,
+        'assets/images/trofeu_rubi_pbh.png',
       );
       expect(
         ProfileAchievement.knowledgePlatinum.htmlAsset,
-        ProfileAchievement.platinum.htmlAsset,
+        'assets/images/Trofeu_Rubi_PBH.html',
       );
       expect(
         ProfileAchievement.knowledgePlatinum.id,

@@ -282,6 +282,7 @@ class _ProfileProgressState extends State<_ProfileProgress> {
           founder: isProjectLeader,
           completed: _completedChallenges,
           earned: achievements,
+          manualAwards: _manualAwards,
         );
     final name = (metadata['display_name'] as String?)?.trim();
     final identity = ProfileIdentityCard(
@@ -296,6 +297,7 @@ class _ProfileProgressState extends State<_ProfileProgress> {
       avatarUrl: metadata['avatar_url'] as String?,
       coverUrl: metadata['cover_url'] as String?,
       founder: isProjectLeader,
+      showDecorations: isAuthenticated,
       style: style,
       earned: achievements,
       onEdit: widget.onEdit,
@@ -384,7 +386,7 @@ class _ProfileProgressState extends State<_ProfileProgress> {
             ),
             if (isProjectLeader)
               IconButton(
-                tooltip: 'Conceder selo supremo',
+                tooltip: 'Conceder reconhecimento',
                 icon: Icon(
                   Icons.add_moderator_outlined,
                   color: context.pbhColors.orange,

@@ -14,6 +14,11 @@ void preparePlatinumSound() {
     final context = web.AudioContext();
     _prepared = context;
     context.resume().toDart.catchError((Object _) => null);
+    // Unlock the output during the user gesture, before the modal transition.
+    final silent = context.createBufferSource()
+      ..buffer = context.createBuffer(1, 1, context.sampleRate);
+    silent.connect(context.destination);
+    silent.start();
     _prepareCleanup = Timer(const Duration(seconds: 30), () {
       if (identical(_prepared, context)) {
         _prepared = null;

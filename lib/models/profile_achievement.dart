@@ -14,6 +14,8 @@ class ProfileAchievement {
     this.artCaption,
   });
 
+  bool get isRuby => id == 'knowledge_platinum';
+  bool get isJourneyTrophy => id == 'platinum' || isRuby;
   final String id;
   final String title;
   final String description;
@@ -84,14 +86,14 @@ class ProfileAchievement {
 
   static const knowledgePlatinum = ProfileAchievement(
     id: 'knowledge_platinum',
-    title: 'Mente desperta',
+    title: 'Rubi do Conhecimento',
     description:
-        'Você concluiu os cinco desafios da Jornada do Conhecimento: leitura, anotações, estudo, explicação e aplicação. Sua platina celebra o conhecimento colocado em prática.',
+        'Você concluiu os cinco desafios da Jornada do Conhecimento: leitura, anotações, estudo, explicação e aplicação. Seu rubi celebra o conhecimento colocado em prática.',
     icon: Icons.workspace_premium_rounded,
-    color: Color(0xFFE4F4FF),
-    artAsset: 'assets/images/trofeu_platina_pbh.png',
-    htmlAsset: 'assets/images/Trofeu_Platina_PBH.html',
-    artCaption: 'JORNADA DO CONHECIMENTO • PLATINA PBH',
+    color: Color(0xFFFF7894),
+    artAsset: 'assets/images/trofeu_rubi_pbh.png',
+    htmlAsset: 'assets/images/Trofeu_Rubi_PBH.html',
+    artCaption: 'JORNADA DO CONHECIMENTO • TROFÉU DE RUBI',
     category: 'CONHECIMENTO',
   );
 

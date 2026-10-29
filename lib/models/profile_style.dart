@@ -9,21 +9,34 @@ class ProfileStyleOption {
     this.color, {
     this.minimum = 0,
     this.badge,
+    this.requiredBadges = const [],
     this.founderOnly = false,
+    this.hiddenUnlessAvailable = false,
   });
   final String id;
   final String label;
   final Color color;
   final int minimum;
   final String? badge;
+  final List<String> requiredBadges;
   final bool founderOnly;
+  final bool hiddenUnlessAvailable;
+  bool visible(bool founder, int completed, Set<String> earned) =>
+      !hiddenUnlessAvailable || available(founder, completed, earned);
   bool available(bool founder, int completed, Set<String> earned) => founderOnly
       ? founder
       : (founder ||
             (completed >= minimum &&
-                (badge == null || earned.contains(badge))));
+                (badge == null || earned.contains(badge)) &&
+                requiredBadges.every(earned.contains)));
   String get requirement => founderOnly
       ? 'Exclusivo do fundador'
+      : badge == 'supreme_crown'
+      ? 'Concedida pessoalmente pelo fundador'
+      : requiredBadges.isNotEmpty
+      ? 'Conquiste a Platina PBH e o Rubi do Conhecimento'
+      : badge == 'knowledge_platinum'
+      ? 'Conquiste o Rubi do Conhecimento'
       : badge != null
       ? 'Conquiste a Platina PBH'
       : '$minimum desafios concluídos';
@@ -76,17 +89,80 @@ class ProfileStyle {
       nebulaVariants.any((o) => o.id == value) ? value as String : 'royal';
   static const weatherEffects = {'rain', 'snow', 'fireflies'};
   static const seasonalEffects = {'halloween', 'christmas', 'new_year'};
+  static const platinumEffects = {
+    'platinum_orbit',
+    'platinum_iron',
+    'knowledge_orbit',
+    'journey_crown',
+    'platinum_ascent',
+    'platinum_throne',
+    'knowledge_constellation',
+    'journey_legacy',
+  };
+  static const legendaryFrameEffects = {
+    'platinum_orbit',
+    'knowledge_orbit',
+    'journey_crown',
+    'platinum_iron',
+  };
+  static const decoratedFrameEffects = {
+    'supreme_crown',
+    'crown',
+    ...legendaryFrameEffects,
+    ...eventFrameEffects,
+    'orbit',
+    'pulse',
+    'sparks',
+    'double',
+  };
+  static const eventFrameEffects = {
+    'rain',
+    'halloween',
+    'christmas',
+    'new_year',
+  };
   static bool hasIntensity(String effect) =>
       effect != 'none' &&
       [...frameEffects, ...coverEffects].any((option) => option.id == effect);
   static double safeIntensity(Object? value) =>
       value is num && value.isFinite ? value.toDouble().clamp(0, 1) : .5;
   static const frameEffects = [
+    ProfileStyleOption(
+      'supreme_crown',
+      'Coroa Suprema',
+      Color(0xFFDAAEFF),
+      badge: 'supreme_crown',
+      hiddenUnlessAvailable: true,
+    ),
     ProfileStyleOption('none', 'Sem animação', Color(0xFF909090)),
-    ProfileStyleOption('orbit', 'Órbita de luz', Color(0xFFFFC45A)),
-    ProfileStyleOption('pulse', 'Pulso suave', Color(0xFF80DDD5)),
-    ProfileStyleOption('sparks', 'Faíscas', Color(0xFFFF8F64)),
+    ProfileStyleOption('orbit', 'Órbita de luz', Color(0xFFA5C7FF)),
+    ProfileStyleOption('pulse', 'Pulso suave', Color(0xFFBCA5FF)),
+    ProfileStyleOption('sparks', 'Chamas Vivas', Color(0xFFFF8F35)),
     ProfileStyleOption('double', 'Anéis gêmeos', Color(0xFFB7A2FF)),
+    ProfileStyleOption(
+      'platinum_orbit',
+      'Guardião de Platina',
+      Color(0xFFB6EAFF),
+      badge: 'platinum',
+    ),
+    ProfileStyleOption(
+      'platinum_iron',
+      'Juramento de Ferro',
+      Color(0xFFFF8A45),
+      badge: 'platinum',
+    ),
+    ProfileStyleOption(
+      'knowledge_orbit',
+      'Selo Arcano',
+      Color(0xFFA7A1FF),
+      badge: 'knowledge_platinum',
+    ),
+    ProfileStyleOption(
+      'journey_crown',
+      'Coroa do Legado',
+      Color(0xFFFFD38A),
+      requiredBadges: ['platinum', 'knowledge_platinum'],
+    ),
     ProfileStyleOption('rain', 'Chuva', Color(0xFF83CFFF)),
     ProfileStyleOption('snow', 'Neve', Color(0xFFE0F4FF)),
     ProfileStyleOption('fireflies', 'Vaga-lumes', Color(0xFFBBF878)),
@@ -106,6 +182,30 @@ class ProfileStyle {
     ProfileStyleOption('stars', 'Céu estrelado', Color(0xFFBCDFFF)),
     ProfileStyleOption('meteors', 'Estrelas cadentes', Color(0xFFBCDFFF)),
     ProfileStyleOption('aurora', 'Aurora', Color(0xFF71E6CE)),
+    ProfileStyleOption(
+      'platinum_ascent',
+      'Forja da Disciplina',
+      Color(0xFFFF9B35),
+      badge: 'platinum',
+    ),
+    ProfileStyleOption(
+      'platinum_throne',
+      'Trono do Inabalável',
+      Color(0xFFB779FF),
+      badge: 'platinum',
+    ),
+    ProfileStyleOption(
+      'knowledge_constellation',
+      'Biblioteca dos Sábios',
+      Color(0xFFFFD78B),
+      badge: 'knowledge_platinum',
+    ),
+    ProfileStyleOption(
+      'journey_legacy',
+      'Observatório Eterno',
+      Color(0xFFB2D8FF),
+      requiredBadges: ['platinum', 'knowledge_platinum'],
+    ),
     ProfileStyleOption('embers', 'Brasas', Color(0xFFFF935D)),
     ProfileStyleOption('rain', 'Chuva', Color(0xFF83CFFF)),
     ProfileStyleOption('snow', 'Neve', Color(0xFFE0F4FF)),
@@ -217,6 +317,7 @@ class ProfileStyle {
     required bool founder,
     required int completed,
     required List<ProfileAchievement> earned,
+    Set<String> manualAwards = const {},
   }) {
     final ids = earned.map((e) => e.id).toSet();
     String option(
@@ -225,7 +326,9 @@ class ProfileStyle {
       String fallback,
     ) =>
         options.any(
-          (o) => o.id == selected && o.available(founder, completed, ids),
+          (o) =>
+              o.id == selected &&
+              o.available(founder, completed, {...ids, ...manualAwards}),
         )
         ? selected
         : fallback;
@@ -257,6 +360,16 @@ class ProfileStyle {
       for (final id in featured!.toSet().take(3))
         if (byId[id] != null) byId[id]!,
     ];
+  }
+
+  List<ProfileAchievement> profileMiniatures(List<ProfileAchievement> earned) {
+    final fixed = [
+      for (final id in ['platinum', 'knowledge_platinum'])
+        for (final badge in earned)
+          if (badge.id == id) badge,
+    ];
+    final extras = earned.where((badge) => !badge.isJourneyTrophy).toList();
+    return [...fixed, ...highlights(extras)];
   }
 
   String titleLabel(List<ProfileAchievement> earned) {

@@ -11,7 +11,12 @@ import 'profile_achievement_service.dart';
 import 'profile_cover_document.dart';
 
 class ProfileUnlocks {
-  const ProfileUnlocks(this.completed, this.earned);
+  const ProfileUnlocks(
+    this.completed,
+    this.earned, {
+    this.manualAwards = const {},
+  });
+  final Set<String> manualAwards;
   final int completed;
   final List<ProfileAchievement> earned;
 }
@@ -56,6 +61,7 @@ class ProfileCustomizationService {
         completedIds: completed,
         manualAwards: values[2] as Set<String>,
       ),
+      manualAwards: values[2] as Set<String>,
     );
   }
 
@@ -121,6 +127,7 @@ class ProfileCustomizationService {
       founder: AuthService.isProjectLeader(user),
       completed: progress.completed,
       earned: progress.earned,
+      manualAwards: progress.manualAwards,
     );
     final bucket = client.storage.from('profile-avatars');
     final covers = client.storage.from('profile-covers');

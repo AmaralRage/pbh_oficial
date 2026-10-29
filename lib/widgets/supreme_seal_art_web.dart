@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 import '../services/supreme_seal_document.dart';
 import '../models/profile_achievement.dart';
+import 'native_platinum_art.dart';
 
 class SupremeSealArt extends StatefulWidget {
   static Future<void> warmUp() async {}
@@ -32,6 +33,7 @@ class _SupremeSealArtState extends State<SupremeSealArt> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (widget.achievement.isJourneyTrophy) return;
     if (_frame != null) return;
     final frame = web.HTMLIFrameElement()
       ..title = 'Arte original: ${widget.achievement.title}'
@@ -70,11 +72,19 @@ class _SupremeSealArtState extends State<SupremeSealArt> {
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: widget.size,
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: HtmlElementView(viewType: _viewType),
-    ),
-  );
+  Widget build(BuildContext context) => widget.achievement.isJourneyTrophy
+      ? NativePlatinumArt(
+          key: ValueKey(widget.achievement.id),
+          ruby: widget.achievement.isRuby,
+          size: widget.size,
+          celebrate: widget.celebrate,
+          onAnimationStarted: widget.onAnimationStarted,
+        )
+      : SizedBox.square(
+          dimension: widget.size,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: HtmlElementView(viewType: _viewType),
+          ),
+        );
 }

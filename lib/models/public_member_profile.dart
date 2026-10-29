@@ -57,6 +57,7 @@ class PublicMemberProfile {
         founder: founder,
         completed: number('completed'),
         earned: earned,
+        manualAwards: strings('manual_awards'),
       );
     } else {
       // Cosmetic unlocks are sanitized by the RPC without exposing hidden counts.

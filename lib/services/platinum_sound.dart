@@ -5,9 +5,19 @@ import 'platinum_sound_native.dart'
     as playback;
 
 class PlatinumSound {
-  static void prepareForUnlock() => playback.preparePlatinumSound();
+  static Future<bool>? _preparedPreference;
+  static void prepareForUnlock() {
+    // Read storage during the click/dialog transition, not when the reveal starts.
+    _preparedPreference = NotificationPreferences.sound.catchError(
+      (Object _) => false,
+    );
+    playback.preparePlatinumSound();
+  }
+
   static void playFor(ProfileAchievement badge) {
-    if (badge.htmlAsset != ProfileAchievement.platinum.htmlAsset) return;
-    playback.playPlatinumSound(NotificationPreferences.sound);
+    if (!badge.isJourneyTrophy) return;
+    final preference = _preparedPreference ?? NotificationPreferences.sound;
+    _preparedPreference = null;
+    playback.playPlatinumSound(preference);
   }
 }

@@ -83,15 +83,16 @@ class ProfileAchievementDialog extends StatelessWidget {
                   ),
                   child: ClipOval(
                     child:
-                        badge.htmlAsset ==
-                                ProfileAchievement.platinum.htmlAsset &&
+                        badge.isJourneyTrophy &&
                             !MediaQuery.disableAnimationsOf(context)
                         ? IgnorePointer(
                             child: DeferredSealArt(
-                              preview: Image.asset(
-                                badge.artAsset!,
-                                fit: BoxFit.contain,
-                              ),
+                              preview: celebrate
+                                  ? const ColoredBox(color: Color(0xFF050D1C))
+                                  : Image.asset(
+                                      badge.artAsset!,
+                                      fit: BoxFit.contain,
+                                    ),
                               builder: () => SupremeSealArt(
                                 size: 160,
                                 achievement: badge,
@@ -138,9 +139,12 @@ class ProfileAchievementDialog extends StatelessWidget {
                   children: [
                     Icon(Icons.verified_rounded, size: 16, color: badge.color),
                     const SizedBox(width: 6),
-                    const Text(
-                      'Conquista desbloqueada',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    const Flexible(
+                      child: Text(
+                        'Conquista desbloqueada',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
                     ),
                   ],
                 ),

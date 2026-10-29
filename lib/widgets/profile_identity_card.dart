@@ -26,6 +26,7 @@ class ProfileIdentityCard extends StatelessWidget {
     this.onEdit,
     this.onEditCover,
     this.onEditPhoto,
+    this.showDecorations = true,
   });
   final String name;
   final String bio;
@@ -36,6 +37,7 @@ class ProfileIdentityCard extends StatelessWidget {
   final String? coverUrl;
   final Uint8List? coverPhoto;
   final bool founder;
+  final bool showDecorations;
   final VoidCallback? onEdit;
   final VoidCallback? onEditCover;
   final VoidCallback? onEditPhoto;
@@ -53,10 +55,25 @@ class ProfileIdentityCard extends StatelessWidget {
           orElse: () => ProfileStyle.covers.first,
         )
         .color;
-    final miniatures = earned
-        .where((badge) => badge.id == 'platinum')
-        .take(1)
-        .toList();
+    final miniatures = showDecorations
+        ? style.profileMiniatures(earned)
+        : <ProfileAchievement>[];
+    final decoratedFrame = ProfileStyle.decoratedFrameEffects.contains(
+      style.frameEffect,
+    );
+    final frameSpace = !showDecorations
+        ? 0.0
+        : style.frameEffect == 'supreme_crown'
+        ? 48.0
+        : style.frameEffect == 'crown'
+        ? 36.0
+        : style.frameEffect == 'sparks' ||
+              ProfileStyle.eventFrameEffects.contains(style.frameEffect)
+        ? 18.0
+        : ProfileStyle.decoratedFrameEffects.contains(style.frameEffect)
+        ? 12.0
+        : 0.0;
+    final avatarInset = style.frameEffect == 'supreme_crown' ? 48.0 : 20.0;
     Widget fallback() => founder
         ? Image.asset(
             'assets/images/perfil.png',
@@ -84,13 +101,17 @@ class ProfileIdentityCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.pbhColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: frame.withValues(alpha: .3)),
+        border: Border.all(
+          color: showDecorations
+              ? frame.withValues(alpha: .3)
+              : context.pbhColors.border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            height: 182,
+            height: 182 + frameSpace,
             child: Stack(
               children: [
                 Positioned(
@@ -133,7 +154,7 @@ class ProfileIdentityCard extends StatelessWidget {
                             ),
                           ),
                         ],
-                        if (style.coverEffect != 'none')
+                        if (showDecorations && style.coverEffect != 'none')
                           Positioned.fill(
                             child: ProfileOrnament(
                               color: ProfileStyle.coverEffects
@@ -174,8 +195,8 @@ class ProfileIdentityCard extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  left: 20,
-                  bottom: 8,
+                  left: avatarInset,
+                  bottom: 8 + frameSpace,
                   child: Container(
                     width: 96,
                     height: 96,
@@ -183,7 +204,12 @@ class ProfileIdentityCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: context.pbhColors.surface,
-                      border: Border.all(color: frame, width: 3),
+                      border: Border.all(
+                        color: !showDecorations || decoratedFrame
+                            ? Colors.transparent
+                            : frame,
+                        width: 3,
+                      ),
                     ),
                     child: ClipOval(
                       child: ColoredBox(
@@ -193,12 +219,12 @@ class ProfileIdentityCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (style.frameEffect != 'none')
+                if (showDecorations && style.frameEffect != 'none')
                   Positioned(
-                    left: 20,
+                    left: avatarInset - frameSpace,
                     bottom: 8,
-                    width: 96,
-                    height: 96,
+                    width: 96 + frameSpace * 2,
+                    height: 96 + frameSpace * 2,
                     child: ProfileOrnament(
                       color: frame,
                       frame: true,
@@ -211,86 +237,89 @@ class ProfileIdentityCard extends StatelessWidget {
                   Positioned(
                     left: 130,
                     right: 12,
-                    bottom: 0,
-                    height: 42,
+                    bottom: 8,
+                    height: 76,
                     child: LayoutBuilder(
                       builder: (context, bounds) {
-                        // Only the earned project platinum is shown beside the avatar.
-                        final count = (bounds.maxWidth / 42).floor().clamp(
-                          0,
-                          miniatures.length,
-                        );
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            for (final badge in miniatures.take(count))
-                              Tooltip(
-                                message: badge.title,
-                                child: Semantics(
-                                  label: badge.title,
-                                  button: true,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () {
-                                      PlatinumSound.prepareForUnlock();
-                                      showDialog<void>(
-                                        context: context,
-                                        builder: (ctx) =>
-                                            ProfileAchievementDialog(
-                                              badge: badge,
-                                              celebrate: true,
-                                            ),
-                                      );
-                                    },
-                                    child: Container(
-                                      width: 38,
-                                      height: 38,
-                                      margin: const EdgeInsets.only(left: 4),
-                                      padding: const EdgeInsets.all(3),
-                                      decoration: BoxDecoration(
-                                        color: badge.color.withValues(
-                                          alpha: .08,
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
+                        final tile = (bounds.maxWidth / miniatures.length)
+                            .clamp(30.0, 42.0);
+                        return Align(
+                          alignment: Alignment.bottomRight,
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            runSpacing: 4,
+                            children: [
+                              for (final badge in miniatures)
+                                Tooltip(
+                                  message: badge.title,
+                                  child: Semantics(
+                                    label: badge.title,
+                                    button: true,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () {
+                                        PlatinumSound.prepareForUnlock();
+                                        showDialog<void>(
+                                          context: context,
+                                          builder: (ctx) =>
+                                              ProfileAchievementDialog(
+                                                badge: badge,
+                                                celebrate: true,
+                                              ),
+                                        );
+                                      },
+                                      child: Container(
+                                        width: tile - 4,
+                                        height: tile - 4,
+                                        margin: const EdgeInsets.only(left: 4),
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: BoxDecoration(
                                           color: badge.color.withValues(
-                                            alpha: .3,
+                                            alpha: .08,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: badge.color.withValues(
+                                              alpha: .3,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      child:
-                                          badge.id == 'platinum' &&
-                                              !MediaQuery.disableAnimationsOf(
-                                                context,
+                                        child:
+                                            badge.isJourneyTrophy &&
+                                                !MediaQuery.disableAnimationsOf(
+                                                  context,
+                                                )
+                                            ? IgnorePointer(
+                                                child: SupremeSealArt(
+                                                  size: tile - 10,
+                                                  achievement: badge,
+                                                ),
                                               )
-                                          ? IgnorePointer(
-                                              child: SupremeSealArt(
-                                                size: 30,
-                                                achievement: badge,
+                                            : badge.artAsset != null
+                                            ? Image.asset(
+                                                badge.artAsset!,
+                                                fit: BoxFit.contain,
+                                                cacheWidth: 96,
+                                                errorBuilder: (_, __, ___) =>
+                                                    Icon(
+                                                      badge.icon,
+                                                      color: badge.color,
+                                                      size: 24,
+                                                    ),
+                                              )
+                                            : Icon(
+                                                badge.icon,
+                                                color: badge.color,
+                                                size: 24,
                                               ),
-                                            )
-                                          : badge.artAsset != null
-                                          ? Image.asset(
-                                              badge.artAsset!,
-                                              fit: BoxFit.contain,
-                                              cacheWidth: 96,
-                                              errorBuilder: (_, __, ___) =>
-                                                  Icon(
-                                                    badge.icon,
-                                                    color: badge.color,
-                                                    size: 24,
-                                                  ),
-                                            )
-                                          : Icon(
-                                              badge.icon,
-                                              color: badge.color,
-                                              size: 24,
-                                            ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -311,8 +340,8 @@ class ProfileIdentityCard extends StatelessWidget {
                   ),
                 if (onEditPhoto != null)
                   Positioned(
-                    left: 86,
-                    bottom: 8,
+                    left: avatarInset + 66,
+                    bottom: 8 + frameSpace,
                     child: IconButton.filled(
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.black,
@@ -327,7 +356,7 @@ class ProfileIdentityCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -341,24 +370,24 @@ class ProfileIdentityCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (onEdit != null) ...[
-                      const SizedBox(width: 12),
-                      IconButton.filledTonal(
-                        onPressed: onEdit,
-                        tooltip: 'Editar perfil',
-                        style: IconButton.styleFrom(
-                          backgroundColor: context.pbhColors.orange.withValues(
-                            alpha: .1,
+                    if (onEdit != null)
+                      Transform.translate(
+                        // Platinum center: 12px inset + half its 38px tile.
+                        offset: const Offset(13, 0),
+                        child: IconButton(
+                          onPressed: onEdit,
+                          tooltip: 'Editar perfil',
+                          style: IconButton.styleFrom(
+                            fixedSize: const Size(48, 48),
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: context.pbhColors.orange,
                           ),
-                          foregroundColor: context.pbhColors.orange,
-                          shape: const CircleBorder(),
+                          icon: const Icon(Icons.edit_outlined, size: 18),
                         ),
-                        icon: const Icon(Icons.edit_outlined, size: 18),
                       ),
-                    ],
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     Icon(
@@ -378,7 +407,7 @@ class ProfileIdentityCard extends StatelessWidget {
                   ],
                 ),
                 if (bio.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(bio, style: AppTextStyles.bodySmall),
                 ],
               ],

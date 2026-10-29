@@ -74,6 +74,7 @@ class _ProfileCustomizationScreenState
           founder: _founder,
           completed: unlocks.completed,
           earned: unlocks.earned,
+          manualAwards: unlocks.manualAwards,
         );
         _savedStyle ??= _style;
       });
@@ -325,38 +326,48 @@ class _ProfileCustomizationScreenState
     String value,
     ValueChanged<String> select,
   ) {
-    final ids = _unlocks!.earned.map((e) => e.id).toSet();
+    final ids = {
+      ..._unlocks!.earned.map((e) => e.id),
+      ..._unlocks!.manualAwards,
+    };
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: options.map((option) {
-        final available = option.available(_founder, _unlocks!.completed, ids);
-        return Tooltip(
-          message: available ? option.label : option.requirement,
-          child: ChoiceChip(
-            selected: value == option.id,
-            labelStyle: TextStyle(
-              color: value == option.id
-                  ? context.pbhColors.onAccent
-                  : Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-            avatar: Icon(
-              available ? Icons.circle : Icons.lock_outline,
-              size: 15,
-              color: option.color,
-            ),
-            label: Text(
-              available
-                  ? option.label
-                  : '${option.label} · ${option.requirement}',
-            ),
-            onSelected: available && !_saving
-                ? (_) => setState(() => select(option.id))
-                : null,
-          ),
-        );
-      }).toList(),
+      children: options
+          .where((o) => o.visible(_founder, _unlocks!.completed, ids))
+          .map((option) {
+            final available = option.available(
+              _founder,
+              _unlocks!.completed,
+              ids,
+            );
+            return Tooltip(
+              message: available ? option.label : option.requirement,
+              child: ChoiceChip(
+                selected: value == option.id,
+                labelStyle: TextStyle(
+                  color: value == option.id
+                      ? context.pbhColors.onAccent
+                      : Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+                avatar: Icon(
+                  available ? Icons.circle : Icons.lock_outline,
+                  size: 15,
+                  color: option.color,
+                ),
+                label: Text(
+                  available
+                      ? option.label
+                      : '${option.label} · ${option.requirement}',
+                ),
+                onSelected: available && !_saving
+                    ? (_) => setState(() => select(option.id))
+                    : null,
+              ),
+            );
+          })
+          .toList(),
     );
   }
 
@@ -538,7 +549,14 @@ class _ProfileCustomizationScreenState
                     ),
                     _heading('Animação da moldura'),
                     ProfileEffectPicker(
-                      options: ProfileStyle.frameEffects,
+                      options: ProfileStyle.frameEffects
+                          .where(
+                            (o) => o.visible(_founder, _unlocks!.completed, {
+                              ..._unlocks!.earned.map((e) => e.id),
+                              ..._unlocks!.manualAwards,
+                            }),
+                          )
+                          .toList(),
                       selected: _style.frameEffect,
                       optionsBuilder: (options) => _options(
                         options,
@@ -656,9 +674,9 @@ class _ProfileCustomizationScreenState
                               () => _style = _style.copyWith(title: value),
                             ),
                     ),
-                    _heading('Selos em destaque'),
+                    _heading('Conquistas ao lado da platina e do rubi'),
                     Text(
-                      'Escolha até 3. A ordem de seleção será a ordem da sua vitrine.',
+                      'Platina e rubi aparecem automaticamente quando conquistados. Escolha até 3 outras conquistas para exibir ao lado, na ordem de seleção.',
                       style: AppTextStyles.bodySmall,
                     ),
                     const SizedBox(height: 12),
@@ -667,11 +685,17 @@ class _ProfileCustomizationScreenState
                         'Conclua desafios para conquistar seus primeiros selos.',
                         style: AppTextStyles.bodySmall,
                       ),
-                    for (final badge in progress.earned)
+                    for (final badge in progress.earned.where(
+                      (badge) => !badge.isJourneyTrophy,
+                    ))
                       Builder(
                         builder: (_) {
                           final selected = _style
-                              .highlights(progress.earned)
+                              .highlights(
+                                progress.earned
+                                    .where((badge) => !badge.isJourneyTrophy)
+                                    .toList(),
+                              )
                               .map((e) => e.id)
                               .toList();
                           final index = selected.indexOf(badge.id);

@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../models/profile_achievement.dart';
 import '../services/supreme_seal_document.dart';
 import 'supreme_seal_art_stub.dart' as fallback;
+import 'native_platinum_art.dart';
 
 // Retain one browser controller, never one per badge. The idle document is paused.
 Future<WebViewController>? _idleController;
@@ -60,6 +61,7 @@ class _SupremeSealArtState extends State<SupremeSealArt>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (widget.achievement.isJourneyTrophy) return;
     if (_started || !(Platform.isAndroid || Platform.isIOS)) return;
     _started = true;
     _load(MediaQuery.disableAnimationsOf(context));
@@ -171,6 +173,15 @@ class _SupremeSealArtState extends State<SupremeSealArt>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.achievement.isJourneyTrophy) {
+      return NativePlatinumArt(
+        key: ValueKey(widget.achievement.id),
+        ruby: widget.achievement.isRuby,
+        size: widget.size,
+        celebrate: widget.celebrate,
+        onAnimationStarted: widget.onAnimationStarted,
+      );
+    }
     final preview = fallback.SupremeSealArt(
       size: widget.size,
       achievement: widget.achievement,

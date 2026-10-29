@@ -2,6 +2,12 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'bonfire_art.dart';
+import 'legendary_cover_art.dart';
+import 'legendary_frame_art.dart';
+import 'animated_profile_frame_art.dart';
+import 'event_profile_frame_art.dart';
+import 'cosmic_crown_frame_art.dart';
+import 'supreme_crown_frame_art.dart';
 
 /// Paint-only decoration: the image and profile text never rebuild on a tick.
 class ProfileOrnament extends StatefulWidget {
@@ -34,10 +40,22 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
   bool _enabled = false;
   bool _foreground = true;
   bool _scheduled = false;
+  ui.Image? _supremeArt;
+  Future<void> _loadSupremeArt() async {
+    if (widget.effect != 'supreme_crown' || _supremeArt != null) return;
+    try {
+      final art = await loadSupremeCrownArt();
+      if (mounted) setState(() => _supremeArt = art);
+    } catch (_) {
+      /* Keep particles visible if the asset cannot load. */
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadSupremeArt();
   }
 
   @override
@@ -64,6 +82,7 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
   @override
   void didUpdateWidget(covariant ProfileOrnament oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _loadSupremeArt();
     if (oldWidget.effect != widget.effect ||
         oldWidget.variant != widget.variant) {
       _motion.stop();
@@ -134,6 +153,7 @@ class _ProfileOrnamentState extends State<ProfileOrnament>
                   : 'shimmer'),
           widget.intensity.isFinite ? widget.intensity.clamp(0, 1) : .5,
           widget.variant,
+          _supremeArt,
         ),
         size: Size.infinite,
       ),
@@ -168,6 +188,7 @@ class _OrnamentPainter extends CustomPainter {
     this.effect,
     this.intensity,
     this.variant,
+    this.supremeArt,
   ) : super(repaint: motion);
   final Animation<double> motion;
   final Color color;
@@ -176,11 +197,50 @@ class _OrnamentPainter extends CustomPainter {
   final String effect;
   final double intensity;
   final String variant;
+  final ui.Image? supremeArt;
   @override
   void paint(Canvas canvas, Size size) {
     // Whole cycles keep the loop seamless while every effect supports intensity.
     final t = (motion.value * (1 + (intensity * 3).round())) % 1;
     if (effect == 'none') return;
+    if (frame && effect == 'supreme_crown') {
+      paintSupremeCrownFrame(canvas, size, motion.value, intensity, supremeArt);
+      return;
+    }
+    if (frame && effect == 'crown') {
+      paintCosmicCrownFrame(canvas, size, motion.value, intensity);
+      return;
+    }
+    if (frame &&
+        const {'rain', 'halloween', 'christmas', 'new_year'}.contains(effect)) {
+      paintEventProfileFrame(canvas, size, motion.value, intensity, effect);
+      return;
+    }
+    if (frame &&
+        const {'orbit', 'pulse', 'sparks', 'double'}.contains(effect)) {
+      paintAnimatedProfileFrame(canvas, size, motion.value, intensity, effect);
+      return;
+    }
+    if (!frame &&
+        const {
+          'platinum_ascent',
+          'platinum_throne',
+          'knowledge_constellation',
+          'journey_legacy',
+        }.contains(effect)) {
+      paintLegendaryCover(canvas, size, motion.value, intensity, effect);
+      return;
+    }
+    if (frame &&
+        const {
+          'platinum_orbit',
+          'platinum_iron',
+          'knowledge_orbit',
+          'journey_crown',
+        }.contains(effect)) {
+      paintLegendaryFrame(canvas, size, motion.value, intensity, effect);
+      return;
+    }
     if (!frame && effect == 'aurora') {
       _auroraBorealis(canvas, size, motion.value);
       return;
@@ -216,26 +276,6 @@ class _OrnamentPainter extends CustomPainter {
       final radius = size.shortestSide / 2 - 1.8;
       final rect = Rect.fromCircle(center: center, radius: radius);
       final angle = t * math.pi * 2;
-      if (effect == 'pulse') {
-        final pulse = .5 + .5 * math.sin(angle * 2);
-        canvas.drawCircle(
-          center,
-          radius,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.2 + pulse * 1.5
-            ..color = color.withValues(alpha: .25 + pulse * .7),
-        );
-        canvas.drawCircle(
-          center,
-          radius - 3,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = .8
-            ..color = color.withValues(alpha: .15 + pulse * .25),
-        );
-        return;
-      }
       if (effect == 'double' || effect == 'crown') {
         final cosmic = effect == 'crown';
         final accent = cosmic
@@ -267,27 +307,6 @@ class _OrnamentPainter extends CustomPainter {
             final p = center + Offset(math.cos(a), math.sin(a)) * (radius - 1);
             _star(canvas, p, 2.3, accent.withValues(alpha: .8));
           }
-        }
-        return;
-      }
-      if (effect == 'sparks') {
-        final sparks = (7 + intensity * 14).round();
-        for (var i = 0; i < sparks; i++) {
-          final phase = (t * 2 + i / sparks) % 1;
-          final a = i * 2.399 + t * math.pi;
-          final p =
-              center +
-              Offset(math.cos(a), math.sin(a)) * (radius - 3 + phase * 3);
-          canvas.drawCircle(
-            p,
-            .6 + (1 - phase) * 1.2,
-            Paint()
-              ..color = Color.lerp(
-                color,
-                Colors.white,
-                .5,
-              )!.withValues(alpha: math.sin(phase * math.pi) * .85),
-          );
         }
         return;
       }
@@ -1547,6 +1566,7 @@ class _OrnamentPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_OrnamentPainter oldDelegate) =>
+      oldDelegate.supremeArt != supremeArt ||
       oldDelegate.color != color ||
       oldDelegate.frame != frame ||
       oldDelegate.founder != founder ||
