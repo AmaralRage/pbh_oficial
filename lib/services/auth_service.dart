@@ -12,6 +12,11 @@ class AuthService {
       user?.email?.trim().toLowerCase() == adminEmail;
 
   final SupabaseClient _client;
+  // Native apps have no HTTP origin; let Supabase use its configured Site URL.
+  String? get _emailRedirect =>
+      const {'http', 'https'}.contains(Uri.base.scheme)
+      ? Uri.base.origin
+      : null;
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
   Session? get currentSession => _client.auth.currentSession;
@@ -21,8 +26,16 @@ class AuthService {
     await _client.auth.signUp(
       email: email.trim(),
       password: password,
-      emailRedirectTo: Uri.base.origin,
+      data: {'pbh_welcome_pending': true},
+      emailRedirectTo: _emailRedirect,
     );
+  }
+
+  Future<void> completeWelcome(String userId) async {
+    if (_client.auth.currentUser?.id != userId) return;
+    await _client.auth
+        .updateUser(UserAttributes(data: {'pbh_welcome_pending': false}))
+        .timeout(const Duration(seconds: 10));
   }
 
   Future<void> signIn(String email, String password) async {
@@ -35,7 +48,7 @@ class AuthService {
   Future<void> sendPasswordReset(String email) async {
     await _client.auth.resetPasswordForEmail(
       email.trim(),
-      redirectTo: Uri.base.origin,
+      redirectTo: _emailRedirect,
     );
   }
 

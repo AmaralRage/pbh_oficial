@@ -14,6 +14,8 @@ class CommunityPostModel {
   final bool isSample;
   final String? avatarAsset;
   final String? topic;
+  final List<String> imagePaths;
+  final List<String> imageUrls;
 
   const CommunityPostModel({
     required this.id,
@@ -31,6 +33,8 @@ class CommunityPostModel {
     this.avatarAsset,
     this.topic,
     this.achievementTag,
+    this.imagePaths = const [],
+    this.imageUrls = const [],
   });
 
   String get authorInitials {
@@ -54,25 +58,33 @@ class CommunityPostModel {
       likedByMe: row['liked_by_me'] as bool? ?? false,
       achievementTag: row['achievement_tag'] as String?,
       topic: row['topic'] as String?,
+      imagePaths:
+          (row['image_paths'] as List?)?.whereType<String>().toList() ??
+          const [],
     );
   }
 
-  CommunityPostModel copyWith({bool? isFollowing, bool? isSaved}) =>
-      CommunityPostModel(
-        id: id,
-        userId: userId,
-        authorName: authorName,
-        avatarUrl: avatarUrl,
-        createdAt: createdAt,
-        content: content,
-        likes: likes,
-        comments: comments,
-        likedByMe: likedByMe,
-        achievementTag: achievementTag,
-        isFollowing: isFollowing ?? this.isFollowing,
-        isSaved: isSaved ?? this.isSaved,
-        isSample: isSample,
-        avatarAsset: avatarAsset,
-        topic: topic,
-      );
+  CommunityPostModel copyWith({
+    bool? isFollowing,
+    bool? isSaved,
+    List<String>? imageUrls,
+  }) => CommunityPostModel(
+    id: id,
+    userId: userId,
+    authorName: authorName,
+    avatarUrl: avatarUrl,
+    createdAt: createdAt,
+    content: content,
+    likes: likes,
+    comments: comments,
+    likedByMe: likedByMe,
+    achievementTag: achievementTag,
+    isFollowing: isFollowing ?? this.isFollowing,
+    isSaved: isSaved ?? this.isSaved,
+    isSample: isSample,
+    avatarAsset: avatarAsset,
+    topic: topic,
+    imagePaths: imagePaths,
+    imageUrls: imageUrls ?? this.imageUrls,
+  );
 }

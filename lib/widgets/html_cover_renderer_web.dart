@@ -19,6 +19,7 @@ class _HtmlCoverRendererState extends State<HtmlCoverRenderer> {
   static int _next = 0;
   late final _viewType = 'pbh-cover-${_next++}';
   late final web.HTMLIFrameElement _frame;
+  late final JSFunction _ready;
   @override
   void initState() {
     super.initState();
@@ -34,6 +35,13 @@ class _HtmlCoverRendererState extends State<HtmlCoverRenderer> {
     _frame.onLoad.listen((_) {
       if (mounted) _play();
     });
+    _ready = ((web.MessageEvent event) {
+      if (mounted &&
+          event.source == _frame.contentWindow &&
+          event.data.dartify() == 'pbh-cover:ready')
+        _play();
+    }).toJS;
+    web.window.addEventListener('message', _ready);
     ui_web.platformViewRegistry.registerViewFactory(_viewType, (_) => _frame);
   }
 
@@ -50,6 +58,7 @@ class _HtmlCoverRendererState extends State<HtmlCoverRenderer> {
 
   @override
   void dispose() {
+    web.window.removeEventListener('message', _ready);
     _frame.srcdoc = '';
     _frame.remove();
     super.dispose();

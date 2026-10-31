@@ -7,6 +7,7 @@ import '../models/program_model.dart';
 import '../models/program_lesson.dart';
 import '../services/program_service.dart';
 import 'program_lesson_screen.dart';
+import '../widgets/program_study_plan.dart';
 
 class ProgramDetailScreen extends StatefulWidget {
   const ProgramDetailScreen({
@@ -216,19 +217,28 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               ),
             ],
             const SizedBox(height: 24),
+            if (!_loading)
+              ProgramStudyPlan(program: program, progress: _progress),
+            const SizedBox(height: 12),
             Text('Módulos e aulas', style: AppTextStyles.titleMedium),
             const SizedBox(height: 12),
-            for (final module in program.curriculum)
+            for (final (index, module)
+                in (_loading ? <ProgramModule>[] : program.curriculum).indexed)
               Card(
                 child: ExpansionTile(
-                  initiallyExpanded: true,
-                  title: Text(module.title),
+                  key: PageStorageKey('${program.id}/${module.id}'),
+                  initiallyExpanded:
+                      _progress.isComplete(program) ||
+                      module.lessons.any((l) => l.id == next),
+                  title: Text('Etapa ${index + 1} · ${module.title}'),
                   subtitle: Text(
                     '${module.lessons.where((l) => _progress.completed.contains(l.id)).length}/${module.lessons.length} aulas',
                   ),
                   children: [
                     for (final lesson in module.lessons)
                       ListTile(
+                        selected:
+                            lesson.id == next && !_progress.isComplete(program),
                         leading: Icon(
                           _progress.completed.contains(lesson.id)
                               ? Icons.check_circle
@@ -240,6 +250,32 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                           '${lesson.media == null ? 'Leitura e prática' : 'Vídeo/podcast + leitura e prática'} • ${lesson.minutes} min de leitura e prática',
                         ),
                         onTap: _busy || _loading ? null : () => _open(lesson),
+                      ),
+                    if (module.lessons.isNotEmpty &&
+                        module.lessons.last.practice.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Prática ao finalizar a etapa',
+                              style: AppTextStyles.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              module.lessons.last.practice,
+                              style: AppTextStyles.bodySmall,
+                            ),
+                            TextButton.icon(
+                              onPressed: _busy || _loading
+                                  ? null
+                                  : () => _open(module.lessons.last),
+                              icon: const Icon(Icons.edit_note),
+                              label: const Text('Abrir aula e praticar'),
+                            ),
+                          ],
+                        ),
                       ),
                   ],
                 ),

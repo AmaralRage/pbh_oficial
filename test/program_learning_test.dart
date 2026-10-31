@@ -435,6 +435,32 @@ void main() {
       expect(items[1].id, programCatalog.first.id);
     },
   );
+  testWidgets(
+    'resume expands the next module after asynchronous progress loads',
+    (tester) async {
+      final program = programCatalog.first;
+      final service = ProgramService(client: client);
+      await service.loadAll([program]);
+      for (final lesson in program.curriculum.first.lessons) {
+        await service.update(program.id, completedLesson: lesson.id);
+      }
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ProgramDetailScreen(program: program, service: service),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final nextTitle = program.curriculum[1].lessons.first.title;
+      await tester.scrollUntilVisible(
+        find.text(nextTitle),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text(nextTitle), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('start opens a lesson; complete returns to updated progress', (
     tester,
   ) async {

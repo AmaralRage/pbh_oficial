@@ -1,6 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
+import 'dart:math';
 
 import '../models/community_post_model.dart';
+import '../models/community_photo.dart';
 
 class CommunityComment {
   const CommunityComment({
@@ -56,6 +59,71 @@ class CommunityService {
 
   String? get _userId => _client.auth.currentUser?.id;
   String? get currentUserId => _userId;
+  String get currentUserName {
+    final name =
+        (_client.auth.currentUser?.userMetadata?['display_name'] as String?)
+            ?.trim();
+    return name?.isNotEmpty == true ? name! : 'Membro';
+  }
+
+  bool _cleaningPhotos = false;
+  DateTime? _lastPhotoCleanup;
+  static String newPostId() {
+    final random = Random.secure(), bytes = List.generate(16, (_) => 0);
+    for (var i = 0; i < bytes.length; i++) {
+      bytes[i] = random.nextInt(256);
+    }
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+  }
+
+  Future<Map<String, String>> _photoUrls(List<String> paths) async {
+    if (paths.isEmpty) return {};
+    try {
+      final signed = await _client.storage
+          .from('community-photos')
+          .createSignedUrls(paths, 600);
+      return {
+        for (var i = 0; i < paths.length && i < signed.length; i++)
+          paths[i]: signed[i].signedUrl,
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> cleanupPhotos({bool force = false}) async {
+    final user = _userId;
+    if (user == null ||
+        _cleaningPhotos ||
+        (!force &&
+            _lastPhotoCleanup != null &&
+            DateTime.now().difference(_lastPhotoCleanup!) <
+                const Duration(minutes: 1)))
+      return;
+    _cleaningPhotos = true;
+    _lastPhotoCleanup = DateTime.now();
+    try {
+      final rows = await _client.rpc('pending_community_photo_cleanup') as List;
+      for (final row in rows) {
+        if (_userId != user) return;
+        await _client.storage
+            .from('community-photos')
+            .remove(List<String>.from(row['paths'] as List));
+        if (_userId != user) return;
+        await _client.rpc(
+          'ack_community_photo_cleanup',
+          params: {'p_id': row['post_id']},
+        );
+      }
+    } catch (_) {
+      /* Queued cleanup is retried on a later community visit. */
+    } finally {
+      _cleaningPhotos = false;
+    }
+  }
 
   Future<List<CommunityPostModel>> fetchPosts({
     int filterIndex = 0,
@@ -64,6 +132,7 @@ class CommunityService {
     String search = '',
     String? topic,
   }) async {
+    unawaited(cleanupPhotos());
     var query = _client.from('community_feed').select();
     final userId = _userId;
     var followingIds = <String>[];
@@ -102,18 +171,26 @@ class CommunityService {
                 ? Future.value(savedPostIds)
                 : _fetchSavedPostIds(userId),
           ]);
-    final rows = await orderedQuery.range(offset, offset + limit - 1);
+    final rows = await orderedQuery
+        .order('id', ascending: false)
+        .range(offset, offset + limit - 1);
+    final models = rows.map((row) => CommunityPostModel.fromMap(row)).toList();
+    final urls = await _photoUrls(
+      models.expand((post) => post.imagePaths).toSet().toList(),
+    );
     var savedIds = <String>{};
     if (auxiliaryDataFuture != null) {
       final auxiliaryData = await auxiliaryDataFuture;
       followingIds = auxiliaryData[0];
       savedIds = auxiliaryData[1].toSet();
     }
-    return rows.map((row) {
-      final post = CommunityPostModel.fromMap(row);
+    if (_userId != userId)
+      throw StateError('A conta mudou. Atualize a comunidade.');
+    return models.map((post) {
       return post.copyWith(
         isFollowing: followingIds.contains(post.userId),
         isSaved: savedIds.contains(post.id),
+        imageUrls: [for (final path in post.imagePaths) urls[path] ?? ''],
       );
     }).toList();
   }
@@ -177,17 +254,78 @@ class CommunityService {
     String content, {
     String? achievementTag,
     String? topic,
+    List<CommunityPhoto> photos = const [],
+    String? draftId,
   }) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para publicar.');
-    await _client.from('community_posts').insert({
-      'user_id': userId,
-      'content': content.trim(),
-      'achievement_tag': achievementTag?.trim().isEmpty == true
-          ? null
-          : achievementTag?.trim(),
-      'topic': topic,
-    });
+    if (content.trim().isEmpty || content.trim().length > 2000)
+      throw ArgumentError('Escreva um relato de até 2000 caracteres.');
+    if (photos.length > CommunityPhoto.maxCount)
+      throw ArgumentError('Escolha até quatro fotos.');
+    final id = draftId ?? newPostId();
+    final paths = [
+      for (var i = 0; i < photos.length; i++)
+        '$userId/$id/$i.${photos[i].extension}',
+    ];
+    try {
+      final existing = await _client
+          .from('community_posts')
+          .select('id')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (existing != null) return;
+      if (photos.isNotEmpty) {
+        await _client.rpc(
+          'prepare_community_photos',
+          params: {'p_id': id, 'p_paths': paths},
+        );
+        if (_userId != userId)
+          throw StateError('A conta mudou. Abra novamente a publicação.');
+        await _client.storage.from('community-photos').remove(paths);
+        for (var i = 0; i < photos.length; i++) {
+          if (_userId != userId)
+            throw StateError('A conta mudou. Abra novamente a publicação.');
+          await _client.storage
+              .from('community-photos')
+              .uploadBinary(
+                paths[i],
+                photos[i].bytes,
+                fileOptions: FileOptions(contentType: photos[i].mime),
+              );
+        }
+      }
+      if (_userId != userId)
+        throw StateError('A conta mudou. Abra novamente a publicação.');
+      await _client.from('community_posts').insert({
+        'id': id,
+        'user_id': userId,
+        'content': content.trim(),
+        'achievement_tag': achievementTag?.trim().isEmpty == true
+            ? null
+            : achievementTag?.trim(),
+        'topic': topic,
+        'image_paths': paths,
+      });
+    } catch (_) {
+      // A lost response can mean the insert committed. Never delete its photos
+      // or duplicate the post; the same draft ID can safely be retried.
+      if (_userId == userId) {
+        try {
+          final saved = await _client
+              .from('community_posts')
+              .select('id')
+              .eq('id', id)
+              .eq('user_id', userId)
+              .maybeSingle();
+          if (saved != null) return;
+        } catch (_) {
+          /* Reservation retains unfinished uploads for cleanup. */
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<void> toggleLike(
@@ -337,6 +475,7 @@ class CommunityService {
         .delete()
         .eq('id', postId)
         .eq('user_id', userId);
+    await cleanupPhotos(force: true);
   }
 
   Future<bool> isFollowing(String userId) async {

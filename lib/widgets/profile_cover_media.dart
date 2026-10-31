@@ -7,7 +7,13 @@ import 'html_cover_renderer.dart';
 
 /// The uploaded artwork stays below the independent profile ornaments.
 class ProfileCoverMedia extends StatefulWidget {
-  const ProfileCoverMedia({super.key, this.bytes, this.url});
+  const ProfileCoverMedia({
+    super.key,
+    this.bytes,
+    this.url,
+    this.communityAttachment = false,
+  });
+  final bool communityAttachment;
   final Uint8List? bytes;
   final String? url;
   @override
@@ -52,8 +58,10 @@ class _ProfileCoverMediaState extends State<ProfileCoverMedia>
       } else {
         final uri = Uri.parse(widget.url!);
         final origin = Uri.parse(SupabaseConfig.url);
-        if (uri.origin != origin.origin ||
-            !uri.path.startsWith('/storage/v1/object/public/profile-covers/'))
+        final allowedPath = widget.communityAttachment
+            ? uri.path.startsWith('/storage/v1/object/sign/community-photos/')
+            : uri.path.startsWith('/storage/v1/object/public/profile-covers/');
+        if (uri.origin != origin.origin || !allowedPath)
           throw const FormatException('Unsupported cover URL');
         final client = http.Client();
         try {
@@ -158,7 +166,7 @@ class _ProfileCoverMediaState extends State<ProfileCoverMedia>
       // Keep the document stable during play/pause to preserve animation state.
       _document ??= ProfileCoverDocument.wrap(
         _source!,
-        playing: false,
+        playing: _playing,
         reducedMotion: _reduced,
       );
       return IgnorePointer(

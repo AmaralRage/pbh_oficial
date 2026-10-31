@@ -54,6 +54,9 @@ class ProfileStyle {
     this.frameIntensity = .5,
     this.coverIntensity = .5,
     this.coverVariant = 'royal',
+    this.background = 'none',
+    this.backgroundPath = '',
+    this.backgroundDim = .35,
   });
   final String frame;
   final String cover;
@@ -65,6 +68,27 @@ class ProfileStyle {
   final double frameIntensity;
   final double coverIntensity;
   final String coverVariant;
+  final String background;
+  final String backgroundPath;
+  final double backgroundDim;
+  static const backgrounds = [
+    ProfileStyleOption('none', 'Padrão', Color(0xFF242424)),
+    ProfileStyleOption('ember', 'Essência PBH', Color(0xFFFF813D)),
+    ProfileStyleOption('library', 'Biblioteca', Color(0xFFB68A55)),
+    ProfileStyleOption('astral', 'Astral', Color(0xFF9D80FF)),
+    ProfileStyleOption('custom', 'Minha imagem', Color(0xFF6CCFD8)),
+  ];
+  static String safeBackground(Object? value) =>
+      backgrounds.any((o) => o.id == value) ? value as String : 'none';
+  static double safeBackgroundDim(Object? value) =>
+      value is num && value.isFinite ? value.toDouble().clamp(0, .85) : .35;
+  static String safeBackgroundPath(Object? value) =>
+      value is String &&
+          RegExp(
+            r'^[0-9a-fA-F-]{36}/[0-9]+\.(jpeg|jpg|png|webp)$',
+          ).hasMatch(value)
+      ? value
+      : '';
   static const nebulaVariants = [
     ProfileStyleOption(
       'royal',
@@ -260,6 +284,9 @@ class ProfileStyle {
     String value(String key, String fallback) =>
         map[key] is String ? map[key] as String : fallback;
     return ProfileStyle(
+      background: safeBackground(map['background']),
+      backgroundPath: safeBackgroundPath(map['background_path']),
+      backgroundDim: safeBackgroundDim(map['background_dim']),
       frame: value('frame', founder ? 'founder' : 'orange'),
       cover: value('cover', founder ? 'founder' : 'ember'),
       title: value('title', founder ? 'founder' : 'member'),
@@ -279,6 +306,9 @@ class ProfileStyle {
     );
   }
   ProfileStyle copyWith({
+    String? background,
+    String? backgroundPath,
+    double? backgroundDim,
     String? frame,
     String? cover,
     String? title,
@@ -290,6 +320,9 @@ class ProfileStyle {
     double? coverIntensity,
     String? coverVariant,
   }) => ProfileStyle(
+    background: safeBackground(background ?? this.background),
+    backgroundPath: safeBackgroundPath(backgroundPath ?? this.backgroundPath),
+    backgroundDim: safeBackgroundDim(backgroundDim ?? this.backgroundDim),
     frame: frame ?? this.frame,
     cover: cover ?? this.cover,
     title: title ?? this.title,
@@ -302,6 +335,9 @@ class ProfileStyle {
     coverVariant: safeCoverVariant(coverVariant ?? this.coverVariant),
   );
   Map<String, dynamic> toMap() => {
+    'background': safeBackground(background),
+    'background_path': safeBackgroundPath(backgroundPath),
+    'background_dim': safeBackgroundDim(backgroundDim),
     'frame': frame,
     'cover': cover,
     'title': title,
@@ -333,6 +369,9 @@ class ProfileStyle {
         ? selected
         : fallback;
     return ProfileStyle(
+      background: safeBackground(background),
+      backgroundPath: safeBackgroundPath(backgroundPath),
+      backgroundDim: safeBackgroundDim(backgroundDim),
       frame: option(frames, frame, 'orange'),
       cover: option(covers, cover, 'ember'),
       frameEffect: option(frameEffects, frameEffect, 'orbit'),

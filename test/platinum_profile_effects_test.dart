@@ -99,7 +99,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('Platinas'));
+      await tester.tap(find.text('Jornadas'));
       await tester.pump();
       expect(find.text('Forja da Disciplina'), findsOneWidget);
       expect(find.text('Biblioteca dos Sábios'), findsOneWidget);

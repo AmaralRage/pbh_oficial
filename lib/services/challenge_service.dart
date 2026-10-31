@@ -579,6 +579,31 @@ class ChallengeService {
     return row != null;
   }
 
+  Future<Set<DateTime>> registeredDays(
+    String challengeId,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final userId = _userId;
+    if (userId == null) return {};
+    final rows = await _client
+        .from('challenge_day_completions')
+        .select('completed_on')
+        .eq('user_id', userId)
+        .eq('challenge_id', challengeId)
+        .gte('completed_on', _dateKey(start))
+        .lte('completed_on', _dateKey(end))
+        .timeout(const Duration(seconds: 10));
+    if (_userId != userId)
+      throw StateError('A conta mudou. Abra novamente o desafio.');
+    return {
+      for (final row in rows)
+        if (DateTime.tryParse(row['completed_on'] as String? ?? '')
+            case final DateTime date)
+          DateUtils.dateOnly(date),
+    };
+  }
+
   Future<void> toggleToday(String challengeId, bool completed) async {
     final userId = _userId;
     if (userId == null)

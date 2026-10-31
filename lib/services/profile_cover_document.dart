@@ -53,7 +53,7 @@ class ProfileCoverDocument {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; frame-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <style>html,body,iframe{margin:0;padding:0;border:0;width:100%;height:100%;overflow:hidden;background:transparent}iframe{pointer-events:none}</style></head><body>
 <iframe id="pbh-cover-content" sandbox="allow-scripts" referrerpolicy="no-referrer" srcdoc="$escaped"></iframe>
-<script>addEventListener('message',e=>{if(e.source===parent&&(e.data==='pbh-cover:play'||e.data==='pbh-cover:pause'))document.getElementById('pbh-cover-content').contentWindow.postMessage(e.data,'*')});</script>
+<script>(()=>{const frame=document.getElementById('pbh-cover-content');let state='${playing ? 'pbh-cover:play' : 'pbh-cover:pause'}';const sync=()=>frame.contentWindow.postMessage(state,'*');frame.addEventListener('load',sync);addEventListener('message',e=>{if(e.source===parent&&(e.data==='pbh-cover:play'||e.data==='pbh-cover:pause')){state=e.data;sync()}else if(e.source===frame.contentWindow&&e.data==='pbh-cover:ready'){sync();parent.postMessage('pbh-cover:ready','*')}})})();</script>
 </body></html>''';
   }
 
@@ -63,6 +63,7 @@ function schedule(id){const job=jobs.get(id);if(!job)return;job.ticket=raf(t=>{j
 window.requestAnimationFrame=cb=>{const id=++seq;jobs.set(id,{cb,ticket:null});if(!paused||!painted)schedule(id);return id};
 window.cancelAnimationFrame=id=>{const job=jobs.get(id);if(job&&job.ticket!==null)cancel(job.ticket);jobs.delete(id)};
 addEventListener('message',e=>{if(e.source!==parent)return;if(e.data!=='pbh-cover:play'&&e.data!=='pbh-cover:pause')return;paused=e.data==='pbh-cover:pause';const style=document.getElementById('pbh-cover-play');if(style)style.textContent=paused?'*{animation-play-state:paused!important}':'';for(const [id,job]of jobs){if(job.ticket!==null){cancel(job.ticket);job.ticket=null}if(!paused)schedule(id)}});
+if(document.readyState==='loading')addEventListener('DOMContentLoaded',()=>parent.postMessage('pbh-cover:ready','*'),{once:true});else parent.postMessage('pbh-cover:ready','*');
 })();
 ''';
   static const _fit = r'''

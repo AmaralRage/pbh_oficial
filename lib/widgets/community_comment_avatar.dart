@@ -1,72 +1,26 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/auth_service.dart';
-import '../services/public_member_profile_service.dart';
-import '../models/public_member_profile.dart';
+import 'community_identity.dart';
 
-/// Resolve missing feed images through the same profile used by the profile page.
-class ProfileCommentAvatar extends StatefulWidget {
+class ProfileCommentAvatar extends StatelessWidget {
   const ProfileCommentAvatar({
     super.key,
     required this.userId,
     required this.name,
     this.avatarUrl,
   });
-  final String userId;
-  final String name;
+  final String userId, name;
   final String? avatarUrl;
   @override
-  State<ProfileCommentAvatar> createState() => _ProfileCommentAvatarState();
-}
-
-class _ProfileCommentAvatarState extends State<ProfileCommentAvatar> {
-  Future<PublicMemberProfile?>? _profile;
-  void _resolve() {
-    final client = Supabase.instance.client;
-    _profile =
-        client.auth.currentUser?.id != widget.userId &&
-            (widget.avatarUrl?.trim().isEmpty ?? true)
-        ? PublicMemberProfileService(client: client).fetch(widget.userId)
-        : null;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _resolve();
-  }
-
-  @override
-  void didUpdateWidget(covariant ProfileCommentAvatar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.userId != widget.userId ||
-        oldWidget.avatarUrl != widget.avatarUrl) {
-      _resolve();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => StreamBuilder<AuthState>(
-    stream: Supabase.instance.client.auth.onAuthStateChange,
-    builder: (context, _) {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user?.id == widget.userId) {
-        return CommunityCommentAvatar(
-          name: widget.name,
-          avatarUrl: user!.userMetadata?['avatar_url'] as String?,
-          founder: AuthService.isProjectLeader(user),
-        );
-      }
-      return FutureBuilder<PublicMemberProfile?>(
-        future: _profile,
-        builder: (context, snapshot) => CommunityCommentAvatar(
-          name: widget.name,
-          avatarUrl: snapshot.data?.avatarUrl ?? widget.avatarUrl,
-          founder: snapshot.data?.founder ?? false,
-        ),
-      );
-    },
+  Widget build(BuildContext context) => CommunityIdentityBuilder(
+    userId: userId,
+    name: name,
+    avatarUrl: avatarUrl,
+    builder: (context, identity) => CommunityCommentAvatar(
+      name: identity.name,
+      avatarUrl: identity.avatarUrl,
+      founder: identity.founder,
+    ),
   );
 }
 

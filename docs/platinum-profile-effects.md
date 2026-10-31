@@ -1,12 +1,12 @@
 # Efeitos exclusivos das jornadas
 
-No editor do perfil, abra **Foto → Animação da moldura → Platinas** ou **Capa → Animação sobre a capa → Platinas**.
+No editor do perfil, abra **Foto → Animação da moldura → Jornadas** ou **Capa → Animação sobre a capa → Jornadas**. As opções são agrupadas em comuns disponíveis, recompensas de jornadas e exclusivas; os requisitos continuam visíveis nas recompensas bloqueadas.
 
 | Requisito | Moldura | Capa |
 |---|---|---|
 | Platina PBH: 57 desafios originais | Guardião de Platina: cristais glaciais; Juramento de Ferro: metal negro, fissuras e brasas | Forja da Disciplina: espada, brasas e faíscas; Trono do Inabalável: trono e chamas violetas |
-| Platina Mente desperta: cinco desafios de Conhecimento | Selo Arcano: obsidiana, runas e círculos místicos | Biblioteca dos Sábios: estantes, velas e páginas flutuantes |
-| As duas platinas | Coroa do Legado: ouro envelhecido, coroa e louros pulsantes | Observatório Eterno: cúpula, constelações, órbitas e meteoros |
+| Rubi do Conhecimento: cinco desafios de Conhecimento | Selo Arcano: obsidiana, runas e círculos místicos | Biblioteca dos Sábios: estantes, velas e páginas flutuantes |
+| Platina PBH e Rubi do Conhecimento | Coroa do Legado: ouro envelhecido, coroa e louros pulsantes | Observatório Eterno: cúpula, constelações, órbitas e meteoros |
 
 Todos os efeitos têm controle de intensidade, respeitam movimento reduzido e são sobrepostos à imagem, GIF ou arte HTML da capa. O fundador segue a regra existente de acesso às recompensas.
 

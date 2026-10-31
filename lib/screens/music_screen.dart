@@ -217,11 +217,13 @@ class _PlaylistCard extends StatelessWidget {
                             children: [
                               Text(
                                 title,
-                                maxLines: 1,
+                                maxLines: trackTitle == null ? 2 : 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppTextStyles.titleMedium.copyWith(
-                                  color: Colors.white,
-                                ),
+                                style:
+                                    (trackTitle == null
+                                            ? AppTextStyles.brandTitle
+                                            : AppTextStyles.titleMedium)
+                                        .copyWith(color: Colors.white),
                               ),
                               const SizedBox(height: 3),
                               Text(
@@ -264,7 +266,7 @@ class _PlaylistCard extends StatelessWidget {
                         .copyWith(color: context.pbhColors.orange),
                   ),
                   const SizedBox(height: 5),
-                  Text('Projeto Bom Homem', style: AppTextStyles.titleLarge),
+                  Text('Projeto Bom Homem', style: AppTextStyles.brandHeadline),
                   const SizedBox(height: 6),
                   Text(
                     'Ouça sua playlist e acompanhe a faixa, o progresso e as letras disponíveis.',

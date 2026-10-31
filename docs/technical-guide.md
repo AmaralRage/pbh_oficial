@@ -1,5 +1,7 @@
 # PBH Oficial
 
+> Revisão de 30/10/2026: [experiência, apresentação inicial e revisão física do build 49](product-review-2026-10-30.md).
+
 > Atualização de 27/10/2026: consulte também [sincronização, notificações e distribuição](reliability-and-release.md)
 > para as migrations novas, a assinatura e os APKs com nome padronizado.
 

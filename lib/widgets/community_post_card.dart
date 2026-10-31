@@ -10,6 +10,8 @@ import '../models/community_post_model.dart';
 import '../models/community_topics.dart';
 import 'community_comment_avatar.dart';
 import 'text_entry_dialog.dart';
+import 'community_photo_gallery.dart';
+import 'community_identity.dart';
 import '../services/community_service.dart';
 import '../services/minute_clock.dart';
 import '../screens/public_member_profile_screen.dart';
@@ -366,10 +368,15 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                                       child: InkWell(
                                         onTap: () =>
                                             _openMember(comment.userId),
-                                        child: Text(
-                                          comment.author,
-                                          style: AppTextStyles.titleMedium
-                                              .copyWith(fontSize: 13),
+                                        child: CommunityIdentityBuilder(
+                                          userId: comment.userId,
+                                          name: comment.author,
+                                          avatarUrl: comment.avatarUrl,
+                                          builder: (context, identity) => Text(
+                                            identity.name,
+                                            style: AppTextStyles.titleMedium
+                                                .copyWith(fontSize: 13),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -898,64 +905,77 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              InkWell(
-                borderRadius: BorderRadius.circular(24),
-                onTap: _openPostAuthor,
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: context.pbhColors.orangeDim,
-                  child: _postAvatar(post),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: InkWell(
+          CommunityIdentityBuilder(
+            userId: post.userId,
+            name: post.authorName,
+            avatarUrl: post.avatarUrl,
+            builder: (context, identity) => Row(
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(24),
                   onTap: _openPostAuthor,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.authorName,
-                        style: AppTextStyles.titleMedium.copyWith(fontSize: 14),
-                      ),
-                      Text(
-                        post.isSample
-                            ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
-                            : _formatElapsed(post.createdAt),
-                        style: AppTextStyles.statLabel,
-                      ),
-                    ],
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: context.pbhColors.orangeDim,
+                    child: post.isSample
+                        ? _postAvatar(post)
+                        : CommunityCommentAvatar(
+                            name: identity.name,
+                            avatarUrl: identity.avatarUrl,
+                            founder: identity.founder,
+                          ),
                   ),
                 ),
-              ),
-              if (!post.isSample &&
-                  widget.isAuthenticated &&
-                  post.userId != _service.currentUserId)
-                IconButton(
-                  tooltip: _following ? 'Deixar de seguir' : 'Seguir',
-                  onPressed: _toggleFollow,
-                  icon: Icon(
-                    _following
-                        ? Icons.person_remove_alt_1_rounded
-                        : Icons.person_add_alt_1_rounded,
-                    size: 19,
-                    color: _following
-                        ? context.pbhColors.orange
-                        : context.pbhColors.textTertiary,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: _openPostAuthor,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          identity.name,
+                          style: AppTextStyles.titleMedium.copyWith(
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          post.isSample
+                              ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
+                              : _formatElapsed(post.createdAt),
+                          style: AppTextStyles.statLabel,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              if (!post.isSample)
-                IconButton(
-                  tooltip: 'Mais opções',
-                  onPressed: _showPostMenu,
-                  icon: Icon(
-                    Icons.more_horiz,
-                    color: context.pbhColors.textTertiary,
+                if (!post.isSample &&
+                    widget.isAuthenticated &&
+                    post.userId != _service.currentUserId)
+                  IconButton(
+                    tooltip: _following ? 'Deixar de seguir' : 'Seguir',
+                    onPressed: _toggleFollow,
+                    icon: Icon(
+                      _following
+                          ? Icons.person_remove_alt_1_rounded
+                          : Icons.person_add_alt_1_rounded,
+                      size: 19,
+                      color: _following
+                          ? context.pbhColors.orange
+                          : context.pbhColors.textTertiary,
+                    ),
                   ),
-                ),
-            ],
+                if (!post.isSample)
+                  IconButton(
+                    tooltip: 'Mais opções',
+                    onPressed: _showPostMenu,
+                    icon: Icon(
+                      Icons.more_horiz,
+                      color: context.pbhColors.textTertiary,
+                    ),
+                  ),
+              ],
+            ),
           ),
           if (post.achievementTag != null) ...[
             const SizedBox(height: 12),
@@ -1009,6 +1029,12 @@ class _CommunityPostCardState extends State<CommunityPostCard>
               height: 1.5,
             ),
           ),
+          if (post.imageUrls.isNotEmpty)
+            CommunityPhotoGallery(
+              urls: post.imageUrls,
+              paths: post.imagePaths,
+              onRefresh: () => widget.onChanged(),
+            ),
           const SizedBox(height: 16),
           Row(
             children: [

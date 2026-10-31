@@ -8,6 +8,7 @@ import '../services/public_member_profile_service.dart';
 import '../widgets/profile_identity_card.dart';
 import '../widgets/profile_achievement_seals.dart';
 import '../widgets/profile_theme_scope.dart';
+import '../widgets/profile_background.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/personal_goal_card.dart';
 import '../services/personal_goal_service.dart';
@@ -124,92 +125,95 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
             profile.isOwn ? 'Seu perfil público' : 'Perfil do membro',
           ),
         ),
-        body: RefreshIndicator(
-          onRefresh: _load,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
-            children: [
-              ProfileIdentityCard(
-                name: profile.name,
-                bio: profile.bio,
-                style: profile.style,
-                earned: profile.earned,
-                avatarUrl: profile.avatarUrl,
-                coverUrl: profile.coverUrl,
-                founder: profile.founder,
-              ),
-              const SizedBox(height: 22),
-              PublicGoalCard(
-                key: ValueKey('goal-${profile.id}-$_version'),
-                userId: profile.id,
-                service: PersonalGoalService(client: _service.client),
-              ),
-              if (!profile.hasProgress)
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: context.pbhColors.surface,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: const Text(
-                    'Este membro prefere manter seu progresso e suas conquistas privados.',
-                  ),
+        body: ProfileBackground(
+          style: profile.style,
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+              children: [
+                ProfileIdentityCard(
+                  name: profile.name,
+                  bio: profile.bio,
+                  style: profile.style,
+                  earned: profile.earned,
+                  avatarUrl: profile.avatarUrl,
+                  coverUrl: profile.coverUrl,
+                  founder: profile.founder,
                 ),
-              if (profile.isOwn && !profile.progressShared)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
-                  child: Text(
-                    'Somente você vê os números e selos abaixo. Ative “Compartilhar progresso e conquistas” em Privacidade para mostrá-los aos outros membros.',
-                    style: AppTextStyles.bodySmall,
+                const SizedBox(height: 22),
+                PublicGoalCard(
+                  key: ValueKey('goal-${profile.id}-$_version'),
+                  userId: profile.id,
+                  service: PersonalGoalService(client: _service.client),
+                ),
+                if (!profile.hasProgress)
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: context.pbhColors.surface,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Text(
+                      'Este membro prefere manter seu progresso e suas conquistas privados.',
+                    ),
                   ),
-                ),
-              if (profile.hasProgress) ...[
-                Row(
-                  children: [
-                    StatCard(
-                      icon: Icons.flag_outlined,
-                      value: '${profile.completed}',
-                      label: 'Desafios\nconcluídos',
+                if (profile.isOwn && !profile.progressShared)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: Text(
+                      'Somente você vê os números e selos abaixo. Ative “Compartilhar progresso e conquistas” em Privacidade para mostrá-los aos outros membros.',
+                      style: AppTextStyles.bodySmall,
                     ),
-                    const SizedBox(width: 12),
-                    StatCard(
-                      icon: Icons.groups_outlined,
-                      value: '${profile.followers}',
-                      label: 'Pessoas que\nacompanham',
-                    ),
-                    const SizedBox(width: 12),
-                    StatCard(
-                      icon: Icons.emoji_events_outlined,
-                      value: '${profile.earned.length}',
-                      label: 'Selos\nconquistados',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Text('Selos em destaque', style: AppTextStyles.titleMedium),
-                const SizedBox(height: 14),
-                if (highlights.isEmpty)
-                  Text(
-                    'Nenhum selo em destaque por enquanto.',
-                    style: AppTextStyles.bodySmall,
-                  )
-                else
-                  ProfileAchievementSeals(achievements: highlights),
-                const SizedBox(height: 20),
-                if (profile.earned.isNotEmpty)
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    title: const Text('Todas as conquistas'),
-                    onExpansionChanged: (open) =>
-                        setState(() => _showAll = open),
+                  ),
+                if (profile.hasProgress) ...[
+                  Row(
                     children: [
-                      if (_showAll)
-                        ProfileAchievementSeals(achievements: profile.earned),
+                      StatCard(
+                        icon: Icons.flag_outlined,
+                        value: '${profile.completed}',
+                        label: 'Desafios\nconcluídos',
+                      ),
+                      const SizedBox(width: 12),
+                      StatCard(
+                        icon: Icons.groups_outlined,
+                        value: '${profile.followers}',
+                        label: 'Pessoas que\nacompanham',
+                      ),
+                      const SizedBox(width: 12),
+                      StatCard(
+                        icon: Icons.emoji_events_outlined,
+                        value: '${profile.earned.length}',
+                        label: 'Selos\nconquistados',
+                      ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+                  Text('Selos em destaque', style: AppTextStyles.titleMedium),
+                  const SizedBox(height: 14),
+                  if (highlights.isEmpty)
+                    Text(
+                      'Nenhum selo em destaque por enquanto.',
+                      style: AppTextStyles.bodySmall,
+                    )
+                  else
+                    ProfileAchievementSeals(achievements: highlights),
+                  const SizedBox(height: 20),
+                  if (profile.earned.isNotEmpty)
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text('Todas as conquistas'),
+                      onExpansionChanged: (open) =>
+                          setState(() => _showAll = open),
+                      children: [
+                        if (_showAll)
+                          ProfileAchievementSeals(achievements: profile.earned),
+                      ],
+                    ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

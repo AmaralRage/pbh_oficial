@@ -4,8 +4,62 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pbh_oficial/widgets/profile_cover_media.dart';
 import 'package:pbh_oficial/widgets/profile_ornament.dart';
+import 'package:pbh_oficial/widgets/html_cover_renderer.dart';
 
 void main() {
+  testWidgets(
+    'visible HTML starts playing and replacement inherits playback state',
+    (tester) async {
+      final first = Uint8List.fromList(
+        utf8.encode(
+          '<!doctype html><html><body><div class="stage">First</div></body></html>',
+        ),
+      );
+      final second = Uint8List.fromList(
+        utf8.encode(
+          '<!doctype html><html><body><div class="stage">Second</div></body></html>',
+        ),
+      );
+      Widget card(Uint8List bytes, {bool active = true}) => MaterialApp(
+        home: TickerMode(
+          enabled: active,
+          child: Center(
+            child: SizedBox(
+              width: 360,
+              height: 270,
+              child: ProfileCoverMedia(bytes: bytes, communityAttachment: true),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(card(first));
+      await tester.pump();
+      await tester.pump();
+      expect(
+        tester
+            .widget<HtmlCoverRenderer>(find.byType(HtmlCoverRenderer).first)
+            .playing,
+        true,
+      );
+      await tester.pumpWidget(card(second));
+      await tester.pump();
+      final renderer = tester.widget<HtmlCoverRenderer>(
+        find.byType(HtmlCoverRenderer).first,
+      );
+      expect(renderer.playing, true);
+      expect(renderer.document, contains("let state='pbh-cover:play'"));
+      await tester.pumpWidget(card(second, active: false));
+      await tester.pump();
+      await tester.pump();
+      expect(
+        tester
+            .widget<HtmlCoverRenderer>(find.byType(HtmlCoverRenderer).first)
+            .playing,
+        false,
+      );
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'GIF renders a still frame with reduced motion and retains cover effects',
     (tester) async {

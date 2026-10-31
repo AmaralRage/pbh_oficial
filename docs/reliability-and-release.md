@@ -60,7 +60,7 @@ de desempenho do celular depois dessa medição; testes de widgets não a substi
 
 ## 6. APK e assinatura
 
-Versão do app: **1.0.1+42**. O nome mostrado no Android continua **PBH Oficial**.
+Versão atual do app: **1.0.1+49**. O nome mostrado no Android continua **PBH Oficial**.
 Para gerar arquivos com nome identificável:
 
 ```powershell
@@ -70,8 +70,8 @@ Para gerar arquivos com nome identificável:
 
 Saída em `build/releases/`:
 
-- `PBH-Oficial-v1.0.1-build42-teste.apk`: atualização da versão de teste existente.
-- `PBH-Oficial-v1.0.1-build42.apk`: distribuição, com chave própria.
+- `PBH-Oficial-v1.0.1-build49-teste.apk`: atualização da versão de teste existente.
+- O modo Release gera um arquivo sem `-teste`, com assinatura de distribuição. Não confundir esse comando disponível com um APK de distribuição já gerado.
 - Cada APK recebe um arquivo `.sha256` para conferir sua integridade.
 
 A chave local fica em `android/pbh-distribution.jks`; as credenciais ficam em
@@ -103,7 +103,7 @@ atualizado. A mudança de som dos avisos remotos depende dessa publicação.
 Os arquivos foram preparados e testados localmente; isso não aplica alterações
 automaticamente ao projeto Supabase remoto.
 
-## Resultado da validação local
+## Validação histórica de 27/10/2026
 
 - 127 testes da suíte Flutter passaram, além do novo teste de sincronização entre
   dispositivos (128 testes ao todo). Os ajustes finais de textos também passaram

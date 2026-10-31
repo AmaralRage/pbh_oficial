@@ -16,4 +16,4 @@ respeita a preferência do usuário e aguarda o primeiro trecho visível do trof
 (aproximadamente 0,58 s), após o carregamento das camadas e a abertura da janela.
 O disparo segue o relógio da animação, incluindo suas pausas.
 
-Validação automatizada em `test/native_platinum_art_test.dart`: duas jornadas, tamanhos de 30/160/300 px, ausência de WebView, pausa/retomada, término da revelação, callback único de som e movimento reduzido. A validação visual e de desempenho no celular físico continua necessária. O APK build 46 inclui esta correção.
+Validação automatizada em `test/native_platinum_art_test.dart`: duas jornadas, tamanhos de 30/160/300 px, ausência de WebView, pausa/retomada, término da revelação, callback único de som e movimento reduzido. A validação visual e de desempenho no celular físico continua necessária. A correção inicial entrou no build 46; a versão atual está no `pubspec.yaml` e a revisão de 30/10 está em [revisão de experiência](product-review-2026-10-30.md).

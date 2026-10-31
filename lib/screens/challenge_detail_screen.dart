@@ -11,6 +11,7 @@ import '../widgets/profile_achievement_dialog.dart';
 import '../services/platinum_sound.dart';
 import '../services/challenge_service.dart';
 import '../widgets/official_hero_background.dart';
+import '../widgets/challenge_history_calendar.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
   const ChallengeDetailScreen({
@@ -355,6 +356,14 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               ),
               const SizedBox(height: 22),
               if (!completed)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    _challenge.milestoneLabel,
+                    style: AppTextStyles.body,
+                  ),
+                ),
+              if (!completed)
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -428,6 +437,13 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                   ),
                 ),
               ],
+              ChallengeHistoryCalendar(
+                key: ValueKey(
+                  '${_challenge.id}/${_challenge.currentDay}/$_todayComplete',
+                ),
+                loadDays: (start, end) =>
+                    _service.registeredDays(_challenge.id, start, end),
+              ),
             ] else ...[
               Text(
                 'Comece quando estiver pronto. Seu progresso diário ficará salvo na sua conta.',

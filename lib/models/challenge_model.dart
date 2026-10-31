@@ -28,6 +28,17 @@ class ChallengeModel {
   });
 
   int get remainingDays => (totalDays - currentDay).clamp(0, totalDays);
+  int get nextMilestone {
+    for (final fraction in [.25, .5, .75, 1.0]) {
+      final target = (totalDays * fraction).ceil();
+      if (target > currentDay) return target;
+    }
+    return totalDays;
+  }
+
+  String get milestoneLabel => remainingDays == 0
+      ? 'Jornada concluída'
+      : 'Próximo marco: $nextMilestone de $totalDays registros · faltam ${(nextMilestone - currentDay).clamp(0, totalDays)}';
   String get achievementStatus {
     if (status != ChallengeStatus.completed)
       return 'Faltam $remainingDays de $totalDays dias para conquistar';

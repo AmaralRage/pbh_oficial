@@ -1,6 +1,6 @@
 # Jornadas de desafios
 
-A aba Desafios agora permite alternar entre **Original PBH** e **Conhecimento**, tanto nos desafios quanto nas conquistas. Cada jornada tem seu progresso, pontuação e platina.
+A aba Desafios permite alternar entre **Original PBH** e **Conhecimento**, tanto nos desafios quanto nas conquistas. Cada jornada tem seu progresso, pontuação e troféu final: platina na Original e rubi no Conhecimento.
 
 ## Jornada Original PBH
 
@@ -16,7 +16,7 @@ Preserva os 57 desafios originais, os registros diários e a Platina PBH. A list
 | Aprender para explicar | 14 dias de explicação e revisão | Prata |
 | Conhecimento em ação | 21 dias aplicando o aprendizado | Ouro |
 
-Completar os cinco libera a platina **Mente desperta**, que aparece entre as conquistas do perfil e pode ser selecionada nos destaques e como título. A nova jornada usa a capa `assets/images/capaJornada.png`, que pode ser ampliada ao tocar. A platina usa a mesma arte e animação da Platina PBH original, com requisitos independentes para cada jornada. A miniatura próxima à capa do perfil continua sendo a Platina PBH original.
+Completar os cinco libera o **Rubi do Conhecimento**, com arte e animação próprias. A jornada usa a capa `assets/images/capaJornada.png`, que pode ser ampliada ao tocar. O rubi aparece ao lado da Platina PBH no perfil quando conquistado. É possível selecionar até três outras conquistas para essa vitrine. O ID interno `knowledge_platinum` foi mantido para preservar progresso e recompensas existentes; não é necessário refazer os desafios.
 
 As sessões são registradas pelo próprio usuário, no mesmo fluxo dos desafios existentes. Os textos orientam o que fazer antes de marcar cada dia; não há verificação automática de leitura ou estudo. A jornada não exige pagamentos ou serviços externos.
 

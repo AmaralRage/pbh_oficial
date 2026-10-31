@@ -8,6 +8,7 @@ import '../models/profile_achievement.dart';
 import '../models/profile_style.dart';
 import '../widgets/profile_identity_card.dart';
 import '../widgets/profile_theme_scope.dart';
+import '../widgets/profile_background.dart';
 import '../widgets/personal_goal_card.dart';
 import 'appearance_screen.dart';
 import '../services/auth_service.dart';
@@ -42,130 +43,137 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProfileThemeScope(
-      builder: (context) => SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          children: [
-            Text('Perfil', style: AppTextStyles.brandHeadline),
-            const SizedBox(height: 20),
-            if (!isAuthenticated) ...[
-              Container(
-                margin: const EdgeInsets.only(bottom: 18),
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: context.pbhColors.surface,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: context.pbhColors.borderSubtle),
+      builder: (context) => AccountProfileBackground(
+        enabled: isAuthenticated,
+        child: SafeArea(
+          bottom: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            children: [
+              Text('Perfil', style: AppTextStyles.brandHeadline),
+              const SizedBox(height: 20),
+              if (!isAuthenticated) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 18),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: context.pbhColors.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: context.pbhColors.borderSubtle),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.visibility_outlined,
+                        color: context.pbhColors.orange,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Modo visitante',
+                              style: AppTextStyles.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Você pode explorar o app sem uma conta.',
+                              style: AppTextStyles.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: onOpenSignIn,
+                        child: const Text('Entrar'),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.visibility_outlined,
-                      color: context.pbhColors.orange,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+              _ProfileProgress(onEdit: onEditProfile),
+              const SizedBox(height: 16),
+              PersonalGoalCard(
+                isAuthenticated: isAuthenticated,
+                onSignIn: onOpenSignIn,
+              ),
+              const SizedBox(height: 18),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AppearanceScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.palette_outlined),
+                label: const Text('Aparência do app'),
+              ),
+              const SizedBox(height: 26),
+              if (isAuthenticated)
+                AnimatedEntry(
+                  delayMs: 220,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
+                          Icon(
+                            Icons.tune_rounded,
+                            color: context.pbhColors.orange,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            'Modo visitante',
+                            'Configurações',
                             style: AppTextStyles.titleMedium,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Você pode explorar o app sem uma conta.',
-                            style: AppTextStyles.bodySmall,
-                          ),
                         ],
                       ),
-                    ),
-                    TextButton(
-                      onPressed: onOpenSignIn,
-                      child: const Text('Entrar'),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: context.pbhColors.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: context.pbhColors.borderSubtle,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            _SettingsRow(
+                              icon: Icons.person_outline,
+                              label: 'Editar perfil',
+                              subtitle:
+                                  'Foto, capa, moldura e selos em destaque',
+                              onTap: onEditProfile,
+                            ),
+                            _SettingsRow(
+                              icon: Icons.notifications_none_rounded,
+                              label: 'Notificações',
+                              subtitle: 'Alertas e som do app',
+                              onTap: onOpenNotificationSettings,
+                            ),
+                            _SettingsRow(
+                              icon: Icons.lock_outline_rounded,
+                              label: 'Privacidade',
+                              subtitle: 'Dados da conta e segurança',
+                              onTap: onOpenPrivacy,
+                            ),
+                            _SettingsRow(
+                              icon: Icons.help_outline_rounded,
+                              label: 'Ajuda e suporte',
+                              subtitle: 'Respostas e opções de contato',
+                              isLast: true,
+                              onTap: onOpenHelp,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
-            _ProfileProgress(onEdit: onEditProfile),
-            const SizedBox(height: 16),
-            PersonalGoalCard(
-              isAuthenticated: isAuthenticated,
-              onSignIn: onOpenSignIn,
-            ),
-            const SizedBox(height: 18),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const AppearanceScreen(),
-                ),
-              ),
-              icon: const Icon(Icons.palette_outlined),
-              label: const Text('Aparência do app'),
-            ),
-            const SizedBox(height: 26),
-            if (isAuthenticated)
-              AnimatedEntry(
-                delayMs: 220,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.tune_rounded,
-                          color: context.pbhColors.orange,
-                          size: 19,
-                        ),
-                        const SizedBox(width: 8),
-                        Text('Configurações', style: AppTextStyles.titleMedium),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: context.pbhColors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: context.pbhColors.borderSubtle,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          _SettingsRow(
-                            icon: Icons.person_outline,
-                            label: 'Editar perfil',
-                            subtitle: 'Foto, capa, moldura e selos em destaque',
-                            onTap: onEditProfile,
-                          ),
-                          _SettingsRow(
-                            icon: Icons.notifications_none_rounded,
-                            label: 'Notificações',
-                            subtitle: 'Alertas e som do app',
-                            onTap: onOpenNotificationSettings,
-                          ),
-                          _SettingsRow(
-                            icon: Icons.lock_outline_rounded,
-                            label: 'Privacidade',
-                            subtitle: 'Dados da conta e segurança',
-                            onTap: onOpenPrivacy,
-                          ),
-                          _SettingsRow(
-                            icon: Icons.help_outline_rounded,
-                            label: 'Ajuda e suporte',
-                            subtitle: 'Respostas e opções de contato',
-                            isLast: true,
-                            onTap: onOpenHelp,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );

@@ -137,8 +137,8 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
       _ => _journeyChallenges,
     };
     final search = _searchController.text.trim().toLowerCase();
-    return search.isEmpty
-        ? byStatus
+    final result = search.isEmpty
+        ? [...byStatus]
         : byStatus
               .where(
                 (item) =>
@@ -146,6 +146,19 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                     item.description.toLowerCase().contains(search),
               )
               .toList();
+    if (_filterIndex == 0) {
+      int rank(ChallengeModel challenge) =>
+          challenge.status == ChallengeStatus.active
+          ? 0
+          : challenge.status == ChallengeStatus.notStarted
+          ? 1
+          : 2;
+      result.sort((a, b) {
+        final order = rank(a).compareTo(rank(b));
+        return order == 0 ? a.title.compareTo(b.title) : order;
+      });
+    }
+    return result;
   }
 
   List<ChallengeModel> get _filteredAchievements {

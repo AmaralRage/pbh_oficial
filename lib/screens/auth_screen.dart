@@ -80,6 +80,10 @@ class _AuthScreenState extends State<AuthScreen> {
           _passwordController.text,
         );
         if (!mounted) return;
+        if (AuthService().currentSession != null && widget.onClose != null) {
+          Navigator.of(context).pop();
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(

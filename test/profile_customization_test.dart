@@ -218,23 +218,32 @@ void main() {
       'jpeg',
     );
   });
-  for (final format in ['avatar', 'jpeg', 'gif', 'html']) {
-    final cover = format != 'avatar';
+  for (final format in ['avatar', 'jpeg', 'gif', 'html', 'background']) {
+    final background = format == 'background';
+    final cover = format != 'avatar' && !background;
     for (final fail in [false, true]) {
       test(
         'upload then save metadata; failed save cleans only the new upload (fail=$fail, format=$format)',
         () async {
           final requests = <http.Request>[];
+          final memberId = background
+              ? 'ad300000-0000-4000-8000-000000000001'
+              : 'member-id';
           final user = {
-            'id': 'member-id',
+            'id': memberId,
             'email': 'member@example.com',
             'aud': 'authenticated',
             'app_metadata': {},
             'user_metadata': {
               'avatar_url':
-                  'https://test.supabase.co/storage/v1/object/public/profile-avatars/member-id/old.png',
+                  'https://test.supabase.co/storage/v1/object/public/profile-avatars/$memberId/old.png',
               'cover_url':
-                  'https://test.supabase.co/storage/v1/object/public/profile-covers/member-id/old.png',
+                  'https://test.supabase.co/storage/v1/object/public/profile-covers/$memberId/old.png',
+              if (background)
+                'profile_style': {
+                  'background': 'custom',
+                  'background_path': '$memberId/123.png',
+                },
             },
             'created_at': '2026-10-21T00:00:00Z',
           };
@@ -289,7 +298,12 @@ void main() {
               title: 'founder',
               featured: ['platinum', 'challenges'],
             ),
-            photo: cover ? null : Uint8List.fromList([255, 216, 255]),
+            photo: cover || background
+                ? null
+                : Uint8List.fromList([255, 216, 255]),
+            backgroundPhoto: background
+                ? Uint8List.fromList([255, 216, 255])
+                : null,
             coverPhoto: !cover
                 ? null
                 : format == 'gif'
@@ -316,8 +330,10 @@ void main() {
           expect(data['profile_style']['frame'], 'orange');
           expect(data['profile_style']['featured'], ['challenges']);
           expect(
-            data[cover ? 'cover_url' : 'avatar_url'],
-            contains('/member-id/'),
+            background
+                ? data['profile_style']['background_path']
+                : data[cover ? 'cover_url' : 'avatar_url'],
+            contains(background ? '$memberId/' : '/member-id/'),
           );
           final uploadIndex = requests.indexWhere(
             (r) => r.method == 'POST' && r.url.path.contains('/storage/'),
@@ -335,11 +351,44 @@ void main() {
           final deleted = requests.singleWhere((r) => r.method == 'DELETE');
           expect(
             deleted.url.path,
-            contains(cover ? 'profile-covers' : 'profile-avatars'),
+            contains(
+              background
+                  ? 'profile-backgrounds'
+                  : cover
+                  ? 'profile-covers'
+                  : 'profile-avatars',
+            ),
           );
           final paths = jsonDecode(deleted.body)['prefixes'] as List;
-          expect(paths.single.toString().startsWith('member-id/'), isTrue);
-          expect(paths.single.toString().endsWith('old.png'), !fail);
+          expect(paths.single.toString().startsWith('$memberId/'), isTrue);
+          expect(
+            paths.single.toString().endsWith(
+              background ? '123.png' : 'old.png',
+            ),
+            !fail,
+          );
+          if (background && !fail) {
+            expect(data['profile_style']['background'], 'custom');
+            requests.clear();
+            await service.save(
+              name: 'Member',
+              bio: 'Bio',
+              style: const ProfileStyle(),
+              removeBackground: true,
+            );
+            expect(
+              requests.where(
+                (r) => r.method == 'POST' && r.url.path.contains('/storage/'),
+              ),
+              isEmpty,
+            );
+            final cleared = jsonDecode(
+              requests.singleWhere((r) => r.url.path.endsWith('/user')).body,
+            )['data'];
+            expect(cleared['profile_style']['background'], 'none');
+            expect(cleared['profile_style']['background_path'], '');
+            expect(requests.where((r) => r.method == 'DELETE').length, 1);
+          }
         },
       );
     }

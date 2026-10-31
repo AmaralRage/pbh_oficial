@@ -20,10 +20,11 @@ mantêm ao sincronizar o conjunto de conclusões com o servidor.
 ## Anotações
 
 As aulas têm “Minhas anotações”, com salvamento explícito, limite de 6000
-caracteres e aviso antes de descartar alterações. As anotações ficam no aparelho,
-separadas por conta, programa e aula. Não são publicadas nem sincronizadas.
-Visitantes usam um espaço próprio. Limpar os dados do navegador/app também
-remove essas anotações; mudar de aparelho não transfere o conteúdo local.
+caracteres e aviso antes de descartar alterações. As anotações são privadas,
+separadas por conta, programa e aula, com cópia local e sincronização na conta.
+Visitantes usam um espaço próprio apenas no aparelho. Limpar os dados locais
+remove notas de visitante e rascunhos ainda não sincronizados. Consulte
+[sincronização e conflitos](reliability-and-release.md) para o comportamento atual.
 
 ## Comunidade
 

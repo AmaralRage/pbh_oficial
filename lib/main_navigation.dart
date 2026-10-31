@@ -25,6 +25,7 @@ import 'widgets/retained_tab_view.dart';
 /// Cada aba mantém seu próprio estado ao trocar de tela (IndexedStack).
 class MainNavigation extends StatefulWidget {
   final int initialIndex;
+  final bool openHabitsInitially;
   final bool isAdmin;
   final bool isAuthenticated;
   final VoidCallback? onOpenSignIn;
@@ -32,6 +33,7 @@ class MainNavigation extends StatefulWidget {
   const MainNavigation({
     super.key,
     this.initialIndex = 0,
+    this.openHabitsInitially = false,
     this.isAdmin = false,
     this.isAuthenticated = false,
     this.onOpenSignIn,
@@ -63,6 +65,11 @@ class _MainNavigationState extends State<MainNavigation> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    if (widget.openHabitsInitially) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openHabits();
+      });
+    }
     if (widget.isAuthenticated) {
       _connectNotifications();
       _migrateGuestHabitHistory();
@@ -250,7 +257,10 @@ class _MainNavigationState extends State<MainNavigation> {
         isAuthenticated: widget.isAuthenticated,
         onRequireLogin: () => widget.onOpenSignIn?.call(),
       ),
-      ContentScreen(key: ValueKey('content-$accountKey'), isAdmin: widget.isAdmin),
+      ContentScreen(
+        key: ValueKey('content-$accountKey'),
+        isAdmin: widget.isAdmin,
+      ),
       const MusicScreen(),
       CommunityScreen(
         key: ValueKey('community-$accountKey'),

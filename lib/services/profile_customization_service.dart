@@ -111,6 +111,8 @@ class ProfileCustomizationService {
     bool removePhoto = false,
     Uint8List? coverPhoto,
     bool removeCover = false,
+    Uint8List? backgroundPhoto,
+    bool removeBackground = false,
   }) async {
     final user = client.auth.currentUser;
     if (user == null) throw StateError('Sua sessão terminou. Entre novamente.');
@@ -123,7 +125,7 @@ class ProfileCustomizationService {
     final progress = await unlocks();
     if (client.auth.currentUser?.id != user.id)
       throw StateError('A conta mudou. Abra novamente o perfil.');
-    final safeStyle = style.validated(
+    var safeStyle = style.validated(
       founder: AuthService.isProjectLeader(user),
       completed: progress.completed,
       earned: progress.earned,
@@ -131,9 +133,11 @@ class ProfileCustomizationService {
     );
     final bucket = client.storage.from('profile-avatars');
     final covers = client.storage.from('profile-covers');
+    final backgrounds = client.storage.from('profile-backgrounds');
     final uploaded = <({String bucket, String path})>[];
     String? avatar;
     String? coverUrl;
+    String? backgroundPath;
     try {
       if (photo != null) {
         final type = imageType(photo);
@@ -162,6 +166,30 @@ class ProfileCustomizationService {
         uploaded.add((bucket: 'profile-covers', path: path));
         coverUrl = covers.getPublicUrl(path);
       }
+      if (backgroundPhoto != null) {
+        final type = imageType(backgroundPhoto);
+        backgroundPath =
+            '${user.id}/${DateTime.now().microsecondsSinceEpoch}.$type';
+        await backgrounds.uploadBinary(
+          backgroundPath,
+          backgroundPhoto,
+          fileOptions: FileOptions(contentType: 'image/$type', upsert: false),
+        );
+        uploaded.add((bucket: 'profile-backgrounds', path: backgroundPath));
+        safeStyle = safeStyle.copyWith(
+          background: 'custom',
+          backgroundPath: backgroundPath,
+        );
+      } else if (removeBackground ||
+          (safeStyle.backgroundPath.isNotEmpty &&
+              !safeStyle.backgroundPath.startsWith('${user.id}/'))) {
+        safeStyle = safeStyle.copyWith(
+          background: safeStyle.background == 'custom'
+              ? 'none'
+              : safeStyle.background,
+          backgroundPath: '',
+        );
+      }
       if (client.auth.currentUser?.id != user.id)
         throw StateError('A conta mudou. Abra novamente o perfil.');
       await client.auth.updateUser(
@@ -182,6 +210,16 @@ class ProfileCustomizationService {
         } catch (_) {}
       }
       rethrow;
+    }
+    final previousBackground = ProfileStyle.fromMetadata(
+      user.userMetadata ?? {},
+    ).backgroundPath;
+    if ((backgroundPhoto != null || removeBackground) &&
+        previousBackground.startsWith('${user.id}/') &&
+        previousBackground != backgroundPath) {
+      try {
+        await backgrounds.remove([previousBackground]);
+      } catch (_) {}
     }
     // Remove only this user's previous upload, after the new metadata is saved.
     final previous = user.userMetadata?['avatar_url'];

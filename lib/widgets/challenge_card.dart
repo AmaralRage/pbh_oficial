@@ -54,6 +54,15 @@ class ChallengeCard extends StatelessWidget {
                       _Tag(label: '${challenge.totalDays} dias'),
                     ],
                   ),
+                  if (challenge.status == ChallengeStatus.active) ...[
+                    const SizedBox(height: 12),
+                    LinearProgressIndicator(value: challenge.progress),
+                    const SizedBox(height: 6),
+                    Text(
+                      challenge.milestoneLabel,
+                      style: AppTextStyles.bodySmall,
+                    ),
+                  ],
                 ],
               ),
             ),

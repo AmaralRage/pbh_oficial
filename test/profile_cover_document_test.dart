@@ -55,6 +55,8 @@ void main() {
       expect(wrapped, isNot(contains('allow-same-origin')));
       expect(wrapped, contains("connect-src 'none'"));
       expect(wrapped, contains('form-action'));
+      expect(wrapped, contains('pbh-cover:ready'));
+      expect(wrapped, contains("frame.addEventListener('load',sync)"));
       expect(wrapped, contains('document.head.append(style)'));
       expect(wrapped, contains('&lt;canvas&gt;'));
       expect(wrapped, isNot(contains('<canvas>')));
@@ -69,6 +71,19 @@ void main() {
       File(
         '${directory.path}/html-cover-sandbox-preview.html',
       ).writeAsStringSync(wrapped);
+      final trophy = File(
+        'assets/images/Troféu supremo PBH.html',
+      ).readAsStringSync();
+      final trophyDocument = ProfileCoverDocument.wrap(
+        trophy,
+        playing: false,
+        reducedMotion: false,
+      );
+      File(
+        '${directory.path}/community-html-animation-preview.html',
+      ).writeAsStringSync(
+        '''<!doctype html><html><body style="margin:0"><iframe id="host" sandbox="allow-scripts" style="border:0;width:360px;height:300px" srcdoc="${const HtmlEscape().convert(trophyDocument)}"></iframe><script>const host=document.getElementById('host');host.addEventListener('load',()=>host.contentWindow.postMessage('pbh-cover:play','*'));</script></body></html>''',
+      );
     },
   );
 }

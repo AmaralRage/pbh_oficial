@@ -19,6 +19,7 @@ class LaunchScreen extends StatefulWidget {
 
 class _LaunchScreenState extends State<LaunchScreen>
     with SingleTickerProviderStateMixin {
+  bool _starting = false;
   late final AnimationController _entrance = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
@@ -38,12 +39,14 @@ class _LaunchScreenState extends State<LaunchScreen>
     super.dispose();
   }
 
-  void _start() {
+  Future<void> _start() async {
+    if (_starting) return;
     final onStart = widget.onStart;
     if (onStart != null) {
       onStart();
       return;
     }
+    setState(() => _starting = true);
     Navigator.of(context).pushReplacement(
       fadeSlideRoute(AuthGate(supabaseConfigured: SupabaseConfig.isConfigured)),
     );
@@ -112,7 +115,7 @@ class _LaunchScreenState extends State<LaunchScreen>
               child: SlideTransition(
                 position: _rise,
                 child: ElevatedButton(
-                  onPressed: _start,
+                  onPressed: _starting ? null : _start,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(56),
                     shape: RoundedRectangleBorder(

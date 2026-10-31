@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/personal_goal_service.dart';
+import '../core/theme/app_colors.dart';
 
 class PersonalGoalCard extends StatefulWidget {
   const PersonalGoalCard({
@@ -339,23 +340,127 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
       );
     }
     if (_goal == null) return const SizedBox.shrink();
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Objetivo pessoal',
-              style: Theme.of(context).textTheme.titleMedium,
+    final colors = context.pbhColors;
+    final nextStep = (_goal!['next_step'] as String).trim();
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.orange.withValues(alpha: .25)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.alphaBlend(
+              colors.orange.withValues(alpha: .09),
+              colors.surface,
             ),
-            Text(_goal!['title'] as String),
-            if (_goal!['is_public'] != true)
-              const Text('Visível somente para você.'),
-            if ((_goal!['next_step'] as String).isNotEmpty)
-              Text('Próximo passo: ${_goal!['next_step']}'),
+            colors.surface,
           ],
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: colors.orange.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.my_location_rounded,
+                  size: 20,
+                  color: colors.orange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'OBJETIVO PESSOAL',
+                  style: TextStyle(
+                    color: colors.orange,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+              if (_goal!['is_public'] != true)
+                Tooltip(
+                  message: 'Visível somente para você.',
+                  child: Icon(
+                    Icons.lock_outline_rounded,
+                    size: 17,
+                    color: colors.textSecondary,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            _goal!['title'] as String,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              height: 1.4,
+            ),
+          ),
+          if (nextStep.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: colors.background.withValues(alpha: .45),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.borderSubtle),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                      color: colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PRÓXIMO PASSO',
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: .8,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          nextStep,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 13,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

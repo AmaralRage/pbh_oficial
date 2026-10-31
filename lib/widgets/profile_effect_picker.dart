@@ -12,7 +12,7 @@ class ProfileEffectPicker extends StatefulWidget {
   final String selected;
   final Widget Function(List<ProfileStyleOption>) optionsBuilder;
   static String category(String id) => ProfileStyle.platinumEffects.contains(id)
-      ? 'Platinas'
+      ? 'Jornadas'
       : ProfileStyle.weatherEffects.contains(id)
       ? 'Natureza'
       : ProfileStyle.seasonalEffects.contains(id)
@@ -34,7 +34,7 @@ class _ProfileEffectPickerState extends State<ProfileEffectPicker> {
         children: [
           for (final category in [
             'Todos',
-            'Platinas',
+            'Jornadas',
             'Natureza',
             'Luzes',
             'Celebrações',
