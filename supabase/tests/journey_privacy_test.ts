@@ -40,5 +40,27 @@ Deno.test('goals require opt-in, respect profile privacy and blocks, and never e
       insert into public.community_blocks values('${owner}','${viewer}');set role authenticated;`);
     assert.equal((await db.query<any>('select public.public_profile_goal($1) as goal',[owner])).rows[0].goal,null);
     assert.equal((await db.query('select * from public.personal_goal_entries')).rows.length,0);
+    await db.exec('reset role;delete from public.community_blocks;');
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261031000200_goal_history.sql',import.meta.url)));
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)",[owner]);await db.exec('set role authenticated');
+    const current=(await db.query<any>('select * from public.personal_goals')).rows[0];
+    assert.equal(current.started_at,null);
+    await db.query('insert into public.personal_goal_entries(user_id,goal_title,content,goal_id) values($1,$2,$3,$4)',[owner,'Aprender','Novo avanço',current.goal_id]);
+    assert.equal((await db.query<any>('select * from public.personal_goal_entries where goal_id=$1',[current.goal_id])).rows.length,1);
+    await db.query('select public.complete_personal_goal($1,$2)',[current.goal_id,current.updated_at]);
+    await db.query('select public.complete_personal_goal($1,$2)',[current.goal_id,current.updated_at]);
+    assert.equal((await db.query('select * from public.personal_goal_history')).rows.length,1);
+    assert.equal((await db.query<any>('select public.public_profile_goal($1) as goal',[owner])).rows[0].goal,null);
+    const completed=(await db.query<any>('select * from public.personal_goals')).rows[0];
+    await db.query('select public.save_personal_goal($1,$2,$3,$4,$5)',['Novo objetivo','Praticar',true,completed.goal_id,completed.updated_at]);
+    const next=(await db.query<any>('select * from public.personal_goals')).rows[0];assert.notEqual(next.goal_id,current.goal_id);
+    await assert.rejects(db.query('insert into public.personal_goal_entries(user_id,goal_title,content,goal_id) values($1,$2,$3,$4)',[owner,'Novo objetivo','Wrong goal',current.goal_id]),/mudou/);
+    assert.equal((await db.query('select * from public.personal_goal_entries')).rows.length,2);
+    assert.equal((await db.query('select * from public.personal_goal_entries where goal_id is null')).rows.length,1);
+    await assert.rejects(db.query('select public.save_personal_goal($1,$2,$3,$4,$5)',['Sobrescrever','',false,current.goal_id,current.updated_at]),/mudou/);
+    await assert.rejects(db.exec("update public.personal_goals set title='Bypass'"),/permission denied/);
+    await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[viewer]);await db.exec('set role authenticated');
+    assert.equal((await db.query('select * from public.personal_goal_history')).rows.length,0);
+    assert.equal((await db.query('select * from public.personal_goal_entries')).rows.length,0);
   }finally{await db.close();}
 });

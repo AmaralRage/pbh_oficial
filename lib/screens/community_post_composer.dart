@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_selector/file_selector.dart' as selector;
 import '../models/community_photo.dart';
 import '../models/community_topics.dart';
 import '../services/community_service.dart';
 import '../widgets/profile_cover_media.dart';
+import '../services/community_draft_store.dart';
 
 class CommunityPostComposer extends StatefulWidget {
   const CommunityPostComposer({
@@ -14,8 +16,10 @@ class CommunityPostComposer extends StatefulWidget {
     this.initialTopic,
     this.pickPhotos,
     this.pickOnOpen = false,
+    this.draftStore,
   });
   final bool pickOnOpen;
+  final CommunityDraftStore? draftStore;
   final CommunityService service;
   final String? prompt, initialTopic;
   final Future<List<CommunityPhoto>> Function(int limit)? pickPhotos;
@@ -23,14 +27,22 @@ class CommunityPostComposer extends StatefulWidget {
   State<CommunityPostComposer> createState() => _CommunityPostComposerState();
 }
 
-class _CommunityPostComposerState extends State<CommunityPostComposer> {
+class _CommunityPostComposerState extends State<CommunityPostComposer>
+    with WidgetsBindingObserver {
   final _form = GlobalKey<FormState>();
   late final _text = TextEditingController(
     text: widget.prompt == null ? '' : '${widget.prompt}\n\n',
   );
   final _tag = TextEditingController();
   final _photos = <CommunityPhoto>[];
-  final _draftId = CommunityService.newPostId();
+  String _draftId = CommunityService.newPostId();
+  late final _account = widget.service.currentUserId;
+  late final _drafts = widget.draftStore ?? CommunityDraftStore();
+  Timer? _autosave;
+  StreamSubscription? _auth;
+  Future<void> _writes = Future.value();
+  bool _restoring = true, _finalizing = false, _published = false;
+  String? _draftMessage;
   late String _topic = communityTopics.containsKey(widget.initialTopic)
       ? widget.initialTopic!
       : communityTopics.keys.first;
@@ -39,14 +51,92 @@ class _CommunityPostComposerState extends State<CommunityPostComposer> {
   @override
   void initState() {
     super.initState();
-    if (widget.pickOnOpen)
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _pick();
-      });
+    WidgetsBinding.instance.addObserver(this);
+    _text.addListener(_scheduleDraft);
+    _tag.addListener(_scheduleDraft);
+    _auth = widget.service.authChanges.listen((_) {
+      if (mounted && widget.service.currentUserId != _account)
+        Navigator.of(context).pop();
+    });
+    _restoreDraft();
+  }
+
+  Future<void> _restoreDraft() async {
+    try {
+      final draft = _account == null ? null : await _drafts.load(_account);
+      if (!mounted) return;
+      if (draft != null) {
+        _draftId = draft.id;
+        _text.text = draft.text;
+        _tag.text = draft.tag;
+        _topic = communityTopics.containsKey(draft.topic)
+            ? draft.topic
+            : communityTopics.keys.first;
+        _photos.addAll(draft.photos);
+        _draftMessage = 'Rascunho recuperado deste aparelho.';
+      }
+    } catch (_) {
+      if (mounted)
+        _draftMessage = 'Não foi possível recuperar o rascunho neste aparelho.';
+    } finally {
+      if (mounted) {
+        setState(() => _restoring = false);
+        if (widget.pickOnOpen)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _pick();
+          });
+      }
+    }
+  }
+
+  void _scheduleDraft() {
+    if (_restoring || _finalizing || _account == null) return;
+    _autosave?.cancel();
+    _autosave = Timer(const Duration(milliseconds: 600), () => _persistDraft());
+  }
+
+  Future<bool> _persistDraft() async {
+    if (_account == null) return true;
+    if (_restoring || widget.service.currentUserId != _account) return false;
+    final snapshot = CommunityDraft(
+      id: _draftId,
+      text: _text.text,
+      tag: _tag.text,
+      topic: _topic,
+      photos: List.of(_photos),
+    );
+    var saved = false;
+    _writes = _writes.then((_) async {
+      try {
+        await _drafts.save(_account, snapshot);
+        saved = true;
+        if (mounted)
+          setState(() => _draftMessage = 'Rascunho salvo neste aparelho.');
+      } catch (_) {
+        if (mounted)
+          setState(
+            () => _draftMessage =
+                'Não foi possível salvar o rascunho. Confira o espaço do aparelho e tente novamente.',
+          );
+      }
+    });
+    await _writes;
+    return saved;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && !_finalizing) {
+      _autosave?.cancel();
+      unawaited(_persistDraft());
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _autosave?.cancel();
+    _auth?.cancel();
     _text.dispose();
     _tag.dispose();
     super.dispose();
@@ -94,6 +184,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer> {
         }
       }
       if (mounted) setState(() => _photos.addAll(added.take(limit)));
+      _scheduleDraft();
     } catch (error) {
       if (mounted)
         setState(
@@ -107,11 +198,24 @@ class _CommunityPostComposerState extends State<CommunityPostComposer> {
   }
 
   Future<void> _publish() async {
-    if (_busy || _picking || !_form.currentState!.validate()) return;
+    if (_busy ||
+        _picking ||
+        _restoring ||
+        _finalizing ||
+        !_form.currentState!.validate())
+      return;
+    if (widget.service.currentUserId != _account) {
+      setState(() => _error = 'A conta mudou. Reabra a publicação.');
+      return;
+    }
+    _finalizing = true;
+    _autosave?.cancel();
     setState(() {
       _busy = true;
       _error = null;
     });
+    await _writes;
+    if (!mounted) return;
     try {
       await widget.service.createPost(
         _text.text,
@@ -120,6 +224,12 @@ class _CommunityPostComposerState extends State<CommunityPostComposer> {
         photos: List.of(_photos),
         draftId: _draftId,
       );
+      if (_account != null) {
+        try {
+          await _drafts.clear(_account);
+        } catch (_) {}
+      }
+      _published = true;
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted)
@@ -128,6 +238,10 @@ class _CommunityPostComposerState extends State<CommunityPostComposer> {
               'Não foi possível publicar. Seu relato e suas fotos continuam aqui. Confira a conexão e tente novamente.',
         );
     } finally {
+      if (!_published) {
+        _finalizing = false;
+        if (mounted) _scheduleDraft();
+      }
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -186,6 +300,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer> {
           : media.isVideo != video || (!video && media.extension != 'gif'))
         throw ArgumentError('Formato de arquivo inválido.');
       if (mounted) setState(() => _photos.add(media));
+      _scheduleDraft();
     } catch (error) {
       if (mounted)
         setState(
@@ -204,29 +319,57 @@ class _CommunityPostComposerState extends State<CommunityPostComposer> {
         _photos.isNotEmpty ||
         _tag.text.isNotEmpty ||
         _text.text.trim() != (widget.prompt ?? '').trim();
-    final leave =
-        !changed ||
-        await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Descartar publicação?'),
-                content: const Text(
-                  'Seu relato e as fotos ainda não foram publicados.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Continuar escrevendo'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Descartar'),
-                  ),
-                ],
-              ),
-            ) ==
-            true;
-    if (leave && mounted) Navigator.of(context).pop();
+    if (!changed) {
+      _finalizing = true;
+      _autosave?.cancel();
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          _account == null ? 'Descartar publicação?' : 'Guardar publicação?',
+        ),
+        content: const Text(
+          'Seu relato e os anexos ainda não foram publicados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Continuar escrevendo'),
+          ),
+          if (_account != null)
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'save'),
+              child: const Text('Salvar rascunho e sair'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: const Text('Descartar'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return;
+    _autosave?.cancel();
+    if (choice == 'save' && !await _persistDraft()) return;
+    _finalizing = true;
+    await _writes;
+    if (choice == 'discard' && _account != null) {
+      try {
+        await _drafts.clear(_account);
+      } catch (_) {
+        _finalizing = false;
+        if (mounted)
+          setState(
+            () =>
+                _error = 'Não foi possível apagar o rascunho. Tente novamente.',
+          );
+        return;
+      }
+    }
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -275,173 +418,191 @@ class _CommunityPostComposerState extends State<CommunityPostComposer> {
           ),
         ),
       ),
-      body: SafeArea(
-        child: Form(
-          key: _form,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              const Text(
-                'Relatos, aprendizados e pequenas vitórias fazem parte da comunidade.',
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'O texto e as fotos ficam visíveis na comunidade, inclusive para visitantes. Seu nome e sua foto seguem as configurações de privacidade.',
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _text,
-                enabled: !_busy,
-                minLines: 4,
-                maxLines: 10,
-                maxLength: 2000,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  hintText:
-                      'Como está sendo sua jornada? Conte para a comunidade…',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Escreva seu relato antes de publicar.'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _topic,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Assunto'),
-                items: [
-                  for (final topic in communityTopics.entries)
-                    DropdownMenuItem(
-                      value: topic.key,
-                      child: Text(topic.value),
+      body: _restoring
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: Form(
+                key: _form,
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    if (_draftMessage != null)
+                      Text(
+                        _draftMessage!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    const Text(
+                      'Relatos, aprendizados e pequenas vitórias fazem parte da comunidade.',
                     ),
-                ],
-                onChanged: _busy
-                    ? null
-                    : (value) {
-                        if (value != null) setState(() => _topic = value);
-                      },
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _busy || _picking || _photos.length == 4
-                    ? null
-                    : _pick,
-                icon: const Icon(Icons.add_photo_alternate_outlined),
-                label: Text(
-                  _picking
-                      ? 'Abrindo fotos…'
-                      : 'Adicionar fotos (${_photos.length}/4)',
-                ),
-              ),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: [
-                  TextButton.icon(
-                    onPressed: _busy || _picking || _photos.length >= 4
-                        ? null
-                        : () => _pickOriginal(false),
-                    icon: const Icon(Icons.gif_box_outlined),
-                    label: const Text('GIF'),
-                  ),
-                  TextButton.icon(
-                    onPressed: _busy || _picking || _photos.length >= 4
-                        ? null
-                        : () => _pickOriginal(true),
-                    icon: const Icon(Icons.video_library_outlined),
-                    label: const Text('Vídeo'),
-                  ),
-                  TextButton.icon(
-                    onPressed: _busy || _picking || _photos.length >= 4
-                        ? null
-                        : () => _pickOriginal(false, html: true),
-                    icon: const Icon(Icons.code),
-                    label: const Text('HTML'),
-                  ),
-                ],
-              ),
-              const Text(
-                'Até 4 anexos: fotos e HTML 5 MB, GIFs 10 MB e vídeos MP4/WebM 25 MB cada. HTML deve incluir seus próprios recursos; links externos não carregam.',
-              ),
-              if (_photos.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (var i = 0; i < _photos.length; i++)
-                        SizedBox(
-                          width: 120,
-                          height: 120,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: _photos[i].isVideo
-                                    ? const ColoredBox(
-                                        color: Colors.black,
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.play_circle_outline,
-                                            size: 44,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      )
-                                    : _photos[i].extension == 'html'
-                                    ? ProfileCoverMedia(bytes: _photos[i].bytes)
-                                    : Image.memory(
-                                        _photos[i].bytes,
-                                        fit: BoxFit.cover,
-                                        cacheWidth: 240,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(
-                                              Icons.broken_image_outlined,
+                    const SizedBox(height: 12),
+                    const Text(
+                      'O texto e as fotos ficam visíveis na comunidade, inclusive para visitantes. Seu nome e sua foto seguem as configurações de privacidade.',
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _text,
+                      enabled: !_busy,
+                      minLines: 4,
+                      maxLines: 10,
+                      maxLength: 2000,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        hintText:
+                            'Como está sendo sua jornada? Conte para a comunidade…',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Escreva seu relato antes de publicar.'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _topic,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Assunto'),
+                      items: [
+                        for (final topic in communityTopics.entries)
+                          DropdownMenuItem(
+                            value: topic.key,
+                            child: Text(topic.value),
+                          ),
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() => _topic = value);
+                                _scheduleDraft();
+                              }
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _busy || _picking || _photos.length == 4
+                          ? null
+                          : _pick,
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                      label: Text(
+                        _picking
+                            ? 'Abrindo fotos…'
+                            : 'Adicionar fotos (${_photos.length}/4)',
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        TextButton.icon(
+                          onPressed: _busy || _picking || _photos.length >= 4
+                              ? null
+                              : () => _pickOriginal(false),
+                          icon: const Icon(Icons.gif_box_outlined),
+                          label: const Text('GIF'),
+                        ),
+                        TextButton.icon(
+                          onPressed: _busy || _picking || _photos.length >= 4
+                              ? null
+                              : () => _pickOriginal(true),
+                          icon: const Icon(Icons.video_library_outlined),
+                          label: const Text('Vídeo'),
+                        ),
+                        TextButton.icon(
+                          onPressed: _busy || _picking || _photos.length >= 4
+                              ? null
+                              : () => _pickOriginal(false, html: true),
+                          icon: const Icon(Icons.code),
+                          label: const Text('HTML'),
+                        ),
+                      ],
+                    ),
+                    const Text(
+                      'Até 4 anexos: fotos e HTML 5 MB, GIFs 10 MB e vídeos MP4/WebM 25 MB cada. HTML deve incluir seus próprios recursos; links externos não carregam.',
+                    ),
+                    if (_photos.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (var i = 0; i < _photos.length; i++)
+                              SizedBox(
+                                width: 120,
+                                height: 120,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: _photos[i].isVideo
+                                          ? const ColoredBox(
+                                              color: Colors.black,
+                                              child: Center(
+                                                child: Icon(
+                                                  Icons.play_circle_outline,
+                                                  size: 44,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            )
+                                          : _photos[i].extension == 'html'
+                                          ? ProfileCoverMedia(
+                                              bytes: _photos[i].bytes,
+                                            )
+                                          : Image.memory(
+                                              _photos[i].bytes,
+                                              fit: BoxFit.cover,
+                                              cacheWidth: 240,
+                                              errorBuilder: (_, __, ___) =>
+                                                  const Icon(
+                                                    Icons.broken_image_outlined,
+                                                  ),
                                             ),
+                                    ),
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: IconButton.filled(
+                                        tooltip: _photos[i].isVideo
+                                            ? 'Remover vídeo ${i + 1}'
+                                            : 'Remover foto ${i + 1}',
+                                        onPressed: _busy
+                                            ? null
+                                            : () {
+                                                setState(
+                                                  () => _photos.removeAt(i),
+                                                );
+                                                _scheduleDraft();
+                                              },
+                                        icon: const Icon(Icons.close, size: 16),
                                       ),
-                              ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: IconButton.filled(
-                                  tooltip: _photos[i].isVideo
-                                      ? 'Remover vídeo ${i + 1}'
-                                      : 'Remover foto ${i + 1}',
-                                  onPressed: _busy
-                                      ? null
-                                      : () =>
-                                            setState(() => _photos.removeAt(i)),
-                                  icon: const Icon(Icons.close, size: 16),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    ExpansionTile(
+                      title: const Text('Adicionar uma conquista (opcional)'),
+                      children: [
+                        TextField(
+                          controller: _tag,
+                          enabled: !_busy,
+                          maxLength: 80,
+                          decoration: const InputDecoration(
+                            hintText:
+                                'Uma conquista que você quer compartilhar',
                           ),
                         ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 12),
-              ExpansionTile(
-                title: const Text('Adicionar uma conquista (opcional)'),
-                children: [
-                  TextField(
-                    controller: _tag,
-                    enabled: !_busy,
-                    maxLength: 80,
-                    decoration: const InputDecoration(
-                      hintText: 'Uma conquista que você quer compartilhar',
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     ),
   );
 }

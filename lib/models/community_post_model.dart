@@ -16,6 +16,7 @@ class CommunityPostModel {
   final String? topic;
   final List<String> imagePaths;
   final List<String> imageUrls;
+  final DateTime? editedAt, pinnedAt;
 
   const CommunityPostModel({
     required this.id,
@@ -35,6 +36,8 @@ class CommunityPostModel {
     this.achievementTag,
     this.imagePaths = const [],
     this.imageUrls = const [],
+    this.editedAt,
+    this.pinnedAt,
   });
 
   String get authorInitials {
@@ -53,6 +56,8 @@ class CommunityPostModel {
       avatarUrl: row['author_avatar_url'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
       content: row['content'] as String,
+      editedAt: DateTime.tryParse(row['edited_at'] as String? ?? ''),
+      pinnedAt: DateTime.tryParse(row['pinned_at'] as String? ?? ''),
       likes: row['likes_count'] as int? ?? 0,
       comments: row['comments_count'] as int? ?? 0,
       likedByMe: row['liked_by_me'] as bool? ?? false,
@@ -86,5 +91,7 @@ class CommunityPostModel {
     topic: topic,
     imagePaths: imagePaths,
     imageUrls: imageUrls ?? this.imageUrls,
+    editedAt: editedAt,
+    pinnedAt: pinnedAt,
   );
 }

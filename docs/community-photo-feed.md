@@ -44,9 +44,11 @@ com identificação de rascunho e fotos depende dessa estrutura.
   e bloqueios. Comentários usam a mesma identidade. A RPC retorna somente nome,
   avatar e identificação de fundador; não concede leitura da tabela profiles.
 - Prévia e remoção individual antes do envio. O botão de publicar fica fixo.
-- Erros de envio preservam texto e fotos enquanto o formulário continua aberto.
-  Sair de um rascunho pede confirmação. O rascunho não é persistido após fechar
-  o aplicativo ou descartar o formulário.
+- Rascunhos têm salvamento automático local por conta, incluindo anexos originais.
+  Sair permite guardar ou descartar; publicar limpa o rascunho. Chrome usa IndexedDB,
+  e Android usa arquivos privados do aplicativo. Não há sincronização de rascunhos
+  entre aparelhos; limpar dados do app/navegador remove essa cópia. Falhas de espaço
+  são informadas e não são apresentadas como salvamento concluído.
 - Fotos em galeria, com ampliação em tela cheia, zoom e navegação entre imagens.
 - Recentes, Seguindo e Em destaque no acesso principal. **Em destaque** significa
   mais curtidos, não curadoria administrativa. Conquistas e Salvos continuam no

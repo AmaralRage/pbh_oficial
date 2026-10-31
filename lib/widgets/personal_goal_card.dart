@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/personal_goal_service.dart';
 import '../core/theme/app_colors.dart';
+import '../screens/personal_goal_history_screen.dart';
 
 class PersonalGoalCard extends StatefulWidget {
   const PersonalGoalCard({
@@ -90,6 +91,48 @@ class _PersonalGoalCardState extends State<PersonalGoalCard> {
     }
   }
 
+  Future<void> _complete() async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Concluir este objetivo?'),
+        content: Text(
+          _entryDraft.isEmpty
+              ? 'O objetivo e seus avanços ficam guardados no histórico privado. Depois você poderá definir um novo objetivo.'
+              : 'Há um avanço ainda não enviado. Ao concluir, esse rascunho será descartado; os registros já salvos continuam no histórico.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Concluir'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _service.complete();
+      _entryDraft = '';
+      await _load();
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível concluir. Atualize o objetivo e tente novamente.',
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
@@ -140,6 +183,27 @@ class _PersonalGoalCardState extends State<PersonalGoalCard> {
               onPressed: _busy ? null : _edit,
               child: const Text('Editar objetivo e visibilidade'),
             ),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _complete,
+              icon: const Icon(Icons.task_alt),
+              label: const Text('Concluir objetivo'),
+            ),
+            if (_goal!['goal_id'] != null)
+              TextButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => PersonalGoalHistoryScreen(
+                      service: _service,
+                      goalId: _goal!['goal_id'] as String,
+                      title: 'Linha do tempo',
+                      timeline: true,
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.timeline),
+                label: const Text('Ver linha do tempo'),
+              ),
             if (_entries.isNotEmpty)
               ExpansionTile(
                 title: const Text('Meus últimos avanços'),
@@ -147,11 +211,24 @@ class _PersonalGoalCardState extends State<PersonalGoalCard> {
                   for (final entry in _entries)
                     ListTile(
                       title: Text(entry['content'] as String),
-                      subtitle: Text(entry['goal_title'] as String),
+                      subtitle: Text(
+                        '${entry['goal_title']} · ${goalRecordDate(context, entry['created_at'] as String)}',
+                      ),
                     ),
                 ],
               ),
           ],
+          if (widget.isAuthenticated && !_loading)
+            TextButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => PersonalGoalHistoryScreen(service: _service),
+                ),
+              ),
+              icon: const Icon(Icons.history),
+              label: const Text('Histórico de objetivos'),
+            ),
         ],
       ),
     ),
@@ -347,17 +424,11 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: colors.orange.withValues(alpha: .25)),
+        border: Border.all(color: colors.borderSubtle),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color.alphaBlend(
-              colors.orange.withValues(alpha: .09),
-              colors.surface,
-            ),
-            colors.surface,
-          ],
+          colors: [colors.surfaceElevated, colors.surface],
         ),
       ),
       child: Column(
@@ -368,13 +439,13 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
               Container(
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: colors.orange.withValues(alpha: .12),
+                  color: colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.my_location_rounded,
                   size: 20,
-                  color: colors.orange,
+                  color: colors.textSecondary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -382,7 +453,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                 child: Text(
                   'OBJETIVO PESSOAL',
                   style: TextStyle(
-                    color: colors.orange,
+                    color: colors.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
@@ -415,7 +486,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
             Container(
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: colors.background.withValues(alpha: .45),
+                color: colors.backgroundElevated,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: colors.borderSubtle),
               ),
@@ -427,7 +498,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                     child: Icon(
                       Icons.arrow_forward_rounded,
                       size: 18,
-                      color: colors.orange,
+                      color: colors.textSecondary,
                     ),
                   ),
                   const SizedBox(width: 10),

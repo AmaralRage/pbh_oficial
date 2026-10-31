@@ -11,6 +11,7 @@ import '../widgets/community_post_card.dart';
 import '../widgets/filter_chip_row.dart';
 import '../widgets/community_comment_avatar.dart';
 import 'community_post_composer.dart';
+import '../widgets/community_activity.dart';
 
 const _weeklyPrompts = <String>[
   'Qual compromisso pequeno você conseguiu manter esta semana?',
@@ -265,7 +266,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Comunidade', style: AppTextStyles.brandHeadline),
+                        Expanded(
+                          child: Text(
+                            'Comunidade',
+                            style: AppTextStyles.brandHeadline,
+                          ),
+                        ),
+                        if (widget.isAuthenticated)
+                          CommunityActivityButton(service: _service),
                         IconButton(
                           tooltip: 'Sobre a comunidade',
                           icon: Icon(

@@ -14,6 +14,9 @@ import '../widgets/theme_choices.dart';
 import '../widgets/profile_effect_picker.dart';
 import '../widgets/profile_option_groups.dart';
 import '../widgets/profile_background.dart';
+import '../widgets/profile_option_tile.dart';
+import '../widgets/profile_ornament.dart';
+import 'profile_image_cropper.dart';
 
 class ProfileCustomizationScreen extends StatefulWidget {
   const ProfileCustomizationScreen({super.key});
@@ -124,7 +127,7 @@ class _ProfileCustomizationScreenState
       if (file == null) return;
       if (await file.length() > 5 * 1024 * 1024)
         throw ArgumentError('Escolha uma imagem de até 5 MB.');
-      final bytes = await file.readAsBytes();
+      var bytes = await file.readAsBytes();
       final type = cover
           ? ProfileCustomizationService.coverType(bytes)
           : ProfileCustomizationService.imageType(bytes);
@@ -142,6 +145,30 @@ class _ProfileCustomizationScreenState
         }
       }
       if (!mounted) return;
+      if (type != 'html' && type != 'gif') {
+        final cropped = await Navigator.push<Uint8List>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfileImageCropper(
+              bytes: bytes,
+              aspectRatio: cover
+                  ? 2.95
+                  : background
+                  ? (MediaQuery.sizeOf(context).width /
+                            MediaQuery.sizeOf(context).height)
+                        .clamp(.4, 1.0)
+                  : 1,
+              title: background
+                  ? 'Ajustar background'
+                  : cover
+                  ? 'Ajustar capa'
+                  : 'Ajustar foto',
+            ),
+          ),
+        );
+        if (cropped == null || !mounted) return;
+        bytes = cropped;
+      }
       setState(() {
         if (cover) {
           _coverPhoto = bytes;
@@ -364,30 +391,61 @@ class _ProfileCustomizationScreenState
                 _unlocks!.completed,
                 ids,
               );
-              return Tooltip(
-                message: available ? option.label : option.requirement,
-                child: ChoiceChip(
-                  selected: value == option.id,
-                  labelStyle: TextStyle(
-                    color: value == option.id
-                        ? context.pbhColors.onAccent
-                        : Colors.white,
-                    fontWeight: FontWeight.w600,
+              final frame = _section == 'photo';
+              final isBase =
+                  identical(options, ProfileStyle.frames) ||
+                  identical(options, ProfileStyle.covers);
+              final preview = DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      option.color.withValues(alpha: .25),
+                      context.pbhColors.background,
+                    ],
                   ),
-                  avatar: Icon(
-                    available ? Icons.circle : Icons.lock_outline,
-                    size: 15,
-                    color: option.color,
-                  ),
-                  label: Text(
-                    available
-                        ? option.label
-                        : '${option.label} · ${option.requirement}',
-                  ),
-                  onSelected: available && !_saving
-                      ? (_) => setState(() => select(option.id))
-                      : null,
                 ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (frame)
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: option.color, width: 2),
+                          ),
+                          child: Icon(
+                            Icons.person_outline,
+                            color: context.pbhColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    if (!frame && isBase)
+                      Icon(
+                        Icons.landscape_outlined,
+                        color: option.color,
+                        size: 36,
+                      ),
+                    if (!isBase)
+                      ProfileOrnament(
+                        color: option.color,
+                        frame: frame,
+                        effect: option.id,
+                        founder: _founder,
+                      ),
+                  ],
+                ),
+              );
+              return ProfileOptionTile(
+                label: option.label,
+                selected: value == option.id,
+                preview: preview,
+                requirement: available ? null : option.requirement,
+                onTap: available && !_saving
+                    ? () => setState(() => select(option.id))
+                    : null,
               );
             })
             .toList(),
@@ -528,26 +586,20 @@ class _ProfileCustomizationScreenState
                                 _backgroundPhoto != null ||
                                 _style.backgroundPath.isNotEmpty,
                           ))
-                            ChoiceChip(
-                              label: Text(option.label),
-                              avatar: Icon(
-                                option.id == 'none'
-                                    ? Icons.block
-                                    : Icons.landscape_outlined,
-                                size: 16,
-                                color: _style.background == option.id
-                                    ? context.pbhColors.onAccent
-                                    : option.color,
-                              ),
+                            ProfileOptionTile(
+                              label: option.label,
                               selected: _style.background == option.id,
-                              labelStyle: TextStyle(
-                                color: _style.background == option.id
-                                    ? context.pbhColors.onAccent
-                                    : context.pbhColors.textPrimary,
+                              preview: ProfileBackground(
+                                style: _style.copyWith(
+                                  background: option.id,
+                                  backgroundDim: .15,
+                                ),
+                                bytes: _backgroundPhoto,
+                                child: const SizedBox.expand(),
                               ),
-                              onSelected: _saving || _picking
+                              onTap: _saving || _picking
                                   ? null
-                                  : (_) => setState(
+                                  : () => setState(
                                       () => _style = _style.copyWith(
                                         background: option.id,
                                       ),

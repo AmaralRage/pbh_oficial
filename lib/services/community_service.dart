@@ -4,6 +4,7 @@ import 'dart:math';
 
 import '../models/community_post_model.dart';
 import '../models/community_photo.dart';
+import 'auth_service.dart';
 
 class CommunityComment {
   const CommunityComment({
@@ -59,6 +60,8 @@ class CommunityService {
 
   String? get _userId => _client.auth.currentUser?.id;
   String? get currentUserId => _userId;
+  bool get canPin => AuthService.isProjectLeader(_client.auth.currentUser);
+  Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
   String get currentUserName {
     final name =
         (_client.auth.currentUser?.userMetadata?['display_name'] as String?)
@@ -160,7 +163,9 @@ class CommunityService {
         ? query
               .order('likes_count', ascending: false)
               .order('created_at', ascending: false)
-        : query.order('created_at', ascending: false);
+        : query
+              .order('pinned_at', ascending: false, nullsFirst: false)
+              .order('created_at', ascending: false);
     final auxiliaryDataFuture = userId == null
         ? null
         : Future.wait<List<String>>([
@@ -476,6 +481,60 @@ class CommunityService {
         .eq('id', postId)
         .eq('user_id', userId);
     await cleanupPhotos(force: true);
+  }
+
+  Future<void> editPost(CommunityPostModel post, String content) async {
+    if (_userId == null || post.userId != _userId)
+      throw StateError('Edite somente sua publicação.');
+    await _client.rpc(
+      'edit_community_post',
+      params: {
+        'p_id': post.id,
+        'p_content': content,
+        'p_expected': post.content,
+      },
+    );
+  }
+
+  Future<void> pinPost(String postId, bool pin) async =>
+      _client.rpc('pin_community_post', params: {'p_id': postId, 'p_pin': pin});
+  Future<List<Map<String, dynamic>>> replyActivity() async {
+    final user = _userId;
+    if (user == null) return [];
+    final rows = await _client
+        .from('community_reply_notifications')
+        .select()
+        .eq('recipient_id', user)
+        .order('created_at', ascending: false)
+        .limit(50);
+    if (_userId != user) throw StateError('A conta mudou.');
+    return rows;
+  }
+
+  Future<void> readReply(String id) async {
+    final user = _userId;
+    if (user == null) throw StateError('Entre novamente.');
+    await _client
+        .from('community_reply_notifications')
+        .update({'read_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', id)
+        .eq('recipient_id', user);
+  }
+
+  Future<CommunityPostModel?> postById(String id) async {
+    final user = _userId;
+    final row = await _client
+        .from('community_feed')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+    if (row == null) return null;
+    final post = CommunityPostModel.fromMap(row);
+    final urls = await _photoUrls(post.imagePaths);
+    if (_userId != user) throw StateError('A conta mudou.');
+    return post.copyWith(
+      imageUrls: [for (final path in post.imagePaths) urls[path] ?? ''],
+    );
   }
 
   Future<bool> isFollowing(String userId) async {

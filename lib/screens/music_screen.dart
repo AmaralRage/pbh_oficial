@@ -1,16 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../core/config/spotify_playlist.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/spotify_playback_controller.dart';
+import '../services/spotify_playlist_launcher.dart';
 import 'spotify_player_screen.dart';
 import 'spotify_playlist_tracks_screen.dart';
 
 class MusicScreen extends StatelessWidget {
   const MusicScreen({super.key});
+
+  Future<void> _openPlaylist(BuildContext context) async {
+    try {
+      await SpotifyPlaylistLauncher().open(native: !kIsWeb);
+    } catch (_) {
+      if (context.mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível abrir a playlist. Confira a conexão e tente novamente.',
+            ),
+          ),
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +72,7 @@ class MusicScreen extends StatelessWidget {
               artist: player.track?.artists,
               imageUrl: player.track?.imageUrl,
               onConnect: player.connect,
+              onOpenExternal: () => _openPlaylist(context),
               onPlay: () async {
                 await player.startPlaylist();
                 if (!context.mounted || !player.isAuthenticated) return;
@@ -75,28 +90,16 @@ class MusicScreen extends StatelessWidget {
               error: player.error,
             ),
             const SizedBox(height: 24),
-            if (!kIsWeb) ...[
+            if (player.isConfigured) ...[
               Text(
-                'Controle suas músicas aqui no PBH. No Android, o Spotify toca em segundo plano e precisa estar instalado e conectado à sua conta. Na primeira conexão, autorize o controle da reprodução. Os controles completos exigem Spotify Premium.',
+                kIsWeb
+                    ? 'Conecte sua conta para usar o player integrado. Você também pode abrir a playlist diretamente no Spotify.'
+                    : 'Controle suas músicas aqui no PBH. No Android, o Spotify toca em segundo plano e precisa estar instalado e conectado à sua conta. Na primeira conexão, autorize o controle da reprodução. Os controles completos exigem Spotify Premium.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: () async {
-                  try {
-                    if (await launchUrl(
-                      Uri.parse('spotify:playlist:$officialSpotifyPlaylistId'),
-                      mode: LaunchMode.externalApplication,
-                    ))
-                      return;
-                  } catch (_) {
-                    // The web playlist remains accessible without the native app.
-                  }
-                  await launchUrl(
-                    Uri.parse(officialSpotifyPlaylistUrl),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
+                onPressed: () => _openPlaylist(context),
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: const Text('Abrir playlist no Spotify'),
               ),
@@ -107,19 +110,28 @@ class MusicScreen extends StatelessWidget {
               style: AppTextStyles.titleMedium,
             ),
             const SizedBox(height: 12),
-            const _FeatureRow(
-              icon: Icons.album_outlined,
-              title: 'Controles completos',
-              body:
-                  'Veja a faixa, a capa e o progresso. Pause, avance ou volte sem sair do app.',
-            ),
+            if (player.isConfigured)
+              const _FeatureRow(
+                icon: Icons.album_outlined,
+                title: 'Controles completos',
+                body:
+                    'Veja a faixa, a capa e o progresso. Pause, avance ou volte sem sair do app.',
+              ),
             const SizedBox(height: 10),
-            const _FeatureRow(
-              icon: Icons.lyrics_outlined,
-              title: 'Letras disponíveis',
-              body:
-                  'Quando houver letra cadastrada para a faixa, ela aparece no player.',
-            ),
+            if (player.isConfigured)
+              const _FeatureRow(
+                icon: Icons.lyrics_outlined,
+                title: 'Letras disponíveis',
+                body:
+                    'Quando houver letra cadastrada para a faixa, ela aparece no player.',
+              ),
+            if (!player.isConfigured)
+              const _FeatureRow(
+                icon: Icons.queue_music_rounded,
+                title: 'Sua playlist sempre à mão',
+                body:
+                    'Abra a seleção oficial no Spotify e escolha o que quer ouvir. A reprodução acontece no Spotify.',
+              ),
           ],
         ),
       ),
@@ -135,6 +147,7 @@ class _PlaylistCard extends StatelessWidget {
     required this.isBusy,
     required this.isPlaying,
     required this.onConnect,
+    required this.onOpenExternal,
     required this.onPlay,
     required this.onOpenPlayer,
     required this.error,
@@ -152,6 +165,7 @@ class _PlaylistCard extends StatelessWidget {
   final String? artist;
   final String? imageUrl;
   final VoidCallback onConnect;
+  final VoidCallback onOpenExternal;
   final VoidCallback onPlay;
   final VoidCallback onOpenPlayer;
   final String? error;
@@ -161,7 +175,7 @@ class _PlaylistCard extends StatelessWidget {
     final title = trackTitle ?? 'Projeto Bom Homem';
     final subtitle = trackTitle == null ? 'Playlist oficial' : (artist ?? '');
     final actionText = !isConfigured
-        ? 'Player em configuração'
+        ? 'Ouvir no Spotify'
         : !isAuthenticated
         ? 'Conectar ao Spotify'
         : !isReady
@@ -269,7 +283,9 @@ class _PlaylistCard extends StatelessWidget {
                   Text('Projeto Bom Homem', style: AppTextStyles.brandHeadline),
                   const SizedBox(height: 6),
                   Text(
-                    'Ouça sua playlist e acompanhe a faixa, o progresso e as letras disponíveis.',
+                    isConfigured
+                        ? 'Ouça sua playlist e acompanhe a faixa, o progresso e as letras disponíveis.'
+                        : 'A trilha oficial do PBH para acompanhar sua jornada. Toque abaixo para abrir a playlist no Spotify.',
                     style: AppTextStyles.bodySmall,
                   ),
                   if (error != null && error!.isNotEmpty) ...[
@@ -293,11 +309,12 @@ class _PlaylistCard extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed:
-                          !isConfigured ||
-                              isBusy ||
-                              (isAuthenticated && !isReady)
+                          isBusy ||
+                              (isConfigured && isAuthenticated && !isReady)
                           ? null
-                          : (!isAuthenticated
+                          : (!isConfigured
+                                ? onOpenExternal
+                                : !isAuthenticated
                                 ? onConnect
                                 : (trackTitle != null ? onOpenPlayer : onPlay)),
                       style: ElevatedButton.styleFrom(
@@ -337,7 +354,7 @@ class _PlaylistCard extends StatelessWidget {
                   if (!isConfigured) ...[
                     const SizedBox(height: 10),
                     Text(
-                      'O Spotify ainda não foi configurado nesta versão do aplicativo.',
+                      'A playlist abre no Spotify. O player integrado não está disponível neste dispositivo.',
                       style: AppTextStyles.statLabel,
                     ),
                   ],

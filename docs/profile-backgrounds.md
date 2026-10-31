@@ -15,6 +15,11 @@ redução para até 1600 × 2560 px quando suportado pela plataforma. Fotos vert
 preenchem melhor a área; a imagem usa recorte para preencher a tela, ancorada
 no topo. Não há envio de HTML, GIF ou vídeo para backgrounds nesta versão.
 
+Ao escolher uma imagem estática, a tela de recorte permite posicionar e ampliar
+antes de confirmar. O recorte vira um PNG de até 5 MB; para recuperar partes
+descartadas, selecione o arquivo original novamente. GIFs e HTML da capa mantêm
+seus bytes e não passam pelo recorte. As opções agora têm miniaturas estáticas.
+
 O fundo fica parado atrás do conteúdo rolável. Capa, moldura, animações e cores
 dos cards continuam independentes. A aba de personalização e a prévia ampliada
 mostram as alterações antes de salvar. O controle Escurecimento vai de 0 a 85%.

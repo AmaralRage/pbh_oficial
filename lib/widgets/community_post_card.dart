@@ -24,12 +24,14 @@ class CommunityPostCard extends StatefulWidget {
     required this.isAuthenticated,
     required this.onRequireLogin,
     required this.onChanged,
+    this.openCommentsInitially = false,
   });
 
   final CommunityPostModel post;
   final bool isAuthenticated;
   final VoidCallback onRequireLogin;
   final Future<void> Function() onChanged;
+  final bool openCommentsInitially;
 
   @override
   State<CommunityPostCard> createState() => _CommunityPostCardState();
@@ -48,6 +50,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   bool _following = false;
   bool _showBurst = false;
   bool _busy = false;
+  String? _postEditDraft;
   DateTime _now = DateTime.now();
   bool _listeningToClock = false;
   late final AnimationController _likeController;
@@ -99,6 +102,10 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         setState(() => _showBurst = false);
     });
     if (widget.post.isSample) unawaited(_loadSampleInteraction());
+    if (widget.openCommentsInitially)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showComments();
+      });
   }
 
   @override
@@ -672,52 +679,99 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   }
 
   Future<void> _showPostMenu() async {
+    final own =
+        _service.currentUserId != null &&
+        widget.post.userId == _service.currentUserId;
     final action = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .75,
+      ),
       backgroundColor: context.pbhColors.surface,
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
-              title: Text(_saved ? 'Remover dos salvos' : 'Salvar publicação'),
-              onTap: () => Navigator.pop(context, 'save'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy_outlined),
-              title: const Text('Copiar texto'),
-              onTap: () => Navigator.pop(context, 'copy'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.flag_outlined),
-              title: const Text('Denunciar publicação'),
-              onTap: () => Navigator.pop(context, 'report'),
-            ),
-            if (widget.isAuthenticated &&
-                widget.post.userId != _service.currentUserId)
-              ListTile(
-                leading: const Icon(Icons.block_outlined),
-                title: const Text('Bloquear este membro'),
-                onTap: () => Navigator.pop(context, 'block'),
-              ),
-            if (widget.isAuthenticated &&
-                widget.post.userId == _service.currentUserId)
-              ListTile(
-                leading: Icon(
-                  Icons.delete_outline,
-                  color: context.pbhColors.orange,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (own)
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('Editar publicação'),
+                  onTap: () => Navigator.pop(context, 'edit'),
                 ),
-                title: const Text('Excluir minha publicação'),
-                onTap: () => Navigator.pop(context, 'delete'),
+              if (own && _service.canPin)
+                ListTile(
+                  leading: const Icon(Icons.push_pin_outlined),
+                  title: Text(
+                    widget.post.pinnedAt == null
+                        ? 'Fixar aviso no topo'
+                        : 'Desafixar aviso',
+                  ),
+                  onTap: () => Navigator.pop(context, 'pin'),
+                ),
+              ListTile(
+                leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
+                title: Text(
+                  _saved ? 'Remover dos salvos' : 'Salvar publicação',
+                ),
+                onTap: () => Navigator.pop(context, 'save'),
               ),
-          ],
+              ListTile(
+                leading: const Icon(Icons.copy_outlined),
+                title: const Text('Copiar texto'),
+                onTap: () => Navigator.pop(context, 'copy'),
+              ),
+              if (!own)
+                ListTile(
+                  leading: const Icon(Icons.flag_outlined),
+                  title: const Text('Denunciar publicação'),
+                  onTap: () => Navigator.pop(context, 'report'),
+                ),
+              if (widget.isAuthenticated &&
+                  widget.post.userId != _service.currentUserId)
+                ListTile(
+                  leading: const Icon(Icons.block_outlined),
+                  title: const Text('Bloquear este membro'),
+                  onTap: () => Navigator.pop(context, 'block'),
+                ),
+              if (widget.isAuthenticated &&
+                  widget.post.userId == _service.currentUserId)
+                ListTile(
+                  leading: Icon(
+                    Icons.delete_outline,
+                    color: context.pbhColors.orange,
+                  ),
+                  title: const Text('Excluir minha publicação'),
+                  onTap: () => Navigator.pop(context, 'delete'),
+                ),
+            ],
+          ),
         ),
       ),
     );
     if (!mounted || action == null) return;
     try {
-      if (action == 'save') {
+      if (action == 'edit') {
+        final text = await showDialog<String>(
+          context: context,
+          builder: (_) => TextEntryDialog(
+            title: 'Editar publicação',
+            initialText: _postEditDraft ?? widget.post.content,
+            maxLength: 2000,
+            description: 'Os anexos permanecem na publicação.',
+          ),
+        );
+        if (text == null || !mounted) return;
+        _postEditDraft = text;
+        await _service.editPost(widget.post, text);
+        _postEditDraft = null;
+        await widget.onChanged();
+        if (mounted) _showMessage('Publicação atualizada.');
+      } else if (action == 'pin') {
+        await _service.pinPost(widget.post.id, widget.post.pinnedAt == null);
+        await widget.onChanged();
+      } else if (action == 'save') {
         if (!widget.isAuthenticated) {
           widget.onRequireLogin();
           return;
@@ -942,7 +996,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                         Text(
                           post.isSample
                               ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
-                              : _formatElapsed(post.createdAt),
+                              : '${_formatElapsed(post.createdAt)}${post.editedAt == null ? '' : ' · editado'}',
                           style: AppTextStyles.statLabel,
                         ),
                       ],
@@ -977,6 +1031,21 @@ class _CommunityPostCardState extends State<CommunityPostCard>
               ],
             ),
           ),
+          if (post.pinnedAt != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.push_pin_rounded,
+                    size: 14,
+                    color: context.pbhColors.orange,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text('Aviso fixado'),
+                ],
+              ),
+            ),
           if (post.achievementTag != null) ...[
             const SizedBox(height: 12),
             Container(
