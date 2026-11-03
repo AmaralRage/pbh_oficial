@@ -133,15 +133,94 @@ class _PersonalGoalCardState extends State<PersonalGoalCard> {
     }
   }
 
+  void _history({bool timeline = false}) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => PersonalGoalHistoryScreen(
+        service: _service,
+        goalId: timeline ? _goal!['goal_id'] as String : null,
+        title: timeline ? 'Linha do tempo' : 'Histórico de objetivos',
+        timeline: timeline,
+      ),
+    ),
+  );
+
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
+  Widget build(BuildContext context) {
+    final colors = context.pbhColors;
+    final active = _goal != null && !_loading && _error == null;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.orange.withValues(alpha: .3)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.alphaBlend(
+              colors.orange.withValues(alpha: .08),
+              colors.surface,
+            ),
+            colors.surface,
+          ],
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Meu objetivo', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colors.orangeDim,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.my_location_rounded,
+                  color: colors.orange,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'MEU OBJETIVO',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                        color: colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Um passo de cada vez',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (active)
+                IconButton(
+                  tooltip: 'Editar objetivo e visibilidade',
+                  onPressed: _busy ? null : _edit,
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    color: colors.textSecondary,
+                    size: 20,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
           if (!widget.isAuthenticated) ...[
             const Text(
               'Entre para registrar um objetivo e acompanhar seus avanços.',
@@ -152,87 +231,163 @@ class _PersonalGoalCardState extends State<PersonalGoalCard> {
           else if (_error != null) ...[
             Text(_error!),
             TextButton(onPressed: _load, child: const Text('Tentar novamente')),
-          ] else if (_goal == null) ...[
-            const Text(
+          ] else if (!active) ...[
+            Text(
               'Escolha algo que deseja desenvolver e defina um próximo passo possível.',
+              style: TextStyle(color: colors.textSecondary),
             ),
-            FilledButton(
+            const SizedBox(height: 16),
+            FilledButton.icon(
               onPressed: _edit,
-              child: const Text('Definir objetivo'),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Definir objetivo'),
             ),
           ] else ...[
             Text(
               _goal!['title'] as String,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: TextStyle(
+                fontSize: 18,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
+              ),
             ),
-            if ((_goal!['next_step'] as String).isNotEmpty)
-              Text('Próximo passo: ${_goal!['next_step']}'),
-            const SizedBox(height: 8),
-            Text(
-              _goal!['is_public'] == true
-                  ? 'Objetivo compartilhado no seu perfil público'
-                  : 'Objetivo privado',
-            ),
-            const Text('Os registros de avanço são sempre privados.'),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _busy ? null : _advance,
-              child: const Text('Registrar um avanço'),
-            ),
-            TextButton(
-              onPressed: _busy ? null : _edit,
-              child: const Text('Editar objetivo e visibilidade'),
-            ),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _complete,
-              icon: const Icon(Icons.task_alt),
-              label: const Text('Concluir objetivo'),
-            ),
-            if (_goal!['goal_id'] != null)
-              TextButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => PersonalGoalHistoryScreen(
-                      service: _service,
-                      goalId: _goal!['goal_id'] as String,
-                      title: 'Linha do tempo',
-                      timeline: true,
+            if ((_goal!['next_step'] as String).trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colors.backgroundElevated,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.borderSubtle),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: colors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PRÓXIMO PASSO',
+                            style: TextStyle(
+                              fontSize: 10,
+                              letterSpacing: .6,
+                              fontWeight: FontWeight.w700,
+                              color: colors.orange,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _goal!['next_step'] as String,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.45,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  _goal!['is_public'] == true
+                      ? Icons.public_rounded
+                      : Icons.lock_outline_rounded,
+                  size: 15,
+                  color: colors.textTertiary,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    _goal!['is_public'] == true
+                        ? 'Objetivo visível no perfil. Seus avanços são privados.'
+                        : 'Seu objetivo e seus avanços são privados.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: colors.textSecondary,
                     ),
                   ),
                 ),
-                icon: const Icon(Icons.timeline),
-                label: const Text('Ver linha do tempo'),
+              ],
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _busy ? null : _advance,
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add_rounded, size: 20),
+              label: const Text('Registrar um avanço'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _complete,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(64, 44),
+                backgroundColor: Colors.transparent,
               ),
+              icon: const Icon(Icons.task_alt, size: 18),
+              label: const Text('Concluir objetivo'),
+            ),
             if (_entries.isNotEmpty)
               ExpansionTile(
+                tilePadding: EdgeInsets.zero,
                 title: const Text('Meus últimos avanços'),
                 children: [
                   for (final entry in _entries)
                     ListTile(
+                      contentPadding: EdgeInsets.zero,
                       title: Text(entry['content'] as String),
                       subtitle: Text(
-                        '${entry['goal_title']} · ${goalRecordDate(context, entry['created_at'] as String)}',
+                        goalRecordDate(context, entry['created_at'] as String),
                       ),
                     ),
                 ],
               ),
           ],
-          if (widget.isAuthenticated && !_loading)
-            TextButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => PersonalGoalHistoryScreen(service: _service),
+          if (widget.isAuthenticated && !_loading) ...[
+            const SizedBox(height: 14),
+            Divider(height: 1, color: colors.borderSubtle),
+            const SizedBox(height: 6),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: 8,
+              children: [
+                if (active && _goal!['goal_id'] != null)
+                  TextButton.icon(
+                    onPressed: _busy ? null : () => _history(timeline: true),
+                    icon: const Icon(Icons.timeline_rounded, size: 17),
+                    label: const Text('Linha do tempo'),
+                  ),
+                TextButton.icon(
+                  onPressed: _busy ? null : () => _history(),
+                  icon: const Icon(Icons.history_rounded, size: 17),
+                  label: const Text('Histórico'),
                 ),
-              ),
-              icon: const Icon(Icons.history),
-              label: const Text('Histórico de objetivos'),
+              ],
             ),
+          ],
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _GoalEditor extends StatefulWidget {
@@ -424,11 +579,17 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: colors.borderSubtle),
+        border: Border.all(color: colors.orange.withValues(alpha: .35)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [colors.surfaceElevated, colors.surface],
+          colors: [
+            Color.alphaBlend(
+              colors.orange.withValues(alpha: .09),
+              colors.surface,
+            ),
+            colors.surface,
+          ],
         ),
       ),
       child: Column(
@@ -439,13 +600,13 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
               Container(
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: colors.surfaceElevated,
+                  color: colors.orangeDim,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.my_location_rounded,
                   size: 20,
-                  color: colors.textSecondary,
+                  color: colors.orange,
                 ),
               ),
               const SizedBox(width: 12),
@@ -453,7 +614,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                 child: Text(
                   'OBJETIVO PESSOAL',
                   style: TextStyle(
-                    color: colors.textSecondary,
+                    color: colors.orange,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
@@ -466,7 +627,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                   child: Icon(
                     Icons.lock_outline_rounded,
                     size: 17,
-                    color: colors.textSecondary,
+                    color: colors.orange,
                   ),
                 ),
             ],
@@ -498,7 +659,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                     child: Icon(
                       Icons.arrow_forward_rounded,
                       size: 18,
-                      color: colors.textSecondary,
+                      color: colors.orange,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -509,7 +670,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                         Text(
                           'PRÓXIMO PASSO',
                           style: TextStyle(
-                            color: colors.textSecondary,
+                            color: colors.orange,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             letterSpacing: .8,

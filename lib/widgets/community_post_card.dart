@@ -1,3 +1,6 @@
+import 'package:http/http.dart' as http;
+import '../screens/profile_image_cropper.dart';
+import 'member_display_name.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -25,6 +28,7 @@ class CommunityPostCard extends StatefulWidget {
     required this.onRequireLogin,
     required this.onChanged,
     this.openCommentsInitially = false,
+    this.focusCommentId,
   });
 
   final CommunityPostModel post;
@@ -32,6 +36,7 @@ class CommunityPostCard extends StatefulWidget {
   final VoidCallback onRequireLogin;
   final Future<void> Function() onChanged;
   final bool openCommentsInitially;
+  final String? focusCommentId;
 
   @override
   State<CommunityPostCard> createState() => _CommunityPostCardState();
@@ -41,6 +46,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     with SingleTickerProviderStateMixin {
   final _service = CommunityService();
   final _commentController = TextEditingController();
+  final _commentFocus = FocusNode();
   CommunityComment? _replyTarget;
   final _commentEditDrafts = <String, String>{};
   late bool _liked;
@@ -165,6 +171,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     if (_listeningToClock) MinuteClock.shared.removeListener(_updateTime);
     _likeController.dispose();
     _commentController.dispose();
+    _commentFocus.dispose();
     super.dispose();
   }
 
@@ -219,320 +226,760 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     }
   }
 
+  String _commentSort = 'recent';
+
   Future<void> _showComments() async {
     final comments = <CommunityComment>[];
     var isLoading = true;
     var loadStarted = false;
     var loadingMore = false;
+    var pageOffset = 0;
+    var focusExpanded = false, focusScrolled = false;
+    final focusKey = GlobalKey();
     var loadFailed = false;
+    final expandedThreads = <String>{};
+    final liking = <String>{};
+    final likeOverrides = <String, bool>{};
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.pbhColors.surface,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          void refreshSheet(VoidCallback update) {
-            if (context.mounted) setSheetState(update);
-          }
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: .72,
+          minChildSize: .4,
+          maxChildSize: .95,
+          builder: (_, scrollController) => StatefulBuilder(
+            builder: (context, setSheetState) {
+              void refreshSheet(VoidCallback update) {
+                if (context.mounted) setSheetState(update);
+              }
 
-          if (!loadStarted) {
-            loadStarted = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              try {
-                final loadedComments = await _loadComments();
-                refreshSheet(() {
-                  comments
-                    ..clear()
-                    ..addAll(loadedComments);
-                  isLoading = false;
-                });
-              } catch (_) {
-                refreshSheet(() {
-                  loadFailed = true;
-                  isLoading = false;
+              if (!loadStarted) {
+                loadStarted = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  try {
+                    final loadedComments = await _loadComments();
+                    pageOffset = loadedComments.length;
+                    if (widget.focusCommentId != null &&
+                        !widget.post.isSample) {
+                      final thread = await _service.commentContext(
+                        widget.post.id,
+                        widget.focusCommentId!,
+                      );
+                      final known = loadedComments.map((c) => c.id).toSet();
+                      loadedComments.addAll(
+                        thread.where((c) => known.add(c.id)),
+                      );
+                      expandedThreads.addAll(thread.map((c) => c.id));
+                    }
+                    refreshSheet(() {
+                      comments
+                        ..clear()
+                        ..addAll(loadedComments);
+                      isLoading = false;
+                    });
+                  } catch (_) {
+                    refreshSheet(() {
+                      loadFailed = true;
+                      isLoading = false;
+                    });
+                  }
                 });
               }
-            });
-          }
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              18,
-              20,
-              MediaQuery.viewInsetsOf(context).bottom + 20,
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: context.pbhColors.borderSubtle,
-                        borderRadius: BorderRadius.circular(4),
+              final byId = {for (final c in comments) c.id: c};
+              String rootOf(CommunityComment c) {
+                final seen = <String>{c.id};
+                var current = c;
+                while (current.replyToId != null &&
+                    byId.containsKey(current.replyToId) &&
+                    seen.add(current.replyToId!)) {
+                  current = byId[current.replyToId]!;
+                }
+                return current.id;
+              }
+
+              final roots = comments.where((c) => rootOf(c) == c.id).toList()
+                ..sort(
+                  (a, b) => _commentSort == 'likes' && a.likes != b.likes
+                      ? b.likes.compareTo(a.likes)
+                      : (_commentSort == 'oldest')
+                      ? a.createdAt.compareTo(b.createdAt)
+                      : b.createdAt.compareTo(a.createdAt),
+                );
+              final focused = comments
+                  .where((c) => c.id == widget.focusCommentId)
+                  .firstOrNull;
+              if (focused != null) {
+                final focusedRoot = rootOf(focused);
+                if (!focusExpanded) {
+                  expandedThreads.add(focusedRoot);
+                  focusExpanded = true;
+                }
+                final targetIndex = roots.indexWhere(
+                  (c) => c.id == focusedRoot,
+                );
+                if (targetIndex > 0)
+                  roots.insert(0, roots.removeAt(targetIndex));
+              }
+              final visible = <CommunityComment>[];
+              for (final root in roots) {
+                visible.add(root);
+                if (expandedThreads.contains(root.id)) {
+                  final replies =
+                      comments
+                          .where((c) => c.id != root.id && rootOf(c) == root.id)
+                          .toList()
+                        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+                  if (focused != null) {
+                    final targetIndex = replies.indexWhere(
+                      (c) => c.id == focused.id,
+                    );
+                    if (targetIndex > 0)
+                      replies.insert(0, replies.removeAt(targetIndex));
+                  }
+                  visible.addAll(replies);
+                }
+              }
+              if (widget.focusCommentId != null &&
+                  !focusScrolled &&
+                  !isLoading) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final target = focusKey.currentContext;
+                  if (target != null && target.mounted) {
+                    focusScrolled = true;
+                    Scrollable.ensureVisible(
+                      target,
+                      alignment: .2,
+                      duration: const Duration(milliseconds: 180),
+                    );
+                  }
+                });
+              }
+              return Padding(
+                padding: EdgeInsets.fromLTRB(20, 18, 20, 20),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: context.pbhColors.borderSubtle,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Comentários ($_commentCount)',
-                    style: AppTextStyles.titleMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  if (!isLoading && _commentCount > comments.length)
-                    TextButton(
-                      onPressed: loadingMore
-                          ? null
-                          : () async {
-                              refreshSheet(() => loadingMore = true);
-                              try {
-                                final page = await _service.fetchComments(
-                                  widget.post.id,
-                                  isSample: widget.post.isSample,
-                                  offset: comments.length,
-                                );
-                                if (!context.mounted) return;
-                                refreshSheet(() {
-                                  final known = comments
-                                      .map((c) => c.id)
-                                      .toSet();
-                                  comments.addAll(
-                                    page.where((c) => !known.contains(c.id)),
-                                  );
-                                  if (page.isEmpty)
-                                    _commentCount = comments.length;
-                                });
-                              } catch (error) {
-                                if (mounted) _showError(error);
-                              } finally {
-                                if (context.mounted)
-                                  refreshSheet(() => loadingMore = false);
-                              }
-                            },
-                      child: Text(
-                        loadingMore
-                            ? 'Carregando…'
-                            : 'Carregar mais comentários',
-                      ),
-                    ),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 360),
-                    child: isLoading
-                        ? SizedBox(
-                            height: 96,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: context.pbhColors.orange,
-                                strokeWidth: 2,
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          const SizedBox(width: 48),
+                          Expanded(
+                            child: Text(
+                              'Comentários ($_commentCount)',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.titleMedium.copyWith(
+                                fontSize: 16,
                               ),
                             ),
-                          )
-                        : loadFailed
-                        ? TextButton.icon(
-                            onPressed: () => refreshSheet(() {
-                              loadFailed = false;
+                          ),
+                          PopupMenuButton<String>(
+                            tooltip: 'Ordenar comentários',
+                            initialValue: _commentSort,
+                            enabled: !isLoading && !loadingMore,
+                            onSelected: (value) => refreshSheet(() {
+                              _commentSort = value;
                               loadStarted = false;
                               isLoading = true;
+                              loadFailed = false;
                             }),
-                            icon: const Icon(Icons.refresh),
-                            label: const Text(
-                              'Não foi possível carregar. Tentar novamente',
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'recent',
+                                child: Text('Mais recentes'),
+                              ),
+                              PopupMenuItem(
+                                value: 'oldest',
+                                child: Text('Mais antigos'),
+                              ),
+                              PopupMenuItem(
+                                value: 'likes',
+                                child: Text('Mais curtidos'),
+                              ),
+                            ],
+                            icon: Icon(
+                              Icons.tune_rounded,
+                              size: 19,
+                              color: context.pbhColors.textSecondary,
                             ),
-                          )
-                        : comments.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
+                          ),
+                        ],
+                      ),
+                      Divider(
+                        height: 20,
+                        color: context.pbhColors.borderSubtle,
+                      ),
+                      const SizedBox(height: 4),
+                      if (!isLoading && _commentCount > comments.length)
+                        TextButton(
+                          onPressed: loadingMore
+                              ? null
+                              : () async {
+                                  refreshSheet(() => loadingMore = true);
+                                  try {
+                                    final page = await _service.fetchComments(
+                                      widget.post.id,
+                                      isSample: widget.post.isSample,
+                                      offset: pageOffset,
+                                      sort: _commentSort,
+                                    );
+                                    if (!context.mounted) return;
+                                    refreshSheet(() {
+                                      pageOffset += page.length;
+                                      final known = comments
+                                          .map((c) => c.id)
+                                          .toSet();
+                                      comments.addAll(
+                                        page.where(
+                                          (c) => !known.contains(c.id),
+                                        ),
+                                      );
+                                      if (page.isEmpty)
+                                        _commentCount = comments.length;
+                                    });
+                                  } catch (error) {
+                                    if (mounted) _showError(error);
+                                  } finally {
+                                    if (context.mounted)
+                                      refreshSheet(() => loadingMore = false);
+                                  }
+                                },
+                          child: Text(
+                            loadingMore
+                                ? 'Carregando…'
+                                : 'Carregar mais comentários',
+                          ),
+                        ),
+                      Expanded(
+                        child: isLoading
+                            ? SizedBox(
+                                height: 96,
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: context.pbhColors.orange,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : loadFailed
+                            ? TextButton.icon(
+                                onPressed: () => refreshSheet(() {
+                                  loadFailed = false;
+                                  loadStarted = false;
+                                  isLoading = true;
+                                }),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text(
+                                  'Não foi possível carregar. Tentar novamente',
+                                ),
+                              )
+                            : comments.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Text(
+                                    'Seja a primeira pessoa a comentar.',
+                                    style: AppTextStyles.bodySmall,
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                controller: scrollController,
+                                cacheExtent: widget.focusCommentId == null
+                                    ? null
+                                    : MediaQuery.sizeOf(context).height * 4,
+                                itemCount: visible.length,
+                                itemBuilder: (_, index) {
+                                  final comment = visible[index];
+                                  final root = rootOf(comment);
+                                  final reply = root != comment.id;
+                                  final replies = comments
+                                      .where(
+                                        (c) =>
+                                            c.id != root && rootOf(c) == root,
+                                      )
+                                      .length;
+                                  final liked =
+                                      likeOverrides[comment.id] ??
+                                      comment.likedByMe;
+                                  final likeCount =
+                                      comment.likes +
+                                      (liked == comment.likedByMe
+                                          ? 0
+                                          : liked
+                                          ? 1
+                                          : -1);
+                                  return Container(
+                                    key: comment.id == widget.focusCommentId
+                                        ? focusKey
+                                        : ValueKey(comment.id),
+                                    decoration: BoxDecoration(
+                                      color: comment.id == widget.focusCommentId
+                                          ? context.pbhColors.orangeDim
+                                          : null,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: reply ? 44 : 0,
+                                        top: 8,
+                                        bottom: 12,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          InkWell(
+                                            onTap: () =>
+                                                _openMember(comment.userId),
+                                            borderRadius: BorderRadius.circular(
+                                              24,
+                                            ),
+                                            child: SizedBox.square(
+                                              dimension: reply ? 28 : 36,
+                                              child: ProfileCommentAvatar(
+                                                userId: comment.userId,
+                                                name: comment.author,
+                                                avatarUrl: comment.avatarUrl,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: InkWell(
+                                                        onTap: () =>
+                                                            _openMember(
+                                                              comment.userId,
+                                                            ),
+                                                        child: CommunityIdentityBuilder(
+                                                          userId:
+                                                              comment.userId,
+                                                          name: comment.author,
+                                                          avatarUrl:
+                                                              comment.avatarUrl,
+                                                          builder:
+                                                              (
+                                                                context,
+                                                                identity,
+                                                              ) => MemberDisplayName(
+                                                                name: identity
+                                                                    .name,
+                                                                founder: identity
+                                                                    .founder,
+                                                                memberBadge:
+                                                                    identity
+                                                                        .memberBadge,
+                                                                style: AppTextStyles
+                                                                    .titleMedium
+                                                                    .copyWith(
+                                                                      fontSize:
+                                                                          15,
+                                                                    ),
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      _formatElapsed(
+                                                        comment.createdAt,
+                                                      ),
+                                                      style: AppTextStyles
+                                                          .statLabel
+                                                          .copyWith(
+                                                            fontSize: 11,
+                                                            color: context
+                                                                .pbhColors
+                                                                .textTertiary,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  comment.content,
+                                                  style: AppTextStyles.bodySmall
+                                                      .copyWith(
+                                                        fontSize: 14,
+                                                        height: 1.4,
+                                                        color: context
+                                                            .pbhColors
+                                                            .textPrimary,
+                                                      ),
+                                                ),
+                                                Wrap(
+                                                  spacing: 12,
+                                                  crossAxisAlignment:
+                                                      WrapCrossAlignment.center,
+                                                  children: [
+                                                    TextButton(
+                                                      style: TextButton.styleFrom(
+                                                        foregroundColor: context
+                                                            .pbhColors
+                                                            .orange,
+                                                        padding:
+                                                            EdgeInsets.zero,
+                                                        minimumSize: const Size(
+                                                          0,
+                                                          32,
+                                                        ),
+                                                        tapTargetSize:
+                                                            MaterialTapTargetSize
+                                                                .shrinkWrap,
+                                                        textStyle:
+                                                            const TextStyle(
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                      ),
+                                                      onPressed: () {
+                                                        if (!widget
+                                                            .isAuthenticated) {
+                                                          widget
+                                                              .onRequireLogin();
+                                                          return;
+                                                        }
+                                                        refreshSheet(() {
+                                                          _replyTarget =
+                                                              comment;
+                                                          expandedThreads.add(
+                                                            root,
+                                                          );
+                                                        });
+                                                        _commentFocus
+                                                            .requestFocus();
+                                                      },
+                                                      child: const Text(
+                                                        'Responder',
+                                                      ),
+                                                    ),
+                                                    if (comment.editedAt !=
+                                                        null)
+                                                      Text(
+                                                        'editado',
+                                                        style: AppTextStyles
+                                                            .statLabel
+                                                            .copyWith(
+                                                              fontSize: 11,
+                                                            ),
+                                                      ),
+                                                    if (widget.isAuthenticated)
+                                                      PopupMenuButton<String>(
+                                                        tooltip:
+                                                            'Opções do comentário',
+                                                        enabled: !_busy,
+                                                        icon: Icon(
+                                                          Icons.more_horiz,
+                                                          size: 18,
+                                                          color: context
+                                                              .pbhColors
+                                                              .textTertiary,
+                                                        ),
+                                                        padding:
+                                                            EdgeInsets.zero,
+                                                        constraints:
+                                                            const BoxConstraints(
+                                                              minWidth: 32,
+                                                              minHeight: 32,
+                                                            ),
+                                                        itemBuilder: (_) => [
+                                                          const PopupMenuItem(
+                                                            value: 'reply',
+                                                            child: Text(
+                                                              'Responder',
+                                                            ),
+                                                          ),
+                                                          if (comment.userId ==
+                                                              _service
+                                                                  .currentUserId) ...[
+                                                            const PopupMenuItem(
+                                                              value: 'edit',
+                                                              child: Text(
+                                                                'Editar',
+                                                              ),
+                                                            ),
+                                                            const PopupMenuItem(
+                                                              value: 'delete',
+                                                              child: Text(
+                                                                'Excluir',
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ],
+                                                        onSelected: (value) {
+                                                          if (_busy) return;
+                                                          if (value == 'reply')
+                                                            refreshSheet(
+                                                              () =>
+                                                                  _replyTarget =
+                                                                      comment,
+                                                            );
+                                                          else if (value ==
+                                                              'edit')
+                                                            _editComment(
+                                                              comment,
+                                                              comments,
+                                                              refreshSheet,
+                                                            );
+                                                          else
+                                                            _deleteComment(
+                                                              comment,
+                                                              comments,
+                                                              refreshSheet,
+                                                            );
+                                                        },
+                                                      ),
+                                                  ],
+                                                ),
+                                                if (!reply && replies > 0)
+                                                  TextButton(
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor: context
+                                                          .pbhColors
+                                                          .orange,
+                                                      padding: EdgeInsets.zero,
+                                                      minimumSize: const Size(
+                                                        0,
+                                                        32,
+                                                      ),
+                                                      textStyle:
+                                                          const TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                    ),
+                                                    onPressed: () =>
+                                                        refreshSheet(() {
+                                                          if (!expandedThreads
+                                                              .add(root))
+                                                            expandedThreads
+                                                                .remove(root);
+                                                        }),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Container(
+                                                          width: 24,
+                                                          height: 1,
+                                                          color: context
+                                                              .pbhColors
+                                                              .borderSubtle,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 12,
+                                                        ),
+                                                        Text(
+                                                          expandedThreads
+                                                                  .contains(
+                                                                    root,
+                                                                  )
+                                                              ? 'Ocultar respostas'
+                                                              : 'Ver respostas ($replies)',
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                tooltip: liked
+                                                    ? 'Descurtir comentário'
+                                                    : 'Curtir comentário',
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                onPressed:
+                                                    liking.contains(comment.id)
+                                                    ? null
+                                                    : () async {
+                                                        if (!widget
+                                                            .isAuthenticated) {
+                                                          widget
+                                                              .onRequireLogin();
+                                                          return;
+                                                        }
+                                                        refreshSheet(() {
+                                                          liking.add(
+                                                            comment.id,
+                                                          );
+                                                          likeOverrides[comment
+                                                                  .id] =
+                                                              !liked;
+                                                        });
+                                                        try {
+                                                          await _service
+                                                              .setCommentLike(
+                                                                comment.id,
+                                                                !liked,
+                                                                isSample: widget
+                                                                    .post
+                                                                    .isSample,
+                                                              );
+                                                        } catch (error) {
+                                                          refreshSheet(
+                                                            () =>
+                                                                likeOverrides[comment
+                                                                        .id] =
+                                                                    liked,
+                                                          );
+                                                          if (mounted)
+                                                            _showError(error);
+                                                        } finally {
+                                                          refreshSheet(
+                                                            () => liking.remove(
+                                                              comment.id,
+                                                            ),
+                                                          );
+                                                        }
+                                                      },
+                                                icon: Icon(
+                                                  liked
+                                                      ? Icons
+                                                            .local_fire_department
+                                                      : Icons
+                                                            .local_fire_department_outlined,
+                                                  size: 18,
+                                                  color: liked
+                                                      ? context.pbhColors.orange
+                                                      : context
+                                                            .pbhColors
+                                                            .textTertiary,
+                                                ),
+                                              ),
+                                              if (likeCount > 0)
+                                                Text(
+                                                  '$likeCount',
+                                                  style: AppTextStyles.statLabel
+                                                      .copyWith(fontSize: 11),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (widget.isAuthenticated && _replyTarget != null)
+                        Row(
+                          children: [
+                            Expanded(
                               child: Text(
-                                'Seja a primeira pessoa a comentar.',
+                                'Respondendo a ${_replyTarget!.author}',
                                 style: AppTextStyles.bodySmall,
                               ),
                             ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: comments.length,
-                            itemBuilder: (_, index) {
-                              final comment = comments[index];
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: InkWell(
-                                  onTap: () => _openMember(comment.userId),
-                                  borderRadius: BorderRadius.circular(24),
-                                  child: ProfileCommentAvatar(
-                                    userId: comment.userId,
-                                    name: comment.author,
-                                    avatarUrl: comment.avatarUrl,
-                                  ),
-                                ),
-                                title: Row(
-                                  children: [
-                                    Expanded(
-                                      child: InkWell(
-                                        onTap: () =>
-                                            _openMember(comment.userId),
-                                        child: CommunityIdentityBuilder(
-                                          userId: comment.userId,
-                                          name: comment.author,
-                                          avatarUrl: comment.avatarUrl,
-                                          builder: (context, identity) => Text(
-                                            identity.name,
-                                            style: AppTextStyles.titleMedium
-                                                .copyWith(fontSize: 13),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatElapsed(comment.createdAt),
-                                      style: AppTextStyles.statLabel,
-                                    ),
-                                  ],
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (comment.replyToId != null)
-                                        Text(
-                                          'Em resposta a ${comments.where((c) => c.id == comment.replyToId).map((c) => c.author).firstOrNull ?? 'um comentário anterior'}',
-                                          style: AppTextStyles.statLabel,
-                                        ),
-                                      Text(
-                                        comment.content,
-                                        style: AppTextStyles.bodySmall,
-                                      ),
-                                      if (comment.editedAt != null)
-                                        Text(
-                                          'editado',
-                                          style: AppTextStyles.statLabel,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                trailing: widget.isAuthenticated
-                                    ? PopupMenuButton<String>(
-                                        tooltip: 'Opções do comentário',
-                                        enabled: !_busy,
-                                        itemBuilder: (_) => [
-                                          const PopupMenuItem(
-                                            value: 'reply',
-                                            child: Text('Responder'),
-                                          ),
-                                          if (comment.userId ==
-                                              _service.currentUserId) ...[
-                                            const PopupMenuItem(
-                                              value: 'edit',
-                                              child: Text('Editar'),
-                                            ),
-                                            const PopupMenuItem(
-                                              value: 'delete',
-                                              child: Text('Excluir'),
-                                            ),
-                                          ],
-                                        ],
-                                        onSelected: (value) {
-                                          if (_busy) return;
-                                          if (value == 'reply')
-                                            refreshSheet(
-                                              () => _replyTarget = comment,
-                                            );
-                                          else if (value == 'edit')
-                                            _editComment(
-                                              comment,
-                                              comments,
-                                              refreshSheet,
-                                            );
-                                          else
-                                            _deleteComment(
-                                              comment,
-                                              comments,
-                                              refreshSheet,
-                                            );
-                                        },
-                                      )
-                                    : null,
-                              );
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (widget.isAuthenticated && _replyTarget != null)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Respondendo a ${_replyTarget!.author}',
-                            style: AppTextStyles.bodySmall,
-                          ),
+                            IconButton(
+                              tooltip: 'Cancelar resposta',
+                              onPressed: () =>
+                                  refreshSheet(() => _replyTarget = null),
+                              icon: const Icon(Icons.close, size: 18),
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          tooltip: 'Cancelar resposta',
-                          onPressed: () =>
-                              refreshSheet(() => _replyTarget = null),
-                          icon: const Icon(Icons.close, size: 18),
-                        ),
-                      ],
-                    ),
-                  if (widget.isAuthenticated)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _commentController,
-                            maxLength: 1000,
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) =>
-                                _addComment(comments, refreshSheet),
-                            decoration: InputDecoration(
-                              counterText: '',
-                              hintText: 'Escreva um comentário...',
-                              filled: true,
-                              fillColor: context.pbhColors.background,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
+                      if (widget.isAuthenticated)
+                        Row(
+                          children: [
+                            SizedBox.square(
+                              dimension: 32,
+                              child: ProfileCommentAvatar(
+                                userId: _service.currentUserId!,
+                                name: _service.currentUserName,
                               ),
                             ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: _commentController,
+                                focusNode: _commentFocus,
+                                maxLength: 1000,
+                                minLines: 1,
+                                maxLines: 4,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                textInputAction: TextInputAction.newline,
+                                onSubmitted: (_) =>
+                                    _addComment(comments, refreshSheet),
+                                decoration: InputDecoration(
+                                  counterText: '',
+                                  hintText: 'Escreva um comentário...',
+                                  filled: true,
+                                  fillColor: context.pbhColors.background,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () => _addComment(comments, refreshSheet),
+                              icon: Icon(
+                                Icons.send_rounded,
+                                color: context.pbhColors.orange,
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.pop(sheetContext);
+                              widget.onRequireLogin();
+                            },
+                            child: const Text('Entre para comentar'),
                           ),
                         ),
-                        IconButton(
-                          onPressed: _busy
-                              ? null
-                              : () => _addComment(comments, refreshSheet),
-                          icon: Icon(
-                            Icons.send_rounded,
-                            color: context.pbhColors.orange,
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.pop(sheetContext);
-                          widget.onRequireLogin();
-                        },
-                        child: const Text('Entre para comentar'),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -542,6 +989,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       return await _service.fetchComments(
         widget.post.id,
         isSample: widget.post.isSample,
+        sort: _commentSort,
       );
     } catch (error) {
       if (mounted) _showError(error);
@@ -569,6 +1017,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       final refreshed = await _service.fetchComments(
         widget.post.id,
         isSample: widget.post.isSample,
+        sort: _commentSort,
         limit: visibleLimit,
       );
       comments
@@ -581,6 +1030,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       if (mounted) _showError(error);
     } finally {
       if (mounted) setState(() => _busy = false);
+      refreshSheet(() {});
     }
   }
 
@@ -611,6 +1061,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       final updated = await _service.fetchComments(
         widget.post.id,
         isSample: widget.post.isSample,
+        sort: _commentSort,
         limit: comments.length < 30 ? 30 : comments.length,
       );
       comments
@@ -659,6 +1110,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       final refreshed = await _service.fetchComments(
         widget.post.id,
         isSample: widget.post.isSample,
+        sort: _commentSort,
         limit: visibleLimit,
       );
       comments
@@ -671,6 +1123,78 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       }
       refreshSheet(() {});
       if (!widget.post.isSample) unawaited(widget.onChanged());
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _editFraming() async {
+    if (_busy) return;
+    final indices = [
+      for (var i = 0; i < widget.post.imagePaths.length; i++)
+        if (RegExp(
+          r'\.(jpg|png|webp)$',
+          caseSensitive: false,
+        ).hasMatch(widget.post.imagePaths[i]))
+          i,
+    ];
+    if (indices.isEmpty) return;
+    final index = indices.length == 1
+        ? indices.first
+        : await showModalBottomSheet<int>(
+            context: context,
+            builder: (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final i in indices)
+                    ListTile(
+                      leading: const Icon(Icons.crop),
+                      title: Text('Enquadrar foto 48526'),
+                      onTap: () => Navigator.pop(ctx, i),
+                    ),
+                ],
+              ),
+            ),
+          );
+    if (index == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final current = await _service.postById(widget.post.id);
+      if (current == null || index >= current.imageUrls.length)
+        throw StateError('Foto indisponível.');
+      final response = await http
+          .get(Uri.parse(current.imageUrls[index]))
+          .timeout(const Duration(seconds: 20));
+      if (response.statusCode != 200 ||
+          response.bodyBytes.length > 5 * 1024 * 1024)
+        throw StateError('Não foi possível abrir a foto.');
+      if (!mounted) return;
+      final framing = await Navigator.of(context).push<List<double>>(
+        MaterialPageRoute(
+          builder: (_) => ProfileImageCropper(
+            bytes: response.bodyBytes,
+            aspectRatio: current.imagePaths.length == 1 ? 4 / 5 : 1,
+            title: 'Ajustar enquadramento',
+            returnFraming: true,
+          ),
+        ),
+      );
+      if (framing == null || !mounted) return;
+      final updated = List<dynamic>.generate(
+        current.imagePaths.length,
+        (i) =>
+            i < current.imageFramings.length ? current.imageFramings[i] : null,
+      );
+      updated[index] = framing;
+      await _service.editImageFraming(current, updated);
+      await widget.onChanged();
+      if (mounted)
+        _showMessage(
+          'Enquadramento atualizado. A foto original foi preservada.',
+        );
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
@@ -699,6 +1223,18 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                   leading: const Icon(Icons.edit_outlined),
                   title: const Text('Editar publicação'),
                   onTap: () => Navigator.pop(context, 'edit'),
+                ),
+              if (own &&
+                  widget.post.imagePaths.any(
+                    (path) => RegExp(
+                      r'\.(jpg|png|webp)$',
+                      caseSensitive: false,
+                    ).hasMatch(path),
+                  ))
+                ListTile(
+                  leading: const Icon(Icons.crop_rounded),
+                  title: const Text('Ajustar enquadramento das fotos'),
+                  onTap: () => Navigator.pop(context, 'framing'),
                 ),
               if (own && _service.canPin)
                 ListTile(
@@ -752,7 +1288,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     );
     if (!mounted || action == null) return;
     try {
-      if (action == 'edit') {
+      if (action == 'framing') {
+        await _editFraming();
+      } else if (action == 'edit') {
         final text = await showDialog<String>(
           context: context,
           builder: (_) => TextEntryDialog(
@@ -946,14 +1484,34 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     _openMember(widget.post.userId);
   }
 
+  Widget _flair(String label, {required bool highlighted}) {
+    final colors = context.pbhColors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: highlighted ? colors.orangeDim : colors.surfaceElevated,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.chip.copyWith(
+          fontSize: 11,
+          color: highlighted ? colors.orange : colors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
+    final colors = context.pbhColors;
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(
         color: context.pbhColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.pbhColors.borderSubtle),
       ),
       child: Column(
@@ -969,7 +1527,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                   borderRadius: BorderRadius.circular(24),
                   onTap: _openPostAuthor,
                   child: CircleAvatar(
-                    radius: 20,
+                    radius: 16,
                     backgroundColor: context.pbhColors.orangeDim,
                     child: post.isSample
                         ? _postAvatar(post)
@@ -980,24 +1538,29 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                           ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 9),
                 Expanded(
                   child: InkWell(
                     onTap: _openPostAuthor,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          identity.name,
+                        MemberDisplayName(
+                          name: identity.name,
+                          founder: identity.founder,
+                          memberBadge: identity.memberBadge,
                           style: AppTextStyles.titleMedium.copyWith(
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                         ),
                         Text(
                           post.isSample
                               ? 'Exemplo · ${_formatElapsed(post.createdAt)}'
                               : '${_formatElapsed(post.createdAt)}${post.editedAt == null ? '' : ' · editado'}',
-                          style: AppTextStyles.statLabel,
+                          style: AppTextStyles.statLabel.copyWith(
+                            fontSize: 11,
+                            color: colors.textTertiary,
+                          ),
                         ),
                       ],
                     ),
@@ -1046,63 +1609,38 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                 ],
               ),
             ),
-          if (post.achievementTag != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: context.pbhColors.orangeDim,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+          if (post.topic != null || post.achievementTag != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
                 children: [
-                  Icon(
-                    Icons.emoji_events,
-                    size: 13,
-                    color: context.pbhColors.orange,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    post.achievementTag!,
-                    style: AppTextStyles.chip.copyWith(
-                      color: context.pbhColors.orange,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  if (post.topic != null)
+                    _flair(_topicLabel(post.topic!), highlighted: false),
+                  if (post.achievementTag != null)
+                    _flair(post.achievementTag!, highlighted: true),
                 ],
               ),
             ),
-          ],
-          if (post.topic != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(
-                color: context.pbhColors.backgroundElevated,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _topicLabel(post.topic!),
-                style: AppTextStyles.chip.copyWith(
-                  color: context.pbhColors.textSecondary,
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: 12),
           Text(
             post.content,
             style: AppTextStyles.body.copyWith(
               color: context.pbhColors.textPrimary,
-              height: 1.5,
+              fontSize: 15,
+              height: 1.55,
             ),
           ),
           if (post.imageUrls.isNotEmpty)
             CommunityPhotoGallery(
               urls: post.imageUrls,
               paths: post.imagePaths,
-              onRefresh: () => widget.onChanged(),
+              framings: post.imageFramings,
+              onRefresh: () {
+                _service.invalidatePhotoUrls(post.imagePaths);
+                unawaited(widget.onChanged());
+              },
             ),
           const SizedBox(height: 16),
           Row(
@@ -1111,64 +1649,89 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                 button: true,
                 toggled: _liked,
                 label: 'Curtir publicação, $_likeCount curtidas',
-                child: GestureDetector(
-                  onTap: _busy ? null : _toggleLike,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedBuilder(
-                        animation: _likeController,
-                        builder: (_, child) => Transform.rotate(
-                          angle: _likeRotation.value,
-                          child: Transform.scale(
-                            scale: _likeScale.value,
-                            child: child,
-                          ),
-                        ),
-                        child: Icon(
-                          _liked
-                              ? Icons.local_fire_department
-                              : Icons.local_fire_department_outlined,
-                          size: 19,
-                          color: _liked
-                              ? context.pbhColors.orange
-                              : context.pbhColors.textSecondary,
-                        ),
+                child: Material(
+                  color: _liked ? colors.orangeDim : colors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(24),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: _busy ? null : _toggleLike,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
                       ),
-                      const SizedBox(width: 6),
-                      Text('$_likeCount', style: AppTextStyles.bodySmall),
-                      if (_showBurst)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 5),
-                          child: Text(
-                            '+1',
-                            style: AppTextStyles.chip.copyWith(
-                              color: context.pbhColors.orange,
-                              fontWeight: FontWeight.w800,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedBuilder(
+                            animation: _likeController,
+                            builder: (_, child) => Transform.rotate(
+                              angle: _likeRotation.value,
+                              child: Transform.scale(
+                                scale: _likeScale.value,
+                                child: child,
+                              ),
+                            ),
+                            child: Icon(
+                              _liked
+                                  ? Icons.local_fire_department
+                                  : Icons.local_fire_department_outlined,
+                              size: 19,
+                              color: _liked
+                                  ? context.pbhColors.orange
+                                  : context.pbhColors.textSecondary,
                             ),
                           ),
-                        ),
-                    ],
+                          const SizedBox(width: 6),
+                          Text('$_likeCount', style: AppTextStyles.bodySmall),
+                          if (_showBurst)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 5),
+                              child: Text(
+                                '+1',
+                                style: AppTextStyles.chip.copyWith(
+                                  color: context.pbhColors.orange,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 8),
               Semantics(
                 button: true,
                 label: 'Ver $_commentCount comentários',
-                child: GestureDetector(
-                  onTap: _showComments,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.chat_bubble_outline,
-                        size: 18,
-                        color: context.pbhColors.textSecondary,
+                child: Material(
+                  color: colors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(24),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: _showComments,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
                       ),
-                      const SizedBox(width: 6),
-                      Text('$_commentCount', style: AppTextStyles.bodySmall),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 18,
+                            color: context.pbhColors.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$_commentCount',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),

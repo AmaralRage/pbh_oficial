@@ -1,3 +1,4 @@
+import 'admin_member_badges_screen.dart';
 import 'package:flutter/material.dart';
 import 'admin_content_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -365,13 +366,24 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
             .toDouble();
         final content = <Widget>[
           _pageHeading(),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AdminMemberBadgesScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.workspace_premium_outlined),
+            label: const Text('Gerenciar selos de membros'),
+          ),
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const AdminContentScreen(),
-              )),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AdminContentScreen(),
+                ),
+              ),
               icon: const Icon(Icons.library_books_outlined),
               label: const Text('Gerenciar programas e aulas'),
             ),

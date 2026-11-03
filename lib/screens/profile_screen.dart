@@ -294,6 +294,7 @@ class _ProfileProgressState extends State<_ProfileProgress> {
         );
     final name = (metadata['display_name'] as String?)?.trim();
     final identity = ProfileIdentityCard(
+      userId: Supabase.instance.client.auth.currentUser?.id,
       name: isAuthenticated
           ? (name?.isNotEmpty == true
                 ? name!

@@ -11,6 +11,15 @@ void main() {
     ProfileAchievement.knowledgePlatinum,
     ...ProfileAchievement.supremeSeals,
   ];
+  test('highlights and miniatures are independent and survive metadata roundtrip', () {
+    const original = ProfileStyle(featured: ['supreme_meditation'], miniatures: []);
+    final restored = ProfileStyle.fromMetadata({'profile_style': original.toMap()});
+    expect(restored.highlights(earned).map((b) => b.id), ['supreme_meditation']);
+    expect(restored.profileMiniatures(earned).map((b) => b.id), ['platinum', 'knowledge_platinum']);
+    final changed = restored.copyWith(miniatures: ['supreme_training']);
+    expect(changed.highlights(earned).map((b) => b.id), ['supreme_meditation']);
+    expect(changed.profileMiniatures(earned).map((b) => b.id), ['platinum', 'knowledge_platinum', 'supreme_training']);
+  });
   test(
     'fixed journey trophies coexist with up to three earned selected achievements',
     () {
@@ -86,6 +95,7 @@ void main() {
         expect(find.byTooltip(label), findsOneWidget);
       }
       expect(tester.takeException(), isNull);
+      expect(find.byType(NativePlatinumArt), findsNothing);
       await tester.tap(find.byTooltip('Rubi do Conhecimento'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));

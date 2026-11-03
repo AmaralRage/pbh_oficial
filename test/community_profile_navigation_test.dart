@@ -57,6 +57,14 @@ void main() {
                   'content': 'Comentário de teste',
                   'created_at': DateTime.now().toUtc().toIso8601String(),
                 },
+                {
+                  'id': 'reply',
+                  'reply_to_id': 'comment',
+                  'user_id': member,
+                  'author_name': 'Resposta',
+                  'content': 'Resposta encadeada',
+                  'created_at': DateTime.now().toUtc().toIso8601String(),
+                },
               ];
             } else if (request.url.path.endsWith('community_member_profile')) {
               profileRequests++;
@@ -96,7 +104,7 @@ void main() {
                 createdAt: DateTime.now(),
                 content: 'Publicação',
                 likes: 0,
-                comments: 1,
+                comments: 2,
                 likedByMe: false,
               ),
               isAuthenticated: false,
@@ -113,12 +121,22 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Pessoa real'), findsOneWidget);
-      await tester.tap(
-        find.descendant(
-          of: find.byType(ListTile),
-          matching: find.byType(CircleAvatar),
-        ),
-      );
+      expect(find.text('Resposta encadeada'), findsNothing);
+      await tester.tap(find.text('Ver respostas (1)'));
+      await tester.pumpAndSettle();
+      expect(find.text('Resposta encadeada'), findsOneWidget);
+      await tester.tap(find.text('Ocultar respostas'));
+      await tester.pumpAndSettle();
+      expect(find.text('Resposta encadeada'), findsNothing);
+      expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+
+
+      await tester.tap(find.byType(CircleAvatar).last);
       await tester.pump();
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),

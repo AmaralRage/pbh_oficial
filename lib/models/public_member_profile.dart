@@ -63,6 +63,7 @@ class PublicMemberProfile {
       // Cosmetic unlocks are sanitized by the RPC without exposing hidden counts.
       style = style.copyWith(
         title: founder ? 'founder' : 'member',
+        miniatures: const [],
         featured: [],
       );
     }

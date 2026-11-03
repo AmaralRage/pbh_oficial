@@ -154,7 +154,7 @@ void main() {
     await tester.tap(find.text('Salvar objetivo'));
     await tester.pumpAndSettle();
     expect(service.goal?['is_public'], isFalse);
-    expect(find.text('Objetivo privado'), findsOneWidget);
+    expect(find.text('Seu objetivo e seus avan\u00e7os s\u00e3o privados.'), findsOneWidget);
   });
   test(
     'community filters the selected topic and includes categorized achievements',

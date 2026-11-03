@@ -31,6 +31,22 @@ class AppTheme {
         outline: palette.textTertiary,
         outlineVariant: palette.border,
       ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: palette.surfaceElevated,
+        contentTextStyle: AppTextStyles.bodySmall.copyWith(
+          color: palette.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+        actionTextColor: palette.orange,
+        closeIconColor: palette.textSecondary,
+        elevation: 6,
+        insetPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: palette.orange.withValues(alpha: .35)),
+        ),
+      ),
       splashColor: palette.orangeDim,
       highlightColor: Colors.transparent,
       textSelectionTheme: TextSelectionThemeData(

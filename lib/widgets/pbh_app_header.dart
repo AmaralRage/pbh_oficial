@@ -41,6 +41,12 @@ class PbhAppHeader extends StatelessWidget {
             child: Row(
               children: [
                 IconButton(
+                  constraints: const BoxConstraints.tightFor(
+                    width: 48,
+                    height: 48,
+                  ),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.standard,
                   tooltip: 'Abrir menu',
                   icon: Icon(Icons.menu, color: context.pbhColors.textPrimary),
                   onPressed: onMenuPressed,
@@ -68,6 +74,12 @@ class PbhAppHeader extends StatelessWidget {
                 ),
                 if (showNotifications)
                   IconButton(
+                    constraints: const BoxConstraints.tightFor(
+                      width: 48,
+                      height: 48,
+                    ),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.standard,
                     tooltip: 'Notificações',
                     icon: _AnimatedNotificationBell(
                       pulseKey: notificationPulseKey,
@@ -181,7 +193,7 @@ class _AnimatedNotificationBellState extends State<_AnimatedNotificationBell>
                     ? Icons.notifications_active_outlined
                     : Icons.notifications_none,
                 color: context.pbhColors.textPrimary,
-                size: 23,
+                size: 24,
               ),
             ),
           ),

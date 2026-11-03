@@ -19,6 +19,7 @@ class CommunityDraft {
     'tag': tag,
     'topic': topic,
     'photos': [for (final p in photos) base64Encode(p.bytes)],
+    'framings': [for (final p in photos) p.framing],
   };
   factory CommunityDraft.fromMap(Map<String, dynamic> value) {
     final raw = value['photos'] as List;
@@ -34,7 +35,13 @@ class CommunityDraft {
       tag: value['tag'] as String,
       topic: value['topic'] as String,
       photos: [
-        for (final bytes in raw) CommunityPhoto(base64Decode(bytes as String)),
+        for (var i = 0; i < raw.length; i++)
+          CommunityPhoto(
+            base64Decode(raw[i] as String),
+            framing: ((value['framings'] as List?)?.elementAtOrNull(i) as List?)
+                ?.map((n) => (n as num).toDouble())
+                .toList(),
+          ),
       ],
     );
   }

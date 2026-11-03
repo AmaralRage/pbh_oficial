@@ -1,0 +1,42 @@
+import { PGlite } from 'npm:@electric-sql/pglite@0.3';
+import assert from 'node:assert/strict';
+Deno.test('comment likes enforce identity, visibility, idempotence and cleanup', async () => {
+ const db = new PGlite();
+ const owner='ad300000-0000-4000-8000-000000000001', viewer='ad300000-0000-4000-8000-000000000002';
+ const comment='ad300000-0000-4000-8000-000000000003', post='ad300000-0000-4000-8000-000000000004';
+ try {
+ await db.exec(`create role anon; create role authenticated; create schema auth;
+ create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+ grant usage on schema auth to anon,authenticated;
+ create table auth.users(id uuid primary key);
+ create table public.profiles(id uuid,display_name text,avatar_url text,is_public boolean);
+ create table public.community_blocks(blocker_id uuid,blocked_id uuid);
+ create table public.community_comments(id uuid primary key,post_id uuid,user_id uuid,content text,created_at timestamptz,edited_at timestamptz,reply_to_id uuid);
+ create table public.community_sample_comments(id uuid primary key,sample_post_key text,user_id uuid,content text,created_at timestamptz,edited_at timestamptz,reply_to_id uuid);
+ create table public.community_feed(id uuid);
+ insert into auth.users values ('${owner}'),('${viewer}');
+ insert into public.community_feed values ('${post}');
+ insert into public.community_comments(id,post_id,user_id,content) values ('${comment}','${post}','${owner}','Test');
+ insert into public.community_sample_comments(id,sample_post_key,user_id,content) values ('${comment}','example','${owner}','Test');`);
+ await db.exec(await Deno.readTextFile(new URL('../migrations/20261102000200_community_comment_likes.sql',import.meta.url)));
+ await db.query("select set_config('request.jwt.claim.sub',$1,false)",[viewer]);
+ await db.exec('set role authenticated');
+ for (const sample of [false,true]) {
+ await db.query('select public.set_community_comment_like($1,true,$2)',[comment,sample]);
+ await db.query('select public.set_community_comment_like($1,true,$2)',[comment,sample]);
+ const view=sample?'community_sample_comment_feed':'community_comment_feed';
+ const row=(await db.query('select likes_count,liked_by_me from public.'+view)).rows[0];
+ assert.equal(row.likes_count,1); assert.equal(row.liked_by_me,true);
+ await db.query('select public.set_community_comment_like($1,false,$2)',[comment,sample]);
+ assert.equal((await db.query('select likes_count from public.'+view)).rows[0].likes_count,0);
+ }
+ await assert.rejects(db.query('insert into public.community_comment_likes values($1,$2)',[comment,viewer]),/permission denied/);
+ await db.exec('reset role');
+ await db.query('insert into public.community_blocks values($1,$2)',[owner,viewer]);
+ await db.exec('set role authenticated');
+ await assert.rejects(db.query('select public.set_community_comment_like($1,true,false)',[comment]),/unavailable/);
+ await db.exec('reset role'); await db.exec('delete from public.community_blocks');
+ await db.query("select set_config('request.jwt.claim.sub','',false)");
+ await assert.rejects(db.query('select public.set_community_comment_like($1,true,false)',[comment]),/conta/);
+ } finally { await db.close(); }
+});

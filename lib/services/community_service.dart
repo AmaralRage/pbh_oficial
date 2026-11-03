@@ -16,6 +16,8 @@ class CommunityComment {
     required this.createdAt,
     this.editedAt,
     this.replyToId,
+    this.likes = 0,
+    this.likedByMe = false,
   });
 
   final String id;
@@ -26,6 +28,8 @@ class CommunityComment {
   final DateTime createdAt;
   final DateTime? editedAt;
   final String? replyToId;
+  final int likes;
+  final bool likedByMe;
 
   factory CommunityComment.fromMap(Map<String, dynamic> row) =>
       CommunityComment(
@@ -39,6 +43,8 @@ class CommunityComment {
           row['edited_at'] as String? ?? '',
         )?.toLocal(),
         replyToId: row['reply_to_id'] as String?,
+        likes: (row['likes_count'] as num?)?.toInt() ?? 0,
+        likedByMe: row['liked_by_me'] as bool? ?? false,
       );
 }
 
@@ -51,6 +57,11 @@ class CommunityStats {
   final int posts;
   final int comments;
   final int likes;
+}
+
+class _CommunityPhotoUrlCache {
+  final urls = <String, ({String url, DateTime expires})>{};
+  String? account;
 }
 
 class CommunityService {
@@ -82,19 +93,58 @@ class CommunityService {
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
+  static final _photoCaches = Expando<_CommunityPhotoUrlCache>();
+  _CommunityPhotoUrlCache get _photoCache =>
+      _photoCaches[_client] ??= _CommunityPhotoUrlCache();
+
+  void invalidatePhotoUrls(Iterable<String> paths) {
+    for (final path in paths) {
+      _photoCache.urls.remove(path);
+    }
+  }
+
   Future<Map<String, String>> _photoUrls(List<String> paths) async {
     if (paths.isEmpty) return {};
+    final account = _userId;
+    if (_photoCache.account != account) {
+      _photoCache.urls.clear();
+      _photoCache.account = account;
+    }
+    final now = DateTime.now();
+    _photoCache.urls.removeWhere((_, entry) => !entry.expires.isAfter(now));
+    final urls = <String, String>{};
+    final missing = <String>[];
+    for (final path in paths.toSet()) {
+      final cached = _photoCache.urls[path];
+      if (cached == null) {
+        missing.add(path);
+      } else {
+        urls[path] = cached.url;
+      }
+    }
+    if (missing.isEmpty) return urls;
     try {
       final signed = await _client.storage
           .from('community-photos')
-          .createSignedUrls(paths, 600);
-      return {
-        for (var i = 0; i < paths.length && i < signed.length; i++)
-          paths[i]: signed[i].signedUrl,
-      };
+          .createSignedUrls(missing, 600);
+      // Keep a safety margin before Storage's ten minute expiry.
+      if (_userId != account || _photoCache.account != account) return {};
+      for (var i = 0; i < missing.length && i < signed.length; i++) {
+        final url = signed[i].signedUrl;
+        if (url.isEmpty) continue;
+        urls[missing[i]] = url;
+        _photoCache.urls[missing[i]] = (
+          url: url,
+          expires: now.add(const Duration(minutes: 8)),
+        );
+      }
+      while (_photoCache.urls.length > 500) {
+        _photoCache.urls.remove(_photoCache.urls.keys.first);
+      }
     } catch (_) {
-      return {};
+      // A failed signing request must not hide attachments already cached.
     }
+    return urls;
   }
 
   Future<void> cleanupPhotos({bool force = false}) async {
@@ -241,6 +291,7 @@ class CommunityService {
     bool isSample = false,
     int offset = 0,
     int limit = 30,
+    String sort = 'recent',
   }) async {
     final query = isSample
         ? _client
@@ -248,11 +299,57 @@ class CommunityService {
               .select()
               .eq('sample_post_key', postId)
         : _client.from('community_comment_feed').select().eq('post_id', postId);
-    final rows = await query
-        .order('created_at', ascending: false)
+    final ordered = sort == 'likes'
+        ? query.order('likes_count', ascending: false)
+        : query;
+    final rows = await ordered
+        .order('created_at', ascending: sort == 'oldest')
         .order('id', ascending: false)
         .range(offset, offset + limit - 1);
     return rows.map((row) => CommunityComment.fromMap(row)).toList();
+  }
+
+  Future<List<CommunityComment>> commentContext(
+    String post,
+    String comment,
+  ) async {
+    final rows =
+        await _client.rpc(
+              'community_comment_context',
+              params: {'p_id': comment, 'p_post': post},
+            )
+            as List;
+    return rows
+        .map(
+          (row) =>
+              CommunityComment.fromMap(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList();
+  }
+
+  Future<void> editImageFraming(
+    CommunityPostModel post,
+    List<dynamic> framings,
+  ) async {
+    await _client.rpc(
+      'edit_community_image_framing',
+      params: {
+        'p_id': post.id,
+        'p_expected': post.imageFramings,
+        'p_framings': framings,
+      },
+    );
+  }
+
+  Future<void> setCommentLike(
+    String id,
+    bool liked, {
+    bool isSample = false,
+  }) async {
+    await _client.rpc(
+      'set_community_comment_like',
+      params: {'p_id': id, 'p_liked': liked, 'p_sample': isSample},
+    );
   }
 
   Future<void> createPost(
@@ -312,6 +409,8 @@ class CommunityService {
             : achievementTag?.trim(),
         'topic': topic,
         'image_paths': paths,
+        if (photos.any((p) => p.framing != null))
+          'image_framings': [for (final p in photos) p.framing],
       });
     } catch (_) {
       // A lost response can mean the insert committed. Never delete its photos

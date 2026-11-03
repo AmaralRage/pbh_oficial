@@ -30,6 +30,14 @@ class _Paths extends PathProviderPlatform {
 }
 
 void main() {
+  test('draft keeps original bytes and framing separately', () {
+    final bytes = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
+    final draft = CommunityDraft(id: owner, text: 'photo', tag: '', topic: 'purpose',
+      photos: [CommunityPhoto(bytes, framing: [0, .3, 1, .5])]);
+    final restored = CommunityDraft.fromMap(jsonDecode(jsonEncode(draft.toMap())));
+    expect(restored.photos.single.bytes, bytes);
+    expect(restored.photos.single.framing, [0, .3, 1, .5]);
+  });
   test(
     'native draft replacement preserves the latest file and removes it on discard',
     () async {

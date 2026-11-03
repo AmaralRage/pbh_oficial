@@ -74,7 +74,7 @@ void main() {
       expect(find.text('Compartilhe sua jornada'), findsOneWidget);
       expect(find.text('Em destaque'), findsOneWidget);
       expect(find.text('Samuel'), findsNothing);
-      await tester.tap(find.text('Fotos'));
+      await tester.tap(find.byTooltip('Adicionar fotos, GIFs ou vídeos'));
       await tester.pump();
       expect(logins, 1);
       expect(find.byType(CommunityPostComposer), findsNothing);

@@ -1,3 +1,5 @@
+import '../widgets/profile_achievement_picker.dart';
+import '../widgets/profile_title_picker.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -833,26 +835,28 @@ class _ProfileCustomizationScreenState
                     ],
                     if (_section == 'badges') ...[
                       _heading('Título'),
-                      DropdownButtonFormField<String>(
-                        initialValue: _style.title,
-                        isExpanded: true,
-                        items: [
-                          const DropdownMenuItem(
-                            value: 'member',
-                            child: Text('Membro do PBH'),
+                      ProfileTitlePicker(
+                        value: _style.title,
+                        options: [
+                          const ProfileTitleChoice(
+                            'member',
+                            'Membro do PBH',
+                            'Sua identidade na comunidade.',
+                            Icons.shield_outlined,
                           ),
                           if (_founder)
-                            const DropdownMenuItem(
-                              value: 'founder',
-                              child: Text('Fundador do PBH'),
+                            const ProfileTitleChoice(
+                              'founder',
+                              'Fundador do PBH',
+                              'Exclusivo do fundador do projeto.',
+                              Icons.workspace_premium_rounded,
                             ),
                           for (final badge in progress.earned)
-                            DropdownMenuItem(
-                              value: badge.id,
-                              child: Text(
-                                badge.title,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                            ProfileTitleChoice(
+                              badge.id,
+                              badge.title,
+                              badge.description,
+                              badge.icon,
                             ),
                         ],
                         onChanged: _saving
@@ -872,56 +876,55 @@ class _ProfileCustomizationScreenState
                           'Conclua desafios para conquistar seus primeiros selos.',
                           style: AppTextStyles.bodySmall,
                         ),
-                      for (final badge in progress.earned.where(
-                        (badge) => !badge.isJourneyTrophy,
-                      ))
-                        Builder(
-                          builder: (_) {
-                            final selected = _style
-                                .highlights(
-                                  progress.earned
-                                      .where((badge) => !badge.isJourneyTrophy)
+                      ProfileAchievementPicker(
+                        earned: progress.earned,
+                        selected: _style
+                            .miniatureHighlights(
+                              progress.earned
+                                  .where((b) => !b.isJourneyTrophy)
+                                  .toList(),
+                            )
+                            .map((b) => b.id)
+                            .toList(),
+                        fixedTrophies: true,
+                        onChanged: _saving
+                            ? null
+                            : (ids) => setState(
+                                () => _style = _style.copyWith(miniatures: ids),
+                              ),
+                      ),
+                      _heading('Selos em destaque'),
+                      Text(
+                        'Escolha até 3 selos para a seção abaixo das estatísticas, independentemente das miniaturas do topo.',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                      const SizedBox(height: 12),
+                      ProfileAchievementPicker(
+                        earned: progress.earned,
+                        selected: _style
+                            .highlights(
+                              progress.earned
+                                  .where((b) => !b.isJourneyTrophy)
+                                  .toList(),
+                            )
+                            .map((b) => b.id)
+                            .toList(),
+                        onChanged: _saving
+                            ? null
+                            : (ids) => setState(
+                                () => _style = _style.copyWith(
+                                  featured: ids,
+                                  miniatures: _style
+                                      .miniatureHighlights(
+                                        progress.earned
+                                            .where((b) => !b.isJourneyTrophy)
+                                            .toList(),
+                                      )
+                                      .map((b) => b.id)
                                       .toList(),
-                                )
-                                .map((e) => e.id)
-                                .toList();
-                            final index = selected.indexOf(badge.id);
-                            return CheckboxListTile(
-                              contentPadding: EdgeInsets.zero,
-                              secondary: Icon(badge.icon, color: badge.color),
-                              title: Text(badge.title),
-                              subtitle: index < 0
-                                  ? null
-                                  : Text('Destaque ${index + 1}'),
-                              value: index >= 0,
-                              onChanged: _saving
-                                  ? null
-                                  : (value) {
-                                      if (value == true &&
-                                          selected.length >= 3) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Remova um selo para escolher outro. O limite é 3.',
-                                            ),
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                      setState(() {
-                                        value == true
-                                            ? selected.add(badge.id)
-                                            : selected.remove(badge.id);
-                                        _style = _style.copyWith(
-                                          featured: selected,
-                                        );
-                                      });
-                                    },
-                            );
-                          },
-                        ),
+                                ),
+                              ),
+                      ),
                     ],
                     if (_error != null)
                       Padding(

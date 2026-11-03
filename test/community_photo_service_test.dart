@@ -29,6 +29,64 @@ Map<String, dynamic> token() => {
 };
 
 void main() {
+  test(
+    'feed refresh reuses valid image URLs and explicit reload renews them',
+    () async {
+      var signatures = 0;
+      final path = '$owner/$postId/0.png';
+      final client = SupabaseClient(
+        'https://test.supabase.co',
+        'public-key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+        httpClient: MockClient((request) async {
+          Object body;
+          if (request.url.path.contains('/object/sign/')) {
+            signatures++;
+            body = [
+              {
+                'path': path,
+                'signedURL':
+                    '/object/sign/community-photos/$path?token=$signatures',
+                'error': null,
+              },
+            ];
+          } else {
+            body = [
+              {
+                'id': postId,
+                'user_id': owner,
+                'author_name': 'Author',
+                'content': 'Post',
+                'created_at': '2026-11-02T12:00:00Z',
+                'image_paths': [path],
+              },
+            ];
+          }
+          return http.Response(
+            jsonEncode(body),
+            200,
+            request: request,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      try {
+        final service = CommunityService(client: client);
+        final first = (await service.fetchPosts()).single.imageUrls.single;
+        expect(first, isNotEmpty);
+        final refreshed = (await service.fetchPosts()).single.imageUrls.single;
+        expect(refreshed, first);
+        expect(signatures, 1);
+        CommunityService(client: client).invalidatePhotoUrls([path]);
+        final renewed = (await service.fetchPosts()).single.imageUrls.single;
+        expect(renewed, isNot(first));
+        expect(signatures, 2);
+      } finally {
+        await client.dispose();
+      }
+    },
+  );
+
   for (final failUpload in [false, true]) {
     test(
       'upload owns its paths and reconciles a lost publish response (failUpload=$failUpload)',

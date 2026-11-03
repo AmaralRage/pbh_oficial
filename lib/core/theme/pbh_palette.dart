@@ -16,32 +16,32 @@ class PbhPalette extends ThemeExtension<PbhPalette> {
   final bool founderOnly;
   static const catalog = [
     PbhPalette('pbh', 'PBH Original', Color(0xFF0B0B0B), Color(0xFFFF6B2C)),
-    PbhPalette('midnight', 'Meia-noite', Color(0xFF080F20), Color(0xFF749FFF)),
+    PbhPalette('midnight', 'Meia-noite', Color(0xFF080F20), Color(0xFFA5C2FF)),
     PbhPalette(
       'starlight',
       'Azul estelar',
       Color(0xFF081425),
-      Color(0xFF549EFF),
+      Color(0xFF8DBEFF),
     ),
     PbhPalette(
       'cosmic',
       'Vermelho cósmico',
       Color(0xFF1C0B15),
-      Color(0xFFFF6485),
+      Color(0xFFFF9AB2),
     ),
     PbhPalette(
       'galactic',
       'Roxo galáctico',
       Color(0xFF140D25),
-      Color(0xFFBE8AFF),
+      Color(0xFFD0ADFF),
     ),
-    PbhPalette('nova', 'Rosa nova', Color(0xFF200B1D), Color(0xFFFF62BB)),
-    PbhPalette('emerald', 'Esmeralda', Color(0xFF071D18), Color(0xFF26D6AE)),
+    PbhPalette('nova', 'Rosa nova', Color(0xFF200B1D), Color(0xFFFF99D2)),
+    PbhPalette('emerald', 'Esmeralda', Color(0xFF071D18), Color(0xFF69E8CB)),
     PbhPalette(
       'founder',
       'Legado do fundador',
       Color(0xFF100D24),
-      Color(0xFFA78BFA),
+      Color(0xFFC5ADFF),
       founderOnly: true,
     ),
   ];
@@ -58,14 +58,16 @@ class PbhPalette extends ThemeExtension<PbhPalette> {
   Color get surfaceElevated =>
       id == 'pbh' ? const Color(0xFF1C1C1C) : tint(.075);
   Color get surfacePressed => tint(.11);
-  Color get border => tint(.19);
-  Color get borderSubtle => tint(.12);
+  Color get border => tint(id == 'pbh' ? .19 : .26);
+  Color get borderSubtle => tint(id == 'pbh' ? .12 : .19);
   Color get orange => accent;
   Color get orangeLight => Color.lerp(accent, Colors.white, .4)!;
-  Color get orangeDim => accent.withValues(alpha: .2);
+  Color get orangeDim => accent.withValues(alpha: id == 'pbh' ? .2 : .14);
   Color get textPrimary => Colors.white;
-  Color get textSecondary => const Color(0xFFCDD4E0);
-  Color get textTertiary => const Color(0xFFAFBBD0);
+  Color get textSecondary =>
+      id == 'pbh' ? const Color(0xFFCDD4E0) : const Color(0xFFE0E6EF);
+  Color get textTertiary =>
+      id == 'pbh' ? const Color(0xFFAFBBD0) : const Color(0xFFC5CEDD);
   Color get success => accent;
   Color get inactive => tint(.2);
   Color get onAccent =>

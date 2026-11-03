@@ -405,52 +405,52 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _publisher() => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        children: [
-          InkWell(
+  Widget _publisher() => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: context.pbhColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: context.pbhColors.borderSubtle),
+    ),
+    child: Row(
+      children: [
+        if (widget.isAuthenticated && _service.currentUserId != null)
+          ProfileCommentAvatar(
+            userId: _service.currentUserId!,
+            name: _service.currentUserName,
+          )
+        else
+          const CircleAvatar(radius: 18, child: Icon(Icons.person_outline)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: InkWell(
             onTap: _composePost,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  if (widget.isAuthenticated && _service.currentUserId != null)
-                    ProfileCommentAvatar(
-                      userId: _service.currentUserId!,
-                      name: _service.currentUserName,
-                    )
-                  else
-                    const CircleAvatar(child: Icon(Icons.person_outline)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Compartilhe sua jornada',
-                      style: AppTextStyles.titleMedium,
-                    ),
-                  ),
-                ],
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              decoration: BoxDecoration(
+                color: context.pbhColors.backgroundElevated,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: context.pbhColors.borderSubtle),
+              ),
+              child: Text(
+                'Compartilhe sua jornada',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: context.pbhColors.textSecondary,
+                ),
               ),
             ),
           ),
-          Row(
-            children: [
-              TextButton.icon(
-                onPressed: _composePost,
-                icon: const Icon(Icons.edit_note),
-                label: const Text('Relato'),
-              ),
-              TextButton.icon(
-                onPressed: () => _composePost(photos: true),
-                icon: const Icon(Icons.add_photo_alternate_outlined),
-                label: const Text('Fotos'),
-              ),
-            ],
+        ),
+        IconButton(
+          tooltip: 'Adicionar fotos, GIFs ou vídeos',
+          onPressed: () => _composePost(photos: true),
+          icon: Icon(
+            Icons.add_photo_alternate_outlined,
+            color: context.pbhColors.orange,
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 
@@ -534,7 +534,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
         final post = posts[index];
         return Padding(
           key: ValueKey(post.id),
-          padding: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.only(bottom: 10),
           child: CommunityPostCard(
             post: post,
             isAuthenticated: widget.isAuthenticated,

@@ -1,3 +1,5 @@
+import '../widgets/community_framed_image.dart';
+import 'profile_image_cropper.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:image_picker/image_picker.dart';
@@ -140,6 +142,31 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
     _text.dispose();
     _tag.dispose();
     super.dispose();
+  }
+
+  Future<void> _cropPhoto(int index) async {
+    if (_busy || _picking) return;
+    final photo = _photos[index];
+    setState(() => _picking = true);
+    try {
+      final framing = await Navigator.of(context).push<List<double>>(
+        MaterialPageRoute(
+          builder: (_) => ProfileImageCropper(
+            bytes: photo.bytes,
+            aspectRatio: _photos.length == 1 ? 4 / 5 : 1,
+            title: 'Enquadrar foto',
+            returnFraming: true,
+          ),
+        ),
+      );
+      if (!mounted || framing == null) return;
+      setState(
+        () => _photos[index] = CommunityPhoto(photo.bytes, framing: framing),
+      );
+      _scheduleDraft();
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
   }
 
   Future<void> _pick() async {
@@ -529,7 +556,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
                             for (var i = 0; i < _photos.length; i++)
                               SizedBox(
                                 width: 120,
-                                height: 120,
+                                height: _photos.length == 1 ? 150 : 120,
                                 child: Stack(
                                   fit: StackFit.expand,
                                   children: [
@@ -550,16 +577,41 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
                                           ? ProfileCoverMedia(
                                               bytes: _photos[i].bytes,
                                             )
-                                          : Image.memory(
-                                              _photos[i].bytes,
-                                              fit: BoxFit.cover,
-                                              cacheWidth: 240,
-                                              errorBuilder: (_, __, ___) =>
-                                                  const Icon(
-                                                    Icons.broken_image_outlined,
-                                                  ),
+                                          : CommunityFramedImage(
+                                              framing: _photos[i].framing,
+                                              child: Image.memory(
+                                                _photos[i].bytes,
+                                                fit: _photos[i].framing == null
+                                                    ? BoxFit.cover
+                                                    : BoxFit.fill,
+                                                cacheWidth: 240,
+                                                errorBuilder: (_, __, ___) =>
+                                                    const Icon(
+                                                      Icons
+                                                          .broken_image_outlined,
+                                                    ),
+                                              ),
                                             ),
                                     ),
+                                    if (const [
+                                      'jpg',
+                                      'png',
+                                      'webp',
+                                    ].contains(_photos[i].extension))
+                                      Positioned(
+                                        bottom: 0,
+                                        left: 0,
+                                        child: IconButton.filled(
+                                          tooltip: 'Enquadrar foto',
+                                          onPressed: _busy || _picking
+                                              ? null
+                                              : () => _cropPhoto(i),
+                                          icon: const Icon(
+                                            Icons.crop,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ),
                                     Positioned(
                                       top: 0,
                                       right: 0,

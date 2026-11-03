@@ -2,8 +2,9 @@ import 'dart:typed_data';
 import '../services/profile_cover_document.dart';
 
 class CommunityPhoto {
-  CommunityPhoto(this.bytes) : extension = detect(bytes);
+  CommunityPhoto(this.bytes, {this.framing}) : extension = detect(bytes);
   final Uint8List bytes;
+  final List<double>? framing;
   final String extension;
   bool get isVideo => extension == 'mp4' || extension == 'webm';
   String get mime => extension == 'jpg'

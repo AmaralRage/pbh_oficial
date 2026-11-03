@@ -1,3 +1,4 @@
+import 'community_framed_image.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'profile_cover_media.dart';
@@ -7,8 +8,10 @@ class CommunityPhotoGallery extends StatelessWidget {
     super.key,
     required this.urls,
     this.paths = const [],
+    this.framings = const [],
     this.onRefresh,
   });
+  final List<dynamic> framings;
   final List<String> urls;
   final List<String> paths;
   bool isVideo(int i) =>
@@ -27,7 +30,15 @@ class CommunityPhotoGallery extends StatelessWidget {
         )
       : i < paths.length && paths[i].endsWith('.html')
       ? ProfileCoverMedia(url: urls[i], communityAttachment: true)
-      : photo(urls[i]);
+      : CommunityFramedImage(
+          framing: i < framings.length ? framings[i] as List? : null,
+          child: photo(
+            urls[i],
+            fit: i < framings.length && framings[i] != null
+                ? BoxFit.fill
+                : BoxFit.cover,
+          ),
+        );
   final VoidCallback? onRefresh;
   static Widget photo(String url, {BoxFit fit = BoxFit.cover}) => url.isEmpty
       ? const Center(child: Icon(Icons.image_not_supported_outlined))
@@ -61,7 +72,7 @@ class CommunityPhotoGallery extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: urls.length == 1
             ? AspectRatio(
-                aspectRatio: 4 / 3,
+                aspectRatio: 4 / 5,
                 child: InkWell(
                   onTap: () => _open(context, 0),
                   child: preview(0),

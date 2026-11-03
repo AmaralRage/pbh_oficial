@@ -1,7 +1,7 @@
+import 'sunset_cover_overlay.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'bonfire_art.dart';
 import 'legendary_cover_art.dart';
 import 'legendary_frame_art.dart';
 import 'animated_profile_frame_art.dart';
@@ -239,6 +239,10 @@ class _OrnamentPainter extends CustomPainter {
           'journey_crown',
         }.contains(effect)) {
       paintLegendaryFrame(canvas, size, motion.value, intensity, effect);
+      return;
+    }
+    if (!frame && effect == 'sunset') {
+      paintSunsetCoverOverlay(canvas, size, motion.value, intensity);
       return;
     }
     if (!frame && effect == 'aurora') {
@@ -594,7 +598,6 @@ class _OrnamentPainter extends CustomPainter {
   void _soulEmbers(Canvas canvas, Size size, double t) {
     canvas.save();
     canvas.clipRect(Offset.zero & size);
-    final angle = t * math.pi * 2;
     final count = (70 + intensity * 160).round();
     final scale = math.max(.65, size.width / 850);
     for (var i = 0; i < count; i++) {
@@ -661,7 +664,6 @@ class _OrnamentPainter extends CustomPainter {
           ).toColor(),
       );
     }
-    paintBonfireArt(canvas, size, angle, intensity);
     canvas.restore();
   }
 

@@ -147,6 +147,11 @@ Deno.test('community photos enforce ownership, publication visibility and cleanu
     await db.exec('reset role');
     await db.exec(`alter table public.community_comments add column id uuid primary key default gen_random_uuid(),add column user_id uuid,add column reply_to_id uuid,add column content text;`);
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261031000100_community_editor_activity.sql',import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261102000100_community_image_framing.sql',import.meta.url)));
+    assert.equal((await db.query("select public.valid_community_image_framings('[null,[0,0.3,1,0.5]]'::jsonb) as ok")).rows[0].ok,true);
+    assert.equal((await db.query("select public.valid_community_image_framings('[[0,0.8,1,0.5]]'::jsonb) as ok")).rows[0].ok,false);
+    assert.equal((await db.query(`select public.valid_community_image_framings('[[0,0,"bad",1]]'::jsonb) as ok`)).rows[0].ok,false);
+
     await asUser(viewer);
     await assert.rejects(db.query('select public.edit_community_post($1,$2,$3)',[post,'Changed','Media']),/mudou|pertence/);
     await asUser(owner);

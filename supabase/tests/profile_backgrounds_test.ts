@@ -27,6 +27,8 @@ Deno.test('profile backgrounds keep ownership and profile privacy', async () => 
       insert into auth.users values('${owner}','member@example.invalid',now(),'{}'),('${viewer}','viewer@example.invalid',now(),'{}');
       insert into public.profiles values('${owner}','Member',null,true,false);`);
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261030000400_profile_backgrounds.sql',import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261102000300_public_profile_current_identity.sql',import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261102000500_independent_profile_highlights.sql',import.meta.url)));
     const asUser=async(id:string,role='authenticated')=>{
       await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec(`set role ${role}`);
     };
@@ -40,7 +42,12 @@ Deno.test('profile backgrounds keep ownership and profile privacy', async () => 
       await db.exec('reset role');await db.query("update auth.users set raw_user_meta_data=jsonb_build_object('profile_style',$1::jsonb) where id=$2",[JSON.stringify(style),owner]);await asUser(viewer);
     };
     const read=async()=>(await db.query<any>('select public.community_member_profile($1) as profile',[owner])).rows[0].profile;
-    await setStyle({background:'custom',background_path:path,background_dim:9});
+    await db.exec('reset role');
+    await db.query("update auth.users set raw_user_meta_data=$1::jsonb where id=$2",[JSON.stringify({display_name:'The Amaral',avatar_url:'https://example.invalid/current.png'}),owner]);
+    await asUser(viewer);
+    assert.equal((await read()).name,'The Amaral');
+    assert.equal((await read()).avatar_url,'https://example.invalid/current.png');
+    await setStyle({background:'custom',background_path:path,background_dim:9,featured:['supreme_reading'],miniatures:[]});
     let profile=await read();assert.equal(profile.style.background,'custom');assert.equal(profile.style.background_path,path);assert.equal(profile.style.background_dim,.85);
     assert.equal(profile.progress,undefined);assert.equal(profile.email,undefined);
     await setStyle({background:'script',background_path:`${viewer}/999.png`,background_dim:-1});

@@ -134,6 +134,7 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
               children: [
                 ProfileIdentityCard(
+                  userId: profile.id,
                   name: profile.name,
                   bio: profile.bio,
                   style: profile.style,
@@ -202,6 +203,8 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
                   const SizedBox(height: 20),
                   if (profile.earned.isNotEmpty)
                     ExpansionTile(
+                      shape: const Border(),
+                      collapsedShape: const Border(),
                       tilePadding: EdgeInsets.zero,
                       title: const Text('Todas as conquistas'),
                       onExpansionChanged: (open) =>

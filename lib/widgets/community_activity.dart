@@ -150,6 +150,7 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
                     refresh(() => displayed = updated);
                   },
                   openCommentsInitially: true,
+                  focusCommentId: item['comment_id'] as String?,
                 ),
               ),
             ),

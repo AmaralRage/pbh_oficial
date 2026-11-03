@@ -14,6 +14,7 @@ class CommunityPostModel {
   final bool isSample;
   final String? avatarAsset;
   final String? topic;
+  final List<dynamic> imageFramings;
   final List<String> imagePaths;
   final List<String> imageUrls;
   final DateTime? editedAt, pinnedAt;
@@ -34,6 +35,7 @@ class CommunityPostModel {
     this.avatarAsset,
     this.topic,
     this.achievementTag,
+    this.imageFramings = const [],
     this.imagePaths = const [],
     this.imageUrls = const [],
     this.editedAt,
@@ -63,6 +65,7 @@ class CommunityPostModel {
       likedByMe: row['liked_by_me'] as bool? ?? false,
       achievementTag: row['achievement_tag'] as String?,
       topic: row['topic'] as String?,
+      imageFramings: row['image_framings'] as List? ?? const [],
       imagePaths:
           (row['image_paths'] as List?)?.whereType<String>().toList() ??
           const [],
@@ -89,6 +92,7 @@ class CommunityPostModel {
     isSample: isSample,
     avatarAsset: avatarAsset,
     topic: topic,
+    imageFramings: imageFramings,
     imagePaths: imagePaths,
     imageUrls: imageUrls ?? this.imageUrls,
     editedAt: editedAt,

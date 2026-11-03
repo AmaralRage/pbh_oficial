@@ -1,3 +1,5 @@
+import 'community_identity.dart';
+import 'member_display_name.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
@@ -7,7 +9,6 @@ import '../models/profile_style.dart';
 import 'profile_ornament.dart';
 import 'profile_cover_media.dart';
 import 'profile_achievement_dialog.dart';
-import 'supreme_seal_art.dart';
 import '../services/platinum_sound.dart';
 
 /// Bounded images with isolated decorative animations.
@@ -27,8 +28,10 @@ class ProfileIdentityCard extends StatelessWidget {
     this.onEditCover,
     this.onEditPhoto,
     this.showDecorations = true,
+    this.userId,
   });
   final String name;
+  final String? userId;
   final String bio;
   final ProfileStyle style;
   final List<ProfileAchievement> earned;
@@ -49,6 +52,43 @@ class ProfileIdentityCard extends StatelessWidget {
           orElse: () => ProfileStyle.frames.first,
         )
         .color;
+    Widget titleLine([String? memberBadge]) {
+      final role = switch (memberBadge) {
+        'guardian' => 'Guardi\u00e3o do PBH',
+        'mentor' => 'Mentor do PBH',
+        'beginner' => 'Iniciante no PBH',
+        'consistent' => 'Constante no PBH',
+        'veteran' => 'Veterano do PBH',
+        'ambassador' => 'Embaixador do PBH',
+        _ => null,
+      };
+      final useRole =
+          style.title == 'member' && role != null && showDecorations;
+      final color = useRole && memberBadge == 'guardian'
+          ? const Color(0xFFD6B4EE)
+          : frame;
+      return Row(
+        children: [
+          Icon(
+            useRole
+                ? Icons.shield_outlined
+                : style.title == 'founder'
+                ? Icons.workspace_premium_rounded
+                : Icons.local_offer_outlined,
+            color: color,
+            size: 16,
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              useRole ? role : style.titleLabel(earned),
+              style: AppTextStyles.bodySmall.copyWith(color: color),
+            ),
+          ),
+        ],
+      );
+    }
+
     final cover = ProfileStyle.covers
         .firstWhere(
           (o) => o.id == style.cover,
@@ -286,18 +326,7 @@ class ProfileIdentityCard extends StatelessWidget {
                                             ),
                                           ),
                                         ),
-                                        child:
-                                            badge.isJourneyTrophy &&
-                                                !MediaQuery.disableAnimationsOf(
-                                                  context,
-                                                )
-                                            ? IgnorePointer(
-                                                child: SupremeSealArt(
-                                                  size: tile - 10,
-                                                  achievement: badge,
-                                                ),
-                                              )
-                                            : badge.artAsset != null
+                                        child: badge.artAsset != null
                                             ? Image.asset(
                                                 badge.artAsset!,
                                                 fit: BoxFit.contain,
@@ -363,12 +392,27 @@ class ProfileIdentityCard extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        name,
-                        style: AppTextStyles.titleLarge,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: userId == null
+                          ? MemberDisplayName(
+                              name: name,
+                              founder: founder,
+                              style: AppTextStyles.titleLarge,
+                              compact: false,
+                              showBadge: showDecorations,
+                            )
+                          : CommunityIdentityBuilder(
+                              userId: userId!,
+                              name: name,
+                              avatarUrl: avatarUrl,
+                              builder: (context, identity) => MemberDisplayName(
+                                name: identity.name,
+                                founder: founder,
+                                memberBadge: identity.memberBadge,
+                                style: AppTextStyles.titleLarge,
+                                compact: false,
+                                showBadge: showDecorations,
+                              ),
+                            ),
                     ),
                     if (onEdit != null)
                       Transform.translate(
@@ -388,24 +432,16 @@ class ProfileIdentityCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      style.title == 'founder'
-                          ? Icons.workspace_premium_rounded
-                          : Icons.local_offer_outlined,
-                      color: frame,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        style.titleLabel(earned),
-                        style: AppTextStyles.bodySmall.copyWith(color: frame),
-                      ),
-                    ),
-                  ],
-                ),
+                if (userId == null)
+                  titleLine()
+                else
+                  CommunityIdentityBuilder(
+                    userId: userId!,
+                    name: name,
+                    avatarUrl: avatarUrl,
+                    builder: (context, identity) =>
+                        titleLine(identity.memberBadge),
+                  ),
                 if (bio.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(bio, style: AppTextStyles.bodySmall),

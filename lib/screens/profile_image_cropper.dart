@@ -9,7 +9,9 @@ class ProfileImageCropper extends StatefulWidget {
     required this.bytes,
     required this.aspectRatio,
     required this.title,
+    this.returnFraming = false,
   });
+  final bool returnFraming;
   final Uint8List bytes;
   final double aspectRatio;
   final String title;
@@ -21,6 +23,7 @@ class _ProfileImageCropperState extends State<ProfileImageCropper> {
   final _boundary = GlobalKey();
   final _transform = TransformationController();
   bool _ready = false, _saving = false, _failed = false;
+  double _sourceRatio = 1;
   late final ImageProvider _image = ResizeImage(
     MemoryImage(widget.bytes),
     width: 1600,
@@ -35,6 +38,22 @@ class _ProfileImageCropperState extends State<ProfileImageCropper> {
 
   Future<void> _prepare() async {
     var failed = false;
+    try {
+      final codec = await ui.instantiateImageCodec(
+        widget.bytes,
+        targetWidth: 1600,
+      );
+      try {
+        final frame = await codec.getNextFrame();
+        _sourceRatio = frame.image.width / frame.image.height;
+        frame.image.dispose();
+      } finally {
+        codec.dispose();
+      }
+    } catch (_) {
+      failed = true;
+    }
+    if (!mounted) return;
     await precacheImage(
       _image,
       context,
@@ -56,6 +75,26 @@ class _ProfileImageCropperState extends State<ProfileImageCropper> {
       await WidgetsBinding.instance.endOfFrame;
       final box =
           _boundary.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      if (widget.returnFraming) {
+        final size = box.size;
+        final width = _sourceRatio > widget.aspectRatio
+            ? size.height * _sourceRatio
+            : size.width;
+        final height = width / _sourceRatio;
+        final inverse = Matrix4.inverted(_transform.value);
+        final origin = MatrixUtils.transformPoint(inverse, Offset.zero);
+        final end = MatrixUtils.transformPoint(
+          inverse,
+          Offset(size.width, size.height),
+        );
+        Navigator.pop(context, <double>[
+          (origin.dx / width).clamp(0, 1).toDouble(),
+          (origin.dy / height).clamp(0, 1).toDouble(),
+          ((end.dx - origin.dx) / width).clamp(.001, 1).toDouble(),
+          ((end.dy - origin.dy) / height).clamp(.001, 1).toDouble(),
+        ]);
+        return;
+      }
       var ratio = (1600 / box.size.width).clamp(1.0, 3.0);
       Uint8List? result;
       for (var attempt = 0; attempt < 5; attempt++) {
@@ -116,18 +155,30 @@ class _ProfileImageCropperState extends State<ProfileImageCropper> {
                     child: ClipRect(
                       child: ColoredBox(
                         color: Colors.transparent,
-                        child: InteractiveViewer(
-                          transformationController: _transform,
-                          minScale: 1,
-                          maxScale: 4,
-                          child: SizedBox.expand(
-                            child: Image(
-                              image: _image,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.broken_image_outlined),
-                            ),
-                          ),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final width = _sourceRatio > widget.aspectRatio
+                                ? constraints.maxHeight * _sourceRatio
+                                : constraints.maxWidth;
+                            final height = width / _sourceRatio;
+                            return InteractiveViewer(
+                              constrained: false,
+                              alignment: Alignment.topLeft,
+                              transformationController: _transform,
+                              minScale: 1,
+                              maxScale: 4,
+                              child: SizedBox(
+                                width: width,
+                                height: height,
+                                child: Image(
+                                  image: _image,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.broken_image_outlined),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),

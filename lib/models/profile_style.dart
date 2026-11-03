@@ -48,6 +48,7 @@ class ProfileStyle {
     this.cover = 'ember',
     this.title = 'member',
     this.featured,
+    this.miniatures,
     this.frameEffect = 'orbit',
     this.coverEffect = 'shimmer',
     this.profileTheme = 'app',
@@ -62,6 +63,7 @@ class ProfileStyle {
   final String cover;
   final String title;
   final List<String>? featured;
+  final List<String>? miniatures;
   final String frameEffect;
   final String coverEffect;
   final String profileTheme;
@@ -206,6 +208,7 @@ class ProfileStyle {
     ProfileStyleOption('stars', 'Céu estrelado', Color(0xFFBCDFFF)),
     ProfileStyleOption('meteors', 'Estrelas cadentes', Color(0xFFBCDFFF)),
     ProfileStyleOption('aurora', 'Aurora', Color(0xFF71E6CE)),
+    ProfileStyleOption('sunset', 'Horizonte Sunset', Color(0xFFE9A16C)),
     ProfileStyleOption(
       'platinum_ascent',
       'Forja da Disciplina',
@@ -296,6 +299,13 @@ class ProfileStyle {
       frameIntensity: safeIntensity(map['frame_intensity']),
       coverIntensity: safeIntensity(map['cover_intensity']),
       coverVariant: safeCoverVariant(map['cover_variant']),
+      miniatures: map['miniatures'] is List
+          ? (map['miniatures'] as List)
+                .whereType<String>()
+                .toSet()
+                .take(3)
+                .toList()
+          : null,
       featured: map['featured'] is List
           ? (map['featured'] as List)
                 .whereType<String>()
@@ -313,6 +323,7 @@ class ProfileStyle {
     String? cover,
     String? title,
     List<String>? featured,
+    List<String>? miniatures,
     String? frameEffect,
     String? coverEffect,
     String? profileTheme,
@@ -327,6 +338,7 @@ class ProfileStyle {
     cover: cover ?? this.cover,
     title: title ?? this.title,
     featured: featured ?? this.featured,
+    miniatures: miniatures ?? this.miniatures,
     frameEffect: frameEffect ?? this.frameEffect,
     coverEffect: coverEffect ?? this.coverEffect,
     profileTheme: profileTheme ?? this.profileTheme,
@@ -348,6 +360,7 @@ class ProfileStyle {
     'cover_intensity': safeIntensity(coverIntensity),
     'cover_variant': safeCoverVariant(coverVariant),
     if (featured != null) 'featured': featured,
+    if (miniatures != null) 'miniatures': miniatures,
   };
   ProfileStyle validated({
     required bool founder,
@@ -389,6 +402,7 @@ class ProfileStyle {
           ? title
           : 'member',
       featured: featured?.where(ids.contains).take(3).toList(),
+      miniatures: miniatures?.where(ids.contains).take(3).toList(),
     );
   }
 
@@ -401,6 +415,18 @@ class ProfileStyle {
     ];
   }
 
+  List<ProfileAchievement> miniatureHighlights(
+    List<ProfileAchievement> earned,
+  ) {
+    final choices = miniatures ?? featured;
+    if (choices == null) return earned.take(3).toList();
+    final byId = {for (final badge in earned) badge.id: badge};
+    return [
+      for (final id in choices.toSet().take(3))
+        if (byId[id] != null) byId[id]!,
+    ];
+  }
+
   List<ProfileAchievement> profileMiniatures(List<ProfileAchievement> earned) {
     final fixed = [
       for (final id in ['platinum', 'knowledge_platinum'])
@@ -408,7 +434,7 @@ class ProfileStyle {
           if (badge.id == id) badge,
     ];
     final extras = earned.where((badge) => !badge.isJourneyTrophy).toList();
-    return [...fixed, ...highlights(extras)];
+    return [...fixed, ...miniatureHighlights(extras)];
   }
 
   String titleLabel(List<ProfileAchievement> earned) {

@@ -93,7 +93,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('New profile|'), findsOneWidget);
-      expect(identityReads, 0);
+      expect(identityReads, greaterThanOrEqualTo(1));
       await tester.pumpWidget(const SizedBox());
     },
   );

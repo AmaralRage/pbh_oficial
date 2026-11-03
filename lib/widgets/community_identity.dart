@@ -4,10 +4,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 
 class CommunityIdentity {
-  const CommunityIdentity(this.name, this.avatarUrl, this.founder);
+  const CommunityIdentity(
+    this.name,
+    this.avatarUrl,
+    this.founder, [
+    this.memberBadge,
+  ]);
   final String name;
   final String? avatarUrl;
   final bool founder;
+  final String? memberBadge;
 }
 
 /// Refreshes mounted identities without granting access to the profiles table.
@@ -68,7 +74,6 @@ class _CommunityIdentityBuilderState extends State<CommunityIdentityBuilder>
     final client = _client;
     if (_loading ||
         client == null ||
-        client.auth.currentUser?.id == widget.userId ||
         !RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(widget.userId) ||
         (WidgetsBinding.instance.lifecycleState != null &&
             WidgetsBinding.instance.lifecycleState !=
@@ -105,6 +110,7 @@ class _CommunityIdentityBuilderState extends State<CommunityIdentityBuilder>
           row?['name'] as String? ?? 'Membro',
           row?['avatar_url'] as String?,
           row?['founder'] == true,
+          row?['member_badge'] as String?,
         ),
       );
     } catch (_) {
@@ -152,6 +158,7 @@ class _CommunityIdentityBuilderState extends State<CommunityIdentityBuilder>
                 : 'Sua conta',
             metadata?['avatar_url'] as String?,
             founder,
+            _identity?.memberBadge,
           )
         : _identity ?? CommunityIdentity(widget.name, widget.avatarUrl, false);
     return widget.builder(context, identity);
