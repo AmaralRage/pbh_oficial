@@ -623,6 +623,20 @@ class _ProfileCustomizationScreenState
                         'PNG, JPEG ou WebP · até 5 MB. Imagens verticais aproveitam melhor a tela.',
                         style: AppTextStyles.bodySmall,
                       ),
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Cards transparentes'),
+                        subtitle: const Text(
+                          'Fundo translúcido com desfoque suave. Textos, selos, capa e moldura permanecem nítidos.',
+                        ),
+                        value: _style.glassCards,
+                        onChanged: _saving
+                            ? null
+                            : (value) => setState(
+                                () =>
+                                    _style = _style.copyWith(glassCards: value),
+                              ),
+                      ),
                       if (_style.background != 'none') ...[
                         const SizedBox(height: 18),
                         Text(

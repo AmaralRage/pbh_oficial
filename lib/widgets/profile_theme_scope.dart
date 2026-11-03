@@ -4,6 +4,7 @@ import '../core/theme/app_theme.dart';
 import '../core/theme/pbh_palette.dart';
 import '../models/profile_style.dart';
 import '../services/auth_service.dart';
+import '../services/appearance_service.dart';
 
 class ProfileThemeScope extends StatelessWidget {
   const ProfileThemeScope({
@@ -30,7 +31,14 @@ class ProfileThemeScope extends StatelessWidget {
           founder: isFounder,
         ).profileTheme;
     final palette = id == 'app'
-        ? context.pbhColors
+        ? user != null
+              ? PbhPalette.resolve(
+                  user.userMetadata?['app_theme'] as String?,
+                  founder: isFounder,
+                )
+              : AppearanceService.instance.fullApp
+              ? context.pbhColors
+              : AppearanceService.instance.selectedPalette
         : PbhPalette.resolve(id, founder: isFounder);
     return Theme(
       data: AppTheme.forPalette(palette),

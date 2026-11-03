@@ -202,7 +202,10 @@ void main() {
         'email': 'member@example.com',
         'created_at': '2026-01-01T00:00:00Z',
         'app_metadata': {},
-        'user_metadata': <String, dynamic>{'app_theme': 'galactic'},
+        'user_metadata': <String, dynamic>{
+          'app_theme': 'galactic',
+          'profile_style': {'cover': 'night', 'glass_cards': true},
+        },
       };
       final client = SupabaseClient(
         'https://test.supabase.co',
@@ -257,7 +260,34 @@ void main() {
       await service.refresh();
       expect(service.palette.id, 'galactic');
       await expectLater(service.apply('founder'), throwsStateError);
+      await service.apply('emerald_classic', fullApp: false);
+      expect(service.palette.id, 'pbh');
+      expect(service.selectedPalette.id, 'emerald_classic');
+      expect(service.fullApp, isFalse);
+      expect((user['user_metadata'] as Map)['theme_full_app'], false);
+      expect(
+        ((user['user_metadata'] as Map)['profile_style']
+            as Map)['profile_theme'],
+        'emerald_classic',
+      );
+      expect(
+        ((user['user_metadata'] as Map)['profile_style'] as Map)['glass_cards'],
+        true,
+      );
+      expect(
+        ((user['user_metadata'] as Map)['profile_style'] as Map)['cover'],
+        'night',
+      );
+      await service.refresh();
+      expect(service.palette.id, 'pbh');
+      expect(service.selectedPalette.id, 'emerald_classic');
       await service.apply('nova');
+      expect(service.fullApp, isTrue);
+      expect(
+        ((user['user_metadata'] as Map)['profile_style']
+            as Map)['profile_theme'],
+        'app',
+      );
       expect(service.palette.id, 'nova');
       fail = true;
       await expectLater(service.apply('cosmic'), throwsA(isA<AuthException>()));
@@ -311,6 +341,10 @@ void main() {
         ),
       );
       expect(find.text('Legado do fundador'), findsNothing);
+      expect(find.text('Fundos neutros'), findsOneWidget);
+      expect(find.text('Fundos coloridos'), findsOneWidget);
+      expect(find.text('Exclusivo do fundador'), findsNothing);
+      await tester.ensureVisible(find.text('Azul estelar'));
       await tester.tap(find.text('Azul estelar'));
       expect(picked, 'starlight');
       expect(find.text('Acompanhar tema do app'), findsOneWidget);

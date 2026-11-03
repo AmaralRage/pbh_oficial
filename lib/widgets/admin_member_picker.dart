@@ -125,7 +125,7 @@ class _AdminMemberPickerState extends State<AdminMemberPicker> {
                   _load(reset: true);
                 },
                 decoration: InputDecoration(
-                  hintText: 'Buscar pelo nome ou ID',
+                  hintText: 'Buscar pelo nome, @usuário ou ID',
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: IconButton(
                     tooltip: 'Limpar busca',
@@ -211,7 +211,7 @@ class _AdminMemberPickerState extends State<AdminMemberPicker> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            'ID: ${id.substring(id.length > 8 ? id.length - 8 : 0)}${date == null ? '' : ' · Desde ${date.day}/${date.month}/${date.year}'}',
+                            '${member['handle'] == null ? '' : '@${member['handle']}\n'}ID: ${id.substring(id.length > 8 ? id.length - 8 : 0)}${date == null ? '' : ' · Desde ${date.day}/${date.month}/${date.year}'}',
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => Navigator.pop(context, member),

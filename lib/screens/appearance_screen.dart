@@ -11,7 +11,8 @@ class AppearanceScreen extends StatefulWidget {
 }
 
 class _AppearanceScreenState extends State<AppearanceScreen> {
-  late String _selected = AppearanceService.instance.palette.id;
+  late String _selected = AppearanceService.instance.selectedPalette.id;
+  late bool _fullApp = AppearanceService.instance.fullApp;
   bool _saving = false;
   bool _effectsSaving = false;
   String? _error;
@@ -21,7 +22,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       _error = null;
     });
     try {
-      await AppearanceService.instance.apply(_selected);
+      await AppearanceService.instance.apply(_selected, fullApp: _fullApp);
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (mounted)
@@ -56,14 +57,18 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Escolha as cores de todas as telas. Veja a prévia aqui e aplique quando gostar.',
+                'Escolha suas cores e onde usar o tema. As versões Clássico mantêm os fundos pretos e cinzas do PBH Original.',
               ),
               const SizedBox(height: 24),
               SwitchListTile(
-                contentPadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
                 title: const Text('Efeitos reduzidos'),
-                subtitle: const Text(
-                  'Pausa animações decorativas e usa imagens estáticas nos troféus. Salvo neste aparelho.',
+                subtitle: const Padding(
+                  padding: EdgeInsets.only(top: 7),
+                  child: Text(
+                    'Pausa animações decorativas e usa imagens estáticas nos troféus. Salvo neste aparelho.',
+                    style: TextStyle(height: 1.5),
+                  ),
                 ),
                 value: AppearanceService.instance.reducedEffects,
                 onChanged: _effectsSaving
@@ -85,7 +90,25 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                         }
                       },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
+              SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                title: const Text('Aplicar no app inteiro'),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 7),
+                  child: Text(
+                    _fullApp
+                        ? 'Usar o tema em todas as telas.'
+                        : 'Usar apenas no perfil. As outras telas ficam com o PBH Original.',
+                    style: const TextStyle(height: 1.5),
+                  ),
+                ),
+                value: _fullApp,
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() => _fullApp = value),
+              ),
+              const SizedBox(height: 28),
               ThemeChoices(
                 selected: _selected,
                 founder: AppearanceService.instance.founder,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_surface.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 
@@ -17,7 +18,7 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
+      child: ProfileSurface(
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
         decoration: BoxDecoration(
           color: context.pbhColors.surface,

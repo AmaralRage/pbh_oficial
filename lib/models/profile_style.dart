@@ -58,6 +58,7 @@ class ProfileStyle {
     this.background = 'none',
     this.backgroundPath = '',
     this.backgroundDim = .35,
+    this.glassCards = false,
   });
   final String frame;
   final String cover;
@@ -73,6 +74,7 @@ class ProfileStyle {
   final String background;
   final String backgroundPath;
   final double backgroundDim;
+  final bool glassCards;
   static const backgrounds = [
     ProfileStyleOption('none', 'Padrão', Color(0xFF242424)),
     ProfileStyleOption('ember', 'Essência PBH', Color(0xFFFF813D)),
@@ -290,6 +292,7 @@ class ProfileStyle {
       background: safeBackground(map['background']),
       backgroundPath: safeBackgroundPath(map['background_path']),
       backgroundDim: safeBackgroundDim(map['background_dim']),
+      glassCards: map['glass_cards'] == true,
       frame: value('frame', founder ? 'founder' : 'orange'),
       cover: value('cover', founder ? 'founder' : 'ember'),
       title: value('title', founder ? 'founder' : 'member'),
@@ -319,6 +322,7 @@ class ProfileStyle {
     String? background,
     String? backgroundPath,
     double? backgroundDim,
+    bool? glassCards,
     String? frame,
     String? cover,
     String? title,
@@ -334,6 +338,7 @@ class ProfileStyle {
     background: safeBackground(background ?? this.background),
     backgroundPath: safeBackgroundPath(backgroundPath ?? this.backgroundPath),
     backgroundDim: safeBackgroundDim(backgroundDim ?? this.backgroundDim),
+    glassCards: glassCards ?? this.glassCards,
     frame: frame ?? this.frame,
     cover: cover ?? this.cover,
     title: title ?? this.title,
@@ -350,6 +355,7 @@ class ProfileStyle {
     'background': safeBackground(background),
     'background_path': safeBackgroundPath(backgroundPath),
     'background_dim': safeBackgroundDim(backgroundDim),
+    'glass_cards': glassCards,
     'frame': frame,
     'cover': cover,
     'title': title,
@@ -385,6 +391,7 @@ class ProfileStyle {
       background: safeBackground(background),
       backgroundPath: safeBackgroundPath(backgroundPath),
       backgroundDim: safeBackgroundDim(backgroundDim),
+      glassCards: glassCards,
       frame: option(frames, frame, 'orange'),
       cover: option(covers, cover, 'ember'),
       frameEffect: option(frameEffects, frameEffect, 'orbit'),

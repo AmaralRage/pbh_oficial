@@ -34,17 +34,23 @@ class CommunityPhotoGallery extends StatelessWidget {
           framing: i < framings.length ? framings[i] as List? : null,
           child: photo(
             urls[i],
+            cacheWidth: urls.length == 1 ? 1200 : 720,
             fit: i < framings.length && framings[i] != null
                 ? BoxFit.fill
                 : BoxFit.cover,
           ),
         );
   final VoidCallback? onRefresh;
-  static Widget photo(String url, {BoxFit fit = BoxFit.cover}) => url.isEmpty
+  static Widget photo(
+    String url, {
+    BoxFit fit = BoxFit.cover,
+    int? cacheWidth,
+  }) => url.isEmpty
       ? const Center(child: Icon(Icons.image_not_supported_outlined))
       : Image.network(
           url,
           fit: fit,
+          cacheWidth: cacheWidth,
           loadingBuilder: (context, child, progress) => progress == null
               ? child
               : const Center(child: CircularProgressIndicator(strokeWidth: 2)),

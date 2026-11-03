@@ -2,6 +2,8 @@ import 'community_identity.dart';
 import 'member_display_name.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'profile_surface.dart';
+import 'member_handle.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/profile_achievement.dart';
@@ -136,7 +138,7 @@ class ProfileIdentityCard extends StatelessWidget {
             errorBuilder: (_, __, ___) => fallback(),
           )
         : fallback();
-    return Container(
+    return ProfileSurface(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: context.pbhColors.surface,
@@ -404,13 +406,16 @@ class ProfileIdentityCard extends StatelessWidget {
                               userId: userId!,
                               name: name,
                               avatarUrl: avatarUrl,
-                              builder: (context, identity) => MemberDisplayName(
-                                name: identity.name,
-                                founder: founder,
-                                memberBadge: identity.memberBadge,
-                                style: AppTextStyles.titleLarge,
-                                compact: false,
-                                showBadge: showDecorations,
+                              builder: (context, identity) => MemberHandle(
+                                userId: userId!,
+                                child: MemberDisplayName(
+                                  name: identity.name,
+                                  founder: founder,
+                                  memberBadge: identity.memberBadge,
+                                  style: AppTextStyles.titleLarge,
+                                  compact: false,
+                                  showBadge: showDecorations,
+                                ),
                               ),
                             ),
                     ),

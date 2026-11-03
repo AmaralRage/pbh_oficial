@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_surface.dart';
 import '../services/personal_goal_service.dart';
 import '../core/theme/app_colors.dart';
 import '../screens/personal_goal_history_screen.dart';
@@ -148,7 +149,7 @@ class _PersonalGoalCardState extends State<PersonalGoalCard> {
   Widget build(BuildContext context) {
     final colors = context.pbhColors;
     final active = _goal != null && !_loading && _error == null;
-    return Container(
+    return ProfileSurface(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -254,7 +255,8 @@ class _PersonalGoalCardState extends State<PersonalGoalCard> {
             ),
             if ((_goal!['next_step'] as String).trim().isNotEmpty) ...[
               const SizedBox(height: 16),
-              Container(
+              ProfileSurface(
+                blur: false,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: colors.backgroundElevated,
@@ -574,7 +576,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
     if (_goal == null) return const SizedBox.shrink();
     final colors = context.pbhColors;
     final nextStep = (_goal!['next_step'] as String).trim();
-    return Container(
+    return ProfileSurface(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -644,7 +646,8 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
           ),
           if (nextStep.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Container(
+            ProfileSurface(
+              blur: false,
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
                 color: colors.backgroundElevated,

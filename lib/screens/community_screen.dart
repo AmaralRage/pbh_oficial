@@ -181,6 +181,29 @@ class _CommunityScreenState extends State<CommunityScreen> {
     }
   }
 
+  Future<void> _refreshPost(String id) async {
+    final version = _requestVersion;
+    try {
+      final updated = await _service.postById(id);
+      if (!mounted || version != _requestVersion) return;
+      setState(() {
+        _posts = [
+          for (final post in _posts)
+            if (post.id != id)
+              post
+            else if (updated != null)
+              updated.copyWith(
+                isFollowing: post.isFollowing,
+                isSaved: post.isSaved,
+              ),
+        ];
+      });
+    } catch (_) {
+      // The committed reaction and its optimistic display remain valid offline.
+      // A pull-to-refresh can reconcile counts when the connection returns.
+    }
+  }
+
   String _friendlyError(Object error) {
     final details = error.toString();
     final normalized = details.toLowerCase();
@@ -539,6 +562,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
             post: post,
             isAuthenticated: widget.isAuthenticated,
             onRequireLogin: widget.onRequireLogin,
+            onInteractionChanged: () => _refreshPost(post.id),
             onChanged: post.isSample
                 ? () async {}
                 : () => _load(showLoading: false),

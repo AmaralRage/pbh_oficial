@@ -1,3 +1,4 @@
+import 'comment_like_icon.dart';
 import 'package:http/http.dart' as http;
 import '../screens/profile_image_cropper.dart';
 import 'member_display_name.dart';
@@ -29,12 +30,14 @@ class CommunityPostCard extends StatefulWidget {
     required this.onChanged,
     this.openCommentsInitially = false,
     this.focusCommentId,
+    this.onInteractionChanged,
   });
 
   final CommunityPostModel post;
   final bool isAuthenticated;
   final VoidCallback onRequireLogin;
   final Future<void> Function() onChanged;
+  final Future<void> Function()? onInteractionChanged;
   final bool openCommentsInitially;
   final String? focusCommentId;
 
@@ -195,7 +198,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         oldLiked,
         isSample: widget.post.isSample,
       );
-      if (!widget.post.isSample) unawaited(widget.onChanged());
+      if (!widget.post.isSample) {
+        unawaited((widget.onInteractionChanged ?? widget.onChanged)());
+      }
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -865,13 +870,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                                                           );
                                                         }
                                                       },
-                                                icon: Icon(
-                                                  liked
-                                                      ? Icons
-                                                            .local_fire_department
-                                                      : Icons
-                                                            .local_fire_department_outlined,
-                                                  size: 18,
+                                                icon: CommentLikeIcon(
+                                                  key: ValueKey(comment.id),
+                                                  liked: liked,
                                                   color: liked
                                                       ? context.pbhColors.orange
                                                       : context

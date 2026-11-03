@@ -250,6 +250,32 @@ class CommunityService {
     }).toList();
   }
 
+  Future<List<CommunityPostModel>> memberPosts(
+    String userId, {
+    int offset = 0,
+  }) async {
+    final account = _userId;
+    final rows =
+        await _client.rpc(
+              'member_publications',
+              params: {'p_user': userId, 'p_offset': offset},
+            )
+            as List;
+    final posts = rows
+        .map((r) => CommunityPostModel.fromMap(Map<String, dynamic>.from(r)))
+        .toList();
+    final urls = await _photoUrls(
+      posts.expand((p) => p.imagePaths).toSet().toList(),
+    );
+    if (account != _userId) throw StateError('A conta mudou.');
+    return [
+      for (final p in posts)
+        p.copyWith(
+          imageUrls: [for (final path in p.imagePaths) urls[path] ?? ''],
+        ),
+    ];
+  }
+
   Future<CommunityStats> fetchStats() async {
     final result = await _client.rpc('community_stats') as Map<String, dynamic>;
     return CommunityStats(

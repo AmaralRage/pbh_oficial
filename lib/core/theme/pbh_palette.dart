@@ -26,8 +26,8 @@ class PbhPalette extends ThemeExtension<PbhPalette> {
     PbhPalette(
       'cosmic',
       'Vermelho cósmico',
-      Color(0xFF1C0B15),
-      Color(0xFFFF9AB2),
+      Color(0xFF1C0808),
+      Color(0xFFFF625C),
     ),
     PbhPalette(
       'galactic',
@@ -40,9 +40,45 @@ class PbhPalette extends ThemeExtension<PbhPalette> {
     PbhPalette(
       'founder',
       'Legado do fundador',
-      Color(0xFF100D24),
-      Color(0xFFC5ADFF),
+      Color(0xFF0B0B0B),
+      Color(0xFFB57AFF),
       founderOnly: true,
+    ),
+    PbhPalette(
+      'midnight_classic',
+      'Meia-noite · Clássico',
+      Color(0xFF0B0B0B),
+      Color(0xFF8BAFFF),
+    ),
+    PbhPalette(
+      'starlight_classic',
+      'Azul estelar · Clássico',
+      Color(0xFF0B0B0B),
+      Color(0xFF62AEFF),
+    ),
+    PbhPalette(
+      'cosmic_classic',
+      'Vermelho cósmico · Clássico',
+      Color(0xFF0B0B0B),
+      Color(0xFFFF625C),
+    ),
+    PbhPalette(
+      'galactic_classic',
+      'Roxo galáctico · Clássico',
+      Color(0xFF0B0B0B),
+      Color(0xFFBE87FF),
+    ),
+    PbhPalette(
+      'nova_classic',
+      'Rosa nova · Clássico',
+      Color(0xFF0B0B0B),
+      Color(0xFFFF6FBD),
+    ),
+    PbhPalette(
+      'emerald_classic',
+      'Esmeralda · Clássico',
+      Color(0xFF0B0B0B),
+      Color(0xFF32D9AC),
     ),
   ];
   static PbhPalette resolve(String? id, {bool founder = false}) =>
@@ -50,24 +86,26 @@ class PbhPalette extends ThemeExtension<PbhPalette> {
         (p) => p.id == id && (!p.founderOnly || founder),
         orElse: () => catalog.first,
       );
+  bool get _originalSurfaces =>
+      id == 'pbh' || id == 'founder' || id.endsWith('_classic');
   Color get background => base;
   Color tint(double amount) => Color.lerp(base, Colors.white, amount)!;
   Color get backgroundElevated =>
-      id == 'pbh' ? const Color(0xFF111111) : tint(.025);
-  Color get surface => id == 'pbh' ? const Color(0xFF161616) : tint(.045);
+      _originalSurfaces ? const Color(0xFF111111) : tint(.025);
+  Color get surface => _originalSurfaces ? const Color(0xFF161616) : tint(.045);
   Color get surfaceElevated =>
-      id == 'pbh' ? const Color(0xFF1C1C1C) : tint(.075);
+      _originalSurfaces ? const Color(0xFF1C1C1C) : tint(.075);
   Color get surfacePressed => tint(.11);
-  Color get border => tint(id == 'pbh' ? .19 : .26);
-  Color get borderSubtle => tint(id == 'pbh' ? .12 : .19);
+  Color get border => tint(_originalSurfaces ? .19 : .26);
+  Color get borderSubtle => tint(_originalSurfaces ? .12 : .19);
   Color get orange => accent;
   Color get orangeLight => Color.lerp(accent, Colors.white, .4)!;
-  Color get orangeDim => accent.withValues(alpha: id == 'pbh' ? .2 : .14);
+  Color get orangeDim => accent.withValues(alpha: _originalSurfaces ? .2 : .14);
   Color get textPrimary => Colors.white;
   Color get textSecondary =>
-      id == 'pbh' ? const Color(0xFFCDD4E0) : const Color(0xFFE0E6EF);
+      _originalSurfaces ? const Color(0xFFCDD4E0) : const Color(0xFFE0E6EF);
   Color get textTertiary =>
-      id == 'pbh' ? const Color(0xFFAFBBD0) : const Color(0xFFC5CEDD);
+      _originalSurfaces ? const Color(0xFFAFBBD0) : const Color(0xFFC5CEDD);
   Color get success => accent;
   Color get inactive => tint(.2);
   Color get onAccent =>

@@ -15,6 +15,7 @@ class ThemeChoices extends StatelessWidget {
   final bool allowFollowApp;
   @override
   Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       if (allowFollowApp)
         RadioListTile<String>(
@@ -23,14 +24,61 @@ class ThemeChoices extends StatelessWidget {
           onChanged: onSelected == null ? null : (id) => onSelected!(id!),
           title: const Text('Acompanhar tema do app'),
         ),
+      _section(
+        context,
+        'Fundos neutros',
+        'Pretos e cinzas, com a cor nos detalhes.',
+        PbhPalette.catalog.where(
+          (p) => !p.founderOnly && (p.id == 'pbh' || p.id.endsWith('_classic')),
+        ),
+      ),
+      const SizedBox(height: 28),
+      _section(
+        context,
+        'Fundos coloridos',
+        'A cor do tema também aparece nos fundos e cards.',
+        PbhPalette.catalog.where(
+          (p) => !p.founderOnly && p.id != 'pbh' && !p.id.endsWith('_classic'),
+        ),
+      ),
+      if (founder) ...[
+        const SizedBox(height: 28),
+        _section(
+          context,
+          'Exclusivo do fundador',
+          'Identidade reservada ao líder do projeto.',
+          PbhPalette.catalog.where((p) => p.founderOnly),
+        ),
+      ],
+    ],
+  );
+
+  Widget _section(
+    BuildContext context,
+    String title,
+    String description,
+    Iterable<PbhPalette> palettes,
+  ) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        description,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.5),
+      ),
+      const SizedBox(height: 18),
       LayoutBuilder(
         builder: (context, constraints) => Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
-            for (final palette in PbhPalette.catalog.where(
-              (p) => founder || !p.founderOnly,
-            ))
+            for (final palette in palettes)
               SizedBox(
                 width: constraints.maxWidth < 280
                     ? constraints.maxWidth
@@ -71,7 +119,11 @@ class ThemeChoices extends StatelessWidget {
                                     Color.lerp(
                                       palette.base,
                                       palette.accent,
-                                      .4,
+                                      palette.id == 'pbh' ||
+                                              palette.id == 'founder' ||
+                                              palette.id.endsWith('_classic')
+                                          ? .03
+                                          : .4,
                                     )!,
                                   ],
                                 ),

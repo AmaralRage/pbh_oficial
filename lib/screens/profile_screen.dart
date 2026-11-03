@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'member_publications_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/theme/app_colors.dart';
@@ -93,6 +94,21 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ],
               _ProfileProgress(onEdit: onEditProfile),
+              if (isAuthenticated)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    final id = Supabase.instance.client.auth.currentUser?.id;
+                    if (id != null)
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => MemberPublicationsScreen(userId: id),
+                        ),
+                      );
+                  },
+                  icon: const Icon(Icons.article_outlined),
+                  label: const Text('Minhas publicações'),
+                ),
               const SizedBox(height: 16),
               PersonalGoalCard(
                 isAuthenticated: isAuthenticated,

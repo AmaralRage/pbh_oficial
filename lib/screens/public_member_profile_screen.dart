@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'member_publications_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
@@ -144,6 +145,17 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
                   founder: profile.founder,
                 ),
                 const SizedBox(height: 22),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          MemberPublicationsScreen(userId: profile.id),
+                    ),
+                  ),
+                  icon: const Icon(Icons.article_outlined),
+                  label: const Text('Ver publicações'),
+                ),
                 PublicGoalCard(
                   key: ValueKey('goal-${profile.id}-$_version'),
                   userId: profile.id,

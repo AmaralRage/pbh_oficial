@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/config/supabase_config.dart';
 import '../core/theme/app_colors.dart';
 import '../models/profile_style.dart';
+import 'profile_surface.dart';
 
 /// A static viewport background: it never changes the cover, frame or card fills.
 class ProfileBackground extends StatelessWidget {
@@ -20,7 +21,11 @@ class ProfileBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = ProfileStyle.safeBackground(style.background);
-    if (selected == 'none') return child;
+    final content = ProfileSurfaceScope(
+      enabled: style.glassCards,
+      child: child,
+    );
+    if (selected == 'none') return content;
     final custom = selected == 'custom';
     final path = ProfileStyle.safeBackgroundPath(style.backgroundPath);
     final ImageProvider? image = !custom
@@ -63,7 +68,7 @@ class ProfileBackground extends StatelessWidget {
             ),
           ),
         ),
-        child,
+        content,
       ],
     );
   }

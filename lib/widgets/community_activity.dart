@@ -15,11 +15,20 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
     with WidgetsBindingObserver {
   List<Map<String, dynamic>> _items = [];
   Timer? _timer;
+  StreamSubscription? _auth;
+  String? _account;
   bool _failed = false, _loading = false;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _account = widget.service.currentUserId;
+    _auth = widget.service.authChanges.listen((_) {
+      if (_account == widget.service.currentUserId) return;
+      _account = widget.service.currentUserId;
+      if (mounted) setState(() => _items = []);
+      _load();
+    });
     _load();
     _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed)
@@ -30,17 +39,23 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
   Future<void> _load() async {
     if (_loading) return;
     _loading = true;
+    final account = widget.service.currentUserId;
     try {
       final items = await widget.service.replyActivity();
-      if (mounted)
+      if (mounted && account == widget.service.currentUserId)
         setState(() {
-          _items = items;
+          final ids = <String>{};
+          _items = items
+              .where((item) => ids.add(item['id'] as String))
+              .toList();
           _failed = false;
         });
     } catch (_) {
-      if (mounted) setState(() => _failed = true);
+      if (mounted && account == widget.service.currentUserId)
+        setState(() => _failed = true);
     } finally {
       _loading = false;
+      if (mounted && account != widget.service.currentUserId) _load();
     }
   }
 
@@ -52,13 +67,16 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
   @override
   void dispose() {
     _timer?.cancel();
+    _auth?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   Future<void> _open() async {
+    final account = widget.service.currentUserId;
     await _load();
-    if (!mounted) return;
+    if (!mounted || account != widget.service.currentUserId) return;
+    final items = List<Map<String, dynamic>>.of(_items);
     final id = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -91,14 +109,26 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
               Expanded(
                 child: ListView(
                   children: [
-                    for (final item in _items)
+                    for (final item in items)
                       ListTile(
+                        tileColor: item['read_at'] == null
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: .08)
+                            : null,
                         leading: Icon(
                           item['read_at'] == null
                               ? Icons.mark_chat_unread_outlined
                               : Icons.chat_bubble_outline,
                         ),
-                        title: const Text('Responderam ao seu comentário'),
+                        title: Text(
+                          'Responderam ao seu comentário',
+                          style: TextStyle(
+                            fontWeight: item['read_at'] == null
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
                         subtitle: Text(
                           (DateTime.tryParse(
                                     item['created_at'] as String,
@@ -118,12 +148,14 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
         ),
       ),
     );
-    if (id == null || !mounted) return;
+    if (id == null || !mounted || account != widget.service.currentUserId)
+      return;
     try {
       final viewer = widget.service.currentUserId;
-      final item = _items.firstWhere((n) => n['id'] == id);
+      final item = items.firstWhere((n) => n['id'] == id);
       final post = await widget.service.postById(item['post_id'] as String);
       if (post == null) throw StateError('Publicação indisponível.');
+      if (!mounted || viewer != widget.service.currentUserId) return;
       await widget.service.readReply(id);
       if (!mounted || viewer != widget.service.currentUserId) return;
       var displayed = post;
