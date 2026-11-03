@@ -1650,7 +1650,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                 toggled: _liked,
                 label: 'Curtir publicação, $_likeCount curtidas',
                 child: Material(
-                  color: _liked ? colors.orangeDim : colors.surfaceElevated,
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(24),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(24),
@@ -1706,7 +1706,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                 button: true,
                 label: 'Ver $_commentCount comentários',
                 child: Material(
-                  color: colors.surfaceElevated,
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(24),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(24),
