@@ -8,22 +8,30 @@ void main() {
   ) async {
     for (final system in [true, false]) {
       for (final app in [true, false]) {
-        bool? reduced;
+        bool? reduced, contrast;
         await tester.pumpWidget(
           MaterialApp(
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(context).copyWith(disableAnimations: system),
-              child: MobileAppViewport(reduceEffects: app, child: child!),
+              data: MediaQuery.of(
+                context,
+              ).copyWith(disableAnimations: system, highContrast: system),
+              child: MobileAppViewport(
+                reduceEffects: app,
+                highContrast: app,
+                child: child!,
+              ),
             ),
             home: Builder(
               builder: (context) {
                 reduced = MediaQuery.disableAnimationsOf(context);
+                contrast = MediaQuery.highContrastOf(context);
                 return const SizedBox();
               },
             ),
           ),
         );
         expect(reduced, system || app);
+        expect(contrast, system || app);
       }
     }
   });

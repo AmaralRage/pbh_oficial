@@ -1,4 +1,5 @@
 import 'admin_member_badges_screen.dart';
+import 'admin_support_screen.dart';
 import 'package:flutter/material.dart';
 import 'admin_content_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -366,6 +367,16 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
             .toDouble();
         final content = <Widget>[
           _pageHeading(),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AdminSupportScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.support_agent_rounded),
+            label: const Text('Atendimento privado'),
+          ),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(

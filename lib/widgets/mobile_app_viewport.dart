@@ -6,11 +6,13 @@ class MobileAppViewport extends StatelessWidget {
     super.key,
     required this.child,
     this.reduceEffects = false,
+    this.highContrast = false,
   });
 
   static const double maxWidth = 430;
   final Widget child;
   final bool reduceEffects;
+  final bool highContrast;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -29,6 +31,7 @@ class MobileAppViewport extends StatelessWidget {
                 data: media.copyWith(
                   size: Size(width, media.size.height),
                   disableAnimations: media.disableAnimations || reduceEffects,
+                  highContrast: media.highContrast || highContrast,
                 ),
                 child: ColoredBox(
                   color: Theme.of(context).scaffoldBackgroundColor,

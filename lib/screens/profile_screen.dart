@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/profile_surface.dart';
 import 'member_publications_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -94,6 +95,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ],
               _ProfileProgress(onEdit: onEditProfile),
+              if (isAuthenticated) const SizedBox(height: 18),
               if (isAuthenticated)
                 OutlinedButton.icon(
                   onPressed: () {
@@ -146,7 +148,7 @@ class ProfileScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Container(
+                      ProfileSurface(
                         decoration: BoxDecoration(
                           color: context.pbhColors.surface,
                           borderRadius: BorderRadius.circular(20),
@@ -364,7 +366,7 @@ class _ProfileProgressState extends State<_ProfileProgress> {
         identity,
         const SizedBox(height: 22),
         if (_loadFailed || _refreshing) failureNotice,
-        Row(
+        ProfileStats(
           children: [
             if (isAuthenticated) ...[
               StatCard(

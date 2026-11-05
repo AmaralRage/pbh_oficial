@@ -37,6 +37,7 @@ class _Posts extends CommunityService {
     String? topic,
     List<CommunityPhoto> photos = const [],
     String? draftId,
+    void Function(int completed, int total)? onUploadProgress,
   }) async {
     ids.add(draftId);
     counts.add(photos.length);

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/community_service.dart';
+import 'community_mention_suggestions.dart';
 
 /// Own the controller for the route's full lifetime, including its exit animation.
 class TextEntryDialog extends StatefulWidget {
@@ -10,19 +12,23 @@ class TextEntryDialog extends StatefulWidget {
     this.description,
     this.hint,
     this.saveLabel = 'Salvar',
+    this.mentionService,
   });
   final String title, initialText, saveLabel;
   final String? description, hint;
   final int maxLength;
+  final CommunityService? mentionService;
   @override
   State<TextEntryDialog> createState() => _TextEntryDialogState();
 }
 
 class _TextEntryDialogState extends State<TextEntryDialog> {
   late final _controller = TextEditingController(text: widget.initialText);
+  final _mentionFocus = FocusNode();
   @override
   void dispose() {
     _controller.dispose();
+    _mentionFocus.dispose();
     super.dispose();
   }
 
@@ -36,12 +42,20 @@ class _TextEntryDialogState extends State<TextEntryDialog> {
           if (widget.description != null) Text(widget.description!),
           TextField(
             controller: _controller,
+            focusNode: _mentionFocus,
             maxLength: widget.maxLength,
             minLines: 2,
             maxLines: 5,
             decoration: InputDecoration(labelText: widget.hint),
             onChanged: (_) => setState(() {}),
           ),
+          if (widget.mentionService != null)
+            CommunityMentionSuggestions(
+              controller: _controller,
+              focusNode: _mentionFocus,
+              service: widget.mentionService!,
+              maxLength: widget.maxLength,
+            ),
         ],
       ),
     ),

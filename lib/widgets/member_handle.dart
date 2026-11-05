@@ -179,7 +179,6 @@ class _MemberHandleState extends State<MemberHandle> {
     }
     return Tooltip(
       message: label,
-      waitDuration: const Duration(milliseconds: 300),
       child: PopupMenuButton<String>(
         tooltip: '',
         color: Colors.transparent,

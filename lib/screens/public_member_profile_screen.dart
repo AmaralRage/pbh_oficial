@@ -181,7 +181,7 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
                     ),
                   ),
                 if (profile.hasProgress) ...[
-                  Row(
+                  ProfileStats(
                     children: [
                       StatCard(
                         icon: Icons.flag_outlined,

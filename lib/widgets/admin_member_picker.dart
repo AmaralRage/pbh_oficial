@@ -4,7 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
 
 class AdminMemberPicker extends StatefulWidget {
-  const AdminMemberPicker({super.key, this.client});
+  const AdminMemberPicker({super.key, this.client, this.publicSearch = false});
+  final bool publicSearch;
   final SupabaseClient? client;
   @override
   State<AdminMemberPicker> createState() => _AdminMemberPickerState();
@@ -43,7 +44,9 @@ class _AdminMemberPickerState extends State<AdminMemberPicker> {
       final rows =
           await _client
                   .rpc(
-                    'admin_search_members',
+                    widget.publicSearch
+                        ? 'search_community_members'
+                        : 'admin_search_members',
                     params: {
                       'p_query': _search.text.trim(),
                       'p_offset': reset ? 0 : _members.length,
@@ -97,9 +100,11 @@ class _AdminMemberPickerState extends State<AdminMemberPicker> {
               padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Escolher membro',
+                      widget.publicSearch
+                          ? 'Buscar membros'
+                          : 'Escolher membro',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -125,7 +130,9 @@ class _AdminMemberPickerState extends State<AdminMemberPicker> {
                   _load(reset: true);
                 },
                 decoration: InputDecoration(
-                  hintText: 'Buscar pelo nome, @usuário ou ID',
+                  hintText: widget.publicSearch
+                      ? 'Buscar nome ou @usuário'
+                      : 'Buscar pelo nome, @usuário ou ID',
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: IconButton(
                     tooltip: 'Limpar busca',
@@ -141,7 +148,9 @@ class _AdminMemberPickerState extends State<AdminMemberPicker> {
             Padding(
               padding: const EdgeInsets.all(12),
               child: Text(
-                'Selecione a pessoa pela foto, nome e data de entrada.',
+                widget.publicSearch
+                    ? 'Digite ao menos 2 caracteres. Apenas perfis disponíveis aparecem.'
+                    : 'Selecione a pessoa pela foto, nome e data de entrada.',
                 style: TextStyle(
                   fontSize: 12,
                   color: context.pbhColors.textSecondary,
@@ -183,10 +192,10 @@ class _AdminMemberPickerState extends State<AdminMemberPicker> {
                               : const SizedBox(height: 16);
                         final member = _members[index],
                             id = member['user_id'] as String;
-                        final date = DateTime.tryParse(
+                        final photo = member['avatar_url'] as String?;
+                        final joined = DateTime.tryParse(
                           member['joined_at'] as String? ?? '',
                         )?.toLocal();
-                        final photo = member['avatar_url'] as String?;
                         return ListTile(
                           leading: ClipOval(
                             child: SizedBox.square(
@@ -210,9 +219,30 @@ class _AdminMemberPickerState extends State<AdminMemberPicker> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          subtitle: Text(
-                            '${member['handle'] == null ? '' : '@${member['handle']}\n'}ID: ${id.substring(id.length > 8 ? id.length - 8 : 0)}${date == null ? '' : ' · Desde ${date.day}/${date.month}/${date.year}'}',
-                          ),
+                          subtitle: widget.publicSearch
+                              ? Text(
+                                  member['handle'] == null
+                                      ? 'Membro do PBH'
+                                      : '@' + (member['handle'] as String),
+                                )
+                              : Text(
+                                  'ID: ' +
+                                      id.substring(
+                                        id.length > 8 ? id.length - 8 : 0,
+                                      ) +
+                                      (member['handle'] == null
+                                          ? ''
+                                          : ' · @' +
+                                                (member['handle'] as String)) +
+                                      (joined == null
+                                          ? ''
+                                          : '\nDesde ' +
+                                                joined.day.toString() +
+                                                '/' +
+                                                joined.month.toString() +
+                                                '/' +
+                                                joined.year.toString()),
+                                ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => Navigator.pop(context, member),
                         );

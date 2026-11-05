@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../widgets/admin_member_picker.dart';
+import 'public_member_profile_screen.dart';
 
 import 'package:flutter/material.dart';
 
@@ -61,6 +63,27 @@ class _CommunityScreenState extends State<CommunityScreen> {
   int _requestVersion = 0;
   String? _error;
   String? _loadMoreError;
+
+  Future<void> _findMembers() async {
+    if (!widget.isAuthenticated) {
+      widget.onRequireLogin();
+      return;
+    }
+    final viewer = _service.currentUserId;
+    final member = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const AdminMemberPicker(publicSearch: true),
+    );
+    if (!mounted || member == null || viewer != _service.currentUserId) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            PublicMemberProfileScreen(userId: member['user_id'] as String),
+      ),
+    );
+  }
 
   String? get _selectedTopic =>
       _topicIndex == 0 ? null : communityTopics.keys.elementAt(_topicIndex - 1);
@@ -297,6 +320,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         ),
                         if (widget.isAuthenticated)
                           CommunityActivityButton(service: _service),
+                        IconButton(
+                          tooltip: 'Buscar membros',
+                          onPressed: _findMembers,
+                          icon: const Icon(Icons.person_search_outlined),
+                        ),
                         IconButton(
                           tooltip: 'Sobre a comunidade',
                           icon: Icon(

@@ -5,11 +5,21 @@ class AuthService {
   AuthService({SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
 
-  static const adminEmail = 'amaralaragao31@gmail.com';
-
+  // app_metadata is controlled by Auth's server, never by profile edits.
   static bool isProjectLeader(User? user) =>
       user?.emailConfirmedAt != null &&
-      user?.email?.trim().toLowerCase() == adminEmail;
+      user?.appMetadata['pbh_project_leader'] == true;
+
+  static Future<void> refreshLegacyIdentity(SupabaseClient client) async {
+    final user = client.auth.currentUser;
+    if (user == null || user.appMetadata.containsKey('pbh_project_leader'))
+      return;
+    // Existing sessions predate the server claim. Refresh before applying
+    // founder appearance; do not discard a valid session on network failure.
+    try {
+      await client.auth.refreshSession().timeout(const Duration(seconds: 10));
+    } catch (_) {}
+  }
 
   final SupabaseClient _client;
   // Native apps have no HTTP origin; let Supabase use its configured Site URL.
@@ -70,5 +80,10 @@ class AuthService {
   Future<void> signOut() async {
     await MobilePushService.unregister();
     await _client.auth.signOut();
+  }
+
+  Future<void> signOutOtherDevices() async {
+    if (currentUser == null) throw StateError('Entre na sua conta.');
+    await _client.auth.signOut(scope: SignOutScope.others);
   }
 }

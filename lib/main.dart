@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
+import 'core/config/app_localization.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/launch_screen.dart';
 import 'screens/app_startup_screen.dart';
 import 'services/appearance_service.dart';
+import 'services/auth_service.dart';
+import 'services/protected_session_storage.dart';
 import 'services/mobile_push_service.dart';
 import 'widgets/mobile_app_viewport.dart';
 
@@ -19,7 +22,11 @@ Future<void> initializeApp() async {
       await Supabase.initialize(
         url: SupabaseConfig.url,
         publishableKey: SupabaseConfig.publishableKey,
+        authOptions: FlutterAuthClientOptions(
+          localStorage: protectedSessionStorage(SupabaseConfig.url),
+        ),
       );
+      await AuthService.refreshLegacyIdentity(Supabase.instance.client);
       await AppearanceService.instance.bind(Supabase.instance.client);
       await MobilePushService.bind(Supabase.instance.client);
     } catch (_) {
@@ -43,10 +50,14 @@ class PbhOficialApp extends StatelessWidget {
       listenable: AppearanceService.instance,
       builder: (context, _) => MaterialApp(
         title: 'PBH Oficial',
+        locale: AppLocalization.locale,
+        supportedLocales: AppLocalization.supportedLocales,
+        localizationsDelegates: AppLocalization.delegates,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.forPalette(AppearanceService.instance.palette),
         builder: (context, child) => MobileAppViewport(
           reduceEffects: AppearanceService.instance.reducedEffects,
+          highContrast: AppearanceService.instance.highContrast,
           child: child ?? const SizedBox.shrink(),
         ),
         home: const AppStartupScreen(

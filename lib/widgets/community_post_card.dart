@@ -1,8 +1,12 @@
+import 'community_mention_suggestions.dart';
+import 'community_mention_text.dart';
+import '../screens/community_post_editor.dart';
 import 'comment_like_icon.dart';
 import 'package:http/http.dart' as http;
 import '../screens/profile_image_cropper.dart';
 import 'member_display_name.dart';
 import 'dart:async';
+import '../services/comment_draft_store.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -49,6 +53,21 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     with SingleTickerProviderStateMixin {
   final _service = CommunityService();
   final _commentController = TextEditingController();
+  final _commentDrafts = CommentDraftStore();
+  String? _commentDraftAccount;
+  Timer? _commentSaveTimer;
+  Future<void> _commentWrites = Future.value();
+  Future<void> _saveCommentDraft() async {
+    final user = _commentDraftAccount,
+        text = _commentController.text,
+        post = widget.post.id;
+    if (user == null) return;
+    _commentWrites = _commentWrites
+        .then((_) => _commentDrafts.save(user, post, text))
+        .catchError((Object _) {});
+    await _commentWrites;
+  }
+
   final _commentFocus = FocusNode();
   CommunityComment? _replyTarget;
   final _commentEditDrafts = <String, String>{};
@@ -59,7 +78,6 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   bool _following = false;
   bool _showBurst = false;
   bool _busy = false;
-  String? _postEditDraft;
   DateTime _now = DateTime.now();
   bool _listeningToClock = false;
   late final AnimationController _likeController;
@@ -69,6 +87,13 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   @override
   void initState() {
     super.initState();
+    _commentController.addListener(() {
+      _commentSaveTimer?.cancel();
+      _commentSaveTimer = Timer(
+        const Duration(milliseconds: 350),
+        () => _saveCommentDraft(),
+      );
+    });
     _liked = widget.post.likedByMe;
     _likeCount = widget.post.likes;
     _commentCount = widget.post.comments;
@@ -171,6 +196,8 @@ class _CommunityPostCardState extends State<CommunityPostCard>
 
   @override
   void dispose() {
+    _commentSaveTimer?.cancel();
+    unawaited(_saveCommentDraft());
     if (_listeningToClock) MinuteClock.shared.removeListener(_updateTime);
     _likeController.dispose();
     _commentController.dispose();
@@ -234,6 +261,30 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   String _commentSort = 'recent';
 
   Future<void> _showComments() async {
+    _commentDraftAccount = _service.currentUserId;
+    if (_commentDraftAccount != null) {
+      try {
+        final restored = await _commentDrafts.load(
+          _commentDraftAccount!,
+          widget.post.id,
+        );
+        if (!mounted) return;
+        _commentController.text = restored ?? '';
+        _replyTarget = null;
+        if (restored != null && restored.isNotEmpty)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Rascunho recuperado. Para responder a alguém, selecione Responder novamente.',
+              ),
+            ),
+          );
+      } catch (_) {}
+    } else {
+      _commentController.clear();
+      _replyTarget = null;
+    }
+    if (!mounted) return;
     final comments = <CommunityComment>[];
     var isLoading = true;
     var loadStarted = false;
@@ -255,7 +306,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         ),
         child: DraggableScrollableSheet(
           expand: false,
-          initialChildSize: .72,
+          initialChildSize: MediaQuery.viewInsetsOf(context).bottom > 0
+              ? .95
+              : .72,
           minChildSize: .4,
           maxChildSize: .95,
           builder: (_, scrollController) => StatefulBuilder(
@@ -626,7 +679,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                                                   ],
                                                 ),
                                                 const SizedBox(height: 4),
-                                                Text(
+                                                CommunityMentionText(
                                                   comment.content,
                                                   style: AppTextStyles.bodySmall
                                                       .copyWith(
@@ -825,7 +878,12 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                                                     ? 'Descurtir comentário'
                                                     : 'Curtir comentário',
                                                 visualDensity:
-                                                    VisualDensity.compact,
+                                                    VisualDensity.standard,
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 48,
+                                                      minHeight: 48,
+                                                    ),
                                                 onPressed:
                                                     liking.contains(comment.id)
                                                     ? null
@@ -896,6 +954,14 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                               ),
                       ),
                       const SizedBox(height: 12),
+                      if (widget.isAuthenticated)
+                        CommunityMentionSuggestions(
+                          controller: _commentController,
+                          focusNode: _commentFocus,
+                          service: _service,
+                          maxLength: 1000,
+                          maxHeight: 96,
+                        ),
                       if (widget.isAuthenticated && _replyTarget != null)
                         Row(
                           children: [
@@ -983,6 +1049,8 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         ),
       ),
     );
+    _commentSaveTimer?.cancel();
+    await _saveCommentDraft();
   }
 
   Future<List<CommunityComment>> _loadComments() async {
@@ -1004,6 +1072,10 @@ class _CommunityPostCardState extends State<CommunityPostCard>
   ) async {
     final content = _commentController.text.trim();
     if (content.isEmpty || _busy) return;
+    if (_service.currentUserId != _commentDraftAccount) {
+      widget.onRequireLogin();
+      return;
+    }
     setState(() => _busy = true);
     try {
       await _service.addComment(
@@ -1013,6 +1085,8 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         replyToId: _replyTarget?.id,
       );
       _commentController.clear();
+      _commentSaveTimer?.cancel();
+      await _saveCommentDraft();
       _replyTarget = null;
       final visibleLimit = comments.length < 30 ? 30 : comments.length + 1;
       final refreshed = await _service.fetchComments(
@@ -1044,6 +1118,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       context: context,
       builder: (_) => TextEntryDialog(
         title: 'Editar comentário',
+        mentionService: _service,
         initialText: _commentEditDrafts[comment.id] ?? comment.content,
         maxLength: 1000,
       ),
@@ -1292,21 +1367,17 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       if (action == 'framing') {
         await _editFraming();
       } else if (action == 'edit') {
-        final text = await showDialog<String>(
-          context: context,
-          builder: (_) => TextEntryDialog(
-            title: 'Editar publicação',
-            initialText: _postEditDraft ?? widget.post.content,
-            maxLength: 2000,
-            description: 'Os anexos permanecem na publicação.',
+        final saved = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                CommunityPostEditor(post: widget.post, service: _service),
           ),
         );
-        if (text == null || !mounted) return;
-        _postEditDraft = text;
-        await _service.editPost(widget.post, text);
-        _postEditDraft = null;
-        await widget.onChanged();
-        if (mounted) _showMessage('Publicação atualizada.');
+        if (saved == true) {
+          await widget.onChanged();
+          if (mounted) _showMessage('Publicação atualizada.');
+        }
       } else if (action == 'pin') {
         await _service.pinPost(widget.post.id, widget.post.pinnedAt == null);
         await widget.onChanged();
@@ -1625,7 +1696,7 @@ class _CommunityPostCardState extends State<CommunityPostCard>
               ),
             ),
           const SizedBox(height: 12),
-          Text(
+          CommunityMentionText(
             post.content,
             style: AppTextStyles.body.copyWith(
               color: context.pbhColors.textPrimary,

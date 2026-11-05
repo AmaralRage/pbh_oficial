@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pbh_oficial/models/challenge_model.dart';
 import 'package:pbh_oficial/models/challenge_journey.dart';
 import 'package:pbh_oficial/models/profile_achievement.dart';
-import 'package:pbh_oficial/services/auth_service.dart';
 import 'package:pbh_oficial/services/challenge_service.dart';
 
 SupabaseClient createClient(
@@ -30,7 +29,9 @@ SupabaseClient createClient(
           'id': 'test-user',
           'email': email,
           'aud': 'authenticated',
-          'app_metadata': {},
+          'app_metadata': {
+            'pbh_project_leader': email == 'leader@example.invalid',
+          },
           'user_metadata': {},
           if (confirmed) 'email_confirmed_at': '2026-10-21T00:00:00Z',
           'created_at': '2026-10-21T00:00:00Z',
@@ -80,13 +81,13 @@ void main() {
       ];
       for (final confirmed in [true, false]) {
         final client = createClient(
-          AuthService.adminEmail,
+          'leader@example.invalid',
           confirmed: confirmed,
           catalog: catalog,
         );
         addTearDown(client.dispose);
         await client.auth.signInWithPassword(
-          email: AuthService.adminEmail,
+          email: 'leader@example.invalid',
           password: 'test',
         );
         final challenges = await ChallengeService(
@@ -118,10 +119,10 @@ void main() {
   test(
     'leader receives every challenge trophy at full progress before platinum',
     () async {
-      final client = createClient(AuthService.adminEmail);
+      final client = createClient('leader@example.invalid');
       addTearDown(client.dispose);
       await client.auth.signInWithPassword(
-        email: AuthService.adminEmail,
+        email: 'leader@example.invalid',
         password: 'test',
       );
       final challenges = await ChallengeService(

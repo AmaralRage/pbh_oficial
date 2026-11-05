@@ -72,6 +72,37 @@ class CommunityService {
   String? get _userId => _client.auth.currentUser?.id;
   String? get currentUserId => _userId;
   bool get canPin => AuthService.isProjectLeader(_client.auth.currentUser);
+  Future<List<Map<String, dynamic>>> mentionCandidates(String query) async {
+    final user = _userId;
+    if (user == null || query.length < 2) return [];
+    final rows =
+        await _client.rpc(
+              'search_community_members',
+              params: {'p_query': '@$query', 'p_offset': 0},
+            )
+            as List;
+    if (_userId != user) throw StateError('A conta mudou.');
+    return rows
+        .map((r) => Map<String, dynamic>.from(r as Map))
+        .where((r) => r['handle'] is String)
+        .take(5)
+        .toList();
+  }
+
+  Future<String?> resolveMention(String handle) async {
+    final user = _userId;
+    final rows =
+        await _client.rpc(
+              'resolve_community_handles',
+              params: {
+                'p_handles': [handle],
+              },
+            )
+            as List;
+    if (_userId != user) throw StateError('A conta mudou.');
+    return rows.isEmpty ? null : (rows.first as Map)['user_id'] as String?;
+  }
+
   Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
   String get currentUserName {
     final name =
@@ -353,6 +384,70 @@ class CommunityService {
         .toList();
   }
 
+  Future<void> editPublication(
+    CommunityPostModel post,
+    String content,
+    List<String?> retainedPaths,
+    List<CommunityPhoto?> photos,
+    List<dynamic> framings, {
+    void Function(int completed, int total)? onUploadProgress,
+  }) async {
+    final user = _userId;
+    if (user == null || user != post.userId)
+      throw StateError('Entre na conta do autor.');
+    if (retainedPaths.length > 4 ||
+        photos.length != retainedPaths.length ||
+        framings.length != retainedPaths.length)
+      throw ArgumentError('Anexos inválidos.');
+    final revision = newPostId().replaceAll('-', '');
+    final paths = <String>[
+      for (var i = 0; i < retainedPaths.length; i++)
+        retainedPaths[i] ??
+            '$user/${post.id}/${i}_$revision.${photos[i]!.extension}',
+    ];
+    final uploads = [
+      for (var i = 0; i < photos.length; i++)
+        if (photos[i] != null) paths[i],
+    ];
+    if (uploads.isNotEmpty) {
+      var completed = 0;
+      onUploadProgress?.call(0, uploads.length);
+      await _client.rpc(
+        'prepare_community_post_edit',
+        params: {'p_id': post.id, 'p_paths': uploads},
+      );
+      for (var i = 0; i < photos.length; i++) {
+        if (_userId != user) throw StateError('A conta mudou.');
+        final photo = photos[i];
+        if (photo != null) {
+          await _client.storage
+              .from('community-photos')
+              .uploadBinary(
+                paths[i],
+                photo.bytes,
+                fileOptions: FileOptions(contentType: photo.mime),
+              );
+          onUploadProgress?.call(++completed, uploads.length);
+        }
+      }
+    }
+    if (_userId != user) throw StateError('A conta mudou.');
+    await _client.rpc(
+      'edit_community_publication',
+      params: {
+        'p_id': post.id,
+        'p_expected': {
+          'content': post.content,
+          'paths': post.imagePaths,
+          'framings': post.imageFramings,
+        },
+        'p_content': content.trim(),
+        'p_paths': paths,
+        'p_framings': framings,
+      },
+    );
+  }
+
   Future<void> editImageFraming(
     CommunityPostModel post,
     List<dynamic> framings,
@@ -384,6 +479,7 @@ class CommunityService {
     String? topic,
     List<CommunityPhoto> photos = const [],
     String? draftId,
+    void Function(int completed, int total)? onUploadProgress,
   }) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para publicar.');
@@ -405,6 +501,7 @@ class CommunityService {
           .maybeSingle();
       if (existing != null) return;
       if (photos.isNotEmpty) {
+        onUploadProgress?.call(0, photos.length);
         await _client.rpc(
           'prepare_community_photos',
           params: {'p_id': id, 'p_paths': paths},
@@ -422,6 +519,7 @@ class CommunityService {
                 photos[i].bytes,
                 fileOptions: FileOptions(contentType: photos[i].mime),
               );
+          onUploadProgress?.call(i + 1, photos.length);
         }
       }
       if (_userId != userId)
@@ -623,17 +721,69 @@ class CommunityService {
 
   Future<void> pinPost(String postId, bool pin) async =>
       _client.rpc('pin_community_post', params: {'p_id': postId, 'p_pin': pin});
+  Future<Map<String, dynamic>> activityPreferences() async =>
+      Map<String, dynamic>.from(
+        await _client.rpc('get_community_activity_preferences') as Map,
+      );
+  Future<void> saveActivityOptions(
+    bool replies,
+    bool comments,
+    bool likes,
+    bool mentions,
+  ) async {
+    await _client.rpc(
+      'set_community_activity_options',
+      params: {
+        'p_replies': replies,
+        'p_comments': comments,
+        'p_likes': likes,
+        'p_mentions': mentions,
+      },
+    );
+  }
+
+  Future<void> saveActivityPreferences(
+    bool replies,
+    bool comments,
+    bool likes,
+  ) async {
+    await _client.rpc(
+      'set_community_activity_preferences',
+      params: {'p_replies': replies, 'p_comments': comments, 'p_likes': likes},
+    );
+  }
+
   Future<List<Map<String, dynamic>>> replyActivity() async {
+    return activityPage();
+  }
+
+  Future<List<Map<String, dynamic>>> activityPage({int offset = 0}) async {
     final user = _userId;
     if (user == null) return [];
-    final rows = await _client
-        .from('community_reply_notifications')
-        .select()
-        .eq('recipient_id', user)
-        .order('created_at', ascending: false)
-        .limit(50);
+    final rows =
+        await _client.rpc(
+              'community_activity_page',
+              params: {'p_offset': offset},
+            )
+            as List;
     if (_userId != user) throw StateError('A conta mudou.');
-    return rows;
+    return rows.map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
+
+  Future<int> activityUnreadCount() async {
+    final user = _userId;
+    if (user == null) return 0;
+    final count = await _client.rpc('community_activity_unread_count') as num;
+    if (_userId != user) throw StateError('A conta mudou.');
+    return count.toInt();
+  }
+
+  Future<void> markActivityRead(DateTime through) async {
+    if (_userId == null) throw StateError('Entre na sua conta.');
+    await _client.rpc(
+      'mark_community_activity_read',
+      params: {'p_through': through.toUtc().toIso8601String()},
+    );
   }
 
   Future<void> readReply(String id) async {

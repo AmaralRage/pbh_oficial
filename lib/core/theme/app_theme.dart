@@ -31,6 +31,27 @@ class AppTheme {
         outline: palette.textTertiary,
         outlineVariant: palette.border,
       ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: palette.orange.withValues(alpha: .4)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: .2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        textStyle: AppTextStyles.bodySmall.copyWith(
+          color: palette.orange,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        waitDuration: const Duration(milliseconds: 300),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: palette.surfaceElevated,

@@ -93,6 +93,37 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               const SizedBox(height: 20),
               SwitchListTile.adaptive(
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                title: const Text('Mais contraste nos cards'),
+                subtitle: const Padding(
+                  padding: EdgeInsets.only(top: 7),
+                  child: Text(
+                    'Reforça o fundo dos cards transparentes para facilitar a leitura sobre imagens claras. Salvo neste aparelho.',
+                    style: TextStyle(height: 1.5),
+                  ),
+                ),
+                value: AppearanceService.instance.highContrast,
+                onChanged: _effectsSaving
+                    ? null
+                    : (value) async {
+                        setState(() => _effectsSaving = true);
+                        try {
+                          await AppearanceService.instance.setHighContrast(
+                            value,
+                          );
+                        } catch (_) {
+                          if (mounted)
+                            setState(
+                              () => _error =
+                                  'Não foi possível salvar o contraste.',
+                            );
+                        } finally {
+                          if (mounted) setState(() => _effectsSaving = false);
+                        }
+                      },
+              ),
+              const SizedBox(height: 20),
+              SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
                 title: const Text('Aplicar no app inteiro'),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 7),

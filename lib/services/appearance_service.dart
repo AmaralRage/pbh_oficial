@@ -21,6 +21,14 @@ class AppearanceService extends ChangeNotifier {
   PbhPalette get palette => _fullApp ? _palette : PbhPalette.catalog.first;
   bool _reducedEffects = false;
   bool get reducedEffects => _reducedEffects;
+  bool _highContrast = false;
+  bool get highContrast => _highContrast;
+  Future<void> setHighContrast(bool value) async {
+    await storage.setBool('pbh.appearance.high_contrast', value);
+    _highContrast = value;
+    notifyListeners();
+  }
+
   Future<void> setReducedEffects(bool value) async {
     await storage.setBool('pbh.appearance.reduced_effects', value);
     _reducedEffects = value;
@@ -54,6 +62,8 @@ class AppearanceService extends ChangeNotifier {
       cachedScope = await storage.getBool('pbh.appearance.full_app.$account');
       _reducedEffects =
           await storage.getBool('pbh.appearance.reduced_effects') ?? false;
+      _highContrast =
+          await storage.getBool('pbh.appearance.high_contrast') ?? false;
     } catch (_) {}
     if (version != _generation) return;
     final remote = user?.userMetadata?['app_theme'];

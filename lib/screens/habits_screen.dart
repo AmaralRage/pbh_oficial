@@ -11,6 +11,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../models/habit_model.dart';
 import '../services/habit_service.dart';
+import '../services/auth_service.dart';
 import '../services/habit_reminder_service.dart';
 import '../services/notification_push_service.dart';
 import '../services/routine_local_notification_scheduler.dart';
@@ -376,8 +377,7 @@ class _HabitsScreenState extends State<HabitsScreen>
       if (!mounted || version != _loadVersion) return;
       final completed = values[0] as Set<String>;
       final currentUser = Supabase.instance.client.auth.currentUser;
-      final isProjectLeader =
-          currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com';
+      final isProjectLeader = AuthService.isProjectLeader(currentUser);
       final today = DateTime.now();
       final projectDays =
           DateTime.utc(
@@ -1121,12 +1121,13 @@ class _RoutineResult extends StatelessWidget {
       children: [
         Icon(icon, color: context.pbhColors.orange),
         const SizedBox(height: 8),
-        Text(
-          value,
-          style: AppTextStyles.statNumber.copyWith(fontSize: 24),
-        ),
+        Text(value, style: AppTextStyles.statNumber.copyWith(fontSize: 24)),
         const SizedBox(height: 2),
-        Text(label, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall,
+          textAlign: TextAlign.center,
+        ),
       ],
     ),
   );

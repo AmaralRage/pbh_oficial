@@ -12,10 +12,12 @@ class ProfileThemeScope extends StatelessWidget {
     required this.builder,
     this.themeId,
     this.founder = false,
+    this.paintBackground = true,
   });
   final WidgetBuilder builder;
   final String? themeId;
   final bool founder;
+  final bool paintBackground;
   @override
   Widget build(BuildContext context) {
     final user = themeId == null
@@ -43,10 +45,12 @@ class ProfileThemeScope extends StatelessWidget {
     return Theme(
       data: AppTheme.forPalette(palette),
       child: Builder(
-        builder: (context) => ColoredBox(
-          color: context.pbhColors.background,
-          child: builder(context),
-        ),
+        builder: (context) => !paintBackground
+            ? builder(context)
+            : ColoredBox(
+                color: context.pbhColors.background,
+                child: builder(context),
+              ),
       ),
     );
   }

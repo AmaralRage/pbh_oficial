@@ -24,6 +24,7 @@ void main() {
                 {
                   'user_id': 'ad300000-0000-4000-8000-000000000001',
                   'name': 'Arthur Morgan',
+                  'handle': 'arthur_morgan',
                   'avatar_url': null,
                   'joined_at': '2026-01-01T12:00:00Z',
                 },
@@ -80,4 +81,32 @@ void main() {
     expect(selected?.containsKey('email'), isFalse);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    'public search uses handles and hides administrative identifiers',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AdminMemberPicker(client: client, publicSearch: true),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '@arthur_morgan');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Buscar membros'), findsOneWidget);
+      expect(find.text('@arthur_morgan'), findsWidgets);
+      expect(find.textContaining('ID:'), findsNothing);
+      expect(find.textContaining('Desde '), findsNothing);
+      expect(queries.last, '@arthur_morgan');
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

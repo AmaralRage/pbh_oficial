@@ -7,6 +7,7 @@ import '../core/theme/app_text_styles.dart';
 import '../models/challenge_model.dart';
 import '../services/challenge_service.dart';
 import '../services/habit_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/animated_entry.dart';
 import '../widgets/featured_challenge_card.dart';
 import '../widgets/program_recommendations.dart';
@@ -180,8 +181,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     };
     final elapsedWeekDays = <int>{for (var i = 0; i < today.weekday; i++) i};
     final currentUser = Supabase.instance.client.auth.currentUser;
-    final isProjectLeader =
-        currentUser?.email?.toLowerCase() == 'amaralaragao31@gmail.com';
+    final isProjectLeader = AuthService.isProjectLeader(currentUser);
     final metadata = currentUser?.userMetadata ?? const <String, dynamic>{};
     final displayName = (metadata['display_name'] as String?)?.trim();
     final greetingName = isProjectLeader

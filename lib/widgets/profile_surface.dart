@@ -40,17 +40,18 @@ class ProfileSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final glass = ProfileSurfaceScope.enabledOf(context);
+    final opacity = MediaQuery.highContrastOf(context) ? .96 : .52;
     final gradient = decoration.gradient;
     final fill = glass
         ? decoration.copyWith(
-            color: decoration.color?.withValues(alpha: .52),
+            color: decoration.color?.withValues(alpha: opacity),
             gradient: gradient is LinearGradient
                 ? LinearGradient(
                     begin: gradient.begin,
                     end: gradient.end,
                     stops: gradient.stops,
                     colors: gradient.colors
-                        .map((c) => c.withValues(alpha: .52))
+                        .map((c) => c.withValues(alpha: opacity))
                         .toList(),
                   )
                 : gradient,

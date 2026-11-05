@@ -1,5 +1,6 @@
 import '../widgets/profile_achievement_picker.dart';
 import '../widgets/profile_title_picker.dart';
+import '../widgets/stat_card.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ class _ProfileCustomizationScreenState
   final _name = TextEditingController();
   final _bio = TextEditingController();
   late ProfileStyle _style;
+  late String _savedName, _savedBio;
   ProfileStyle? _savedStyle;
   ProfileUnlocks? _unlocks;
   String? _avatar;
@@ -63,6 +65,8 @@ class _ProfileCustomizationScreenState
     _founder = AuthService.isProjectLeader(user);
     _name.text = data['display_name'] as String? ?? (_founder ? 'Amaral' : '');
     _bio.text = data['bio'] as String? ?? '';
+    _savedName = _name.text;
+    _savedBio = _bio.text;
     _avatar = data['avatar_url'] as String?;
     _coverUrl = data['cover_url'] as String?;
     _style = ProfileStyle.fromMetadata(data, founder: _founder);
@@ -244,60 +248,110 @@ class _ProfileCustomizationScreenState
     padding: const EdgeInsets.only(top: 26, bottom: 12),
     child: Text(label, style: AppTextStyles.titleMedium),
   );
-  Widget _profilePreview(ProfileUnlocks progress, {bool editable = true}) =>
-      ProfileThemeScope(
-        themeId: _style.profileTheme,
-        founder: _founder,
-        builder: (context) => ProfileIdentityCard(
-          name: _name.text.trim().isEmpty ? 'Seu nome' : _name.text.trim(),
-          bio: _bio.text.trim(),
-          style: _style,
-          earned: progress.earned,
-          founder: _founder,
-          photo: _photo,
-          avatarUrl: _removePhoto ? null : _avatar,
-          coverPhoto: _coverPhoto,
-          coverUrl: _removeCover ? null : _coverUrl,
-          onEditCover: editable && !_saving && !_picking
-              ? () => _openSection('cover')
-              : null,
-          onEditPhoto: editable && !_saving && !_picking
-              ? () => _openSection('photo')
-              : null,
-        ),
-      );
+  Widget _profilePreview(
+    ProfileUnlocks progress, {
+    bool editable = true,
+    bool saved = false,
+  }) => ProfileThemeScope(
+    themeId: (saved ? _savedStyle ?? _style : _style).profileTheme,
+    paintBackground: false,
+    founder: _founder,
+    builder: (context) => ProfileIdentityCard(
+      name: saved
+          ? _savedName
+          : _name.text.trim().isEmpty
+          ? 'Seu nome'
+          : _name.text.trim(),
+      bio: saved ? _savedBio : _bio.text.trim(),
+      style: saved ? _savedStyle ?? _style : _style,
+      earned: progress.earned,
+      founder: _founder,
+      photo: saved ? null : _photo,
+      avatarUrl: !saved && _removePhoto ? null : _avatar,
+      coverPhoto: saved ? null : _coverPhoto,
+      coverUrl: !saved && _removeCover ? null : _coverUrl,
+      onEditCover: editable && !_saving && !_picking
+          ? () => _openSection('cover')
+          : null,
+      onEditPhoto: editable && !_saving && !_picking
+          ? () => _openSection('photo')
+          : null,
+    ),
+  );
   Future<void> _enlargePreview(ProfileUnlocks progress) => showDialog<void>(
     context: context,
     builder: (ctx) => Dialog.fullscreen(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Prévia do perfil'),
-          leading: IconButton(
-            tooltip: 'Fechar prévia',
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(ctx),
+      child: DefaultTabController(
+        length: 2,
+        initialIndex: 1,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Comparar perfil'),
+            leading: IconButton(
+              tooltip: 'Fechar prévia',
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            bottom: const TabBar(
+              tabs: [
+                Tab(text: 'Atual'),
+                Tab(text: 'Com alterações'),
+              ],
+            ),
           ),
-        ),
-        body: ProfileBackground(
-          style: _style,
-          bytes: _backgroundPhoto,
-          child: Column(
+          body: TabBarView(
             children: [
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text('Use dois dedos ou o gesto de zoom para ampliar.'),
-              ),
-              Expanded(
-                child: InteractiveViewer(
-                  minScale: 1,
-                  maxScale: 2.5,
-                  child: Center(
-                    child: SingleChildScrollView(
-                      child: _profilePreview(progress, editable: false),
+              for (final saved in [true, false])
+                _ProfilePreviewTab(
+                  index: saved ? 0 : 1,
+                  child: ProfileThemeScope(
+                    themeId:
+                        (saved ? _savedStyle ?? _style : _style).profileTheme,
+                    founder: _founder,
+                    builder: (context) => ProfileBackground(
+                      style: saved ? _savedStyle ?? _style : _style,
+                      bytes: saved ? null : _backgroundPhoto,
+                      child: ListView(
+                        padding: const EdgeInsets.all(20),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Text(
+                              saved
+                                  ? 'Esta é a aparência salva do seu perfil.'
+                                  : 'Prévia das alterações. Nada é salvo ao abrir esta tela.',
+                            ),
+                          ),
+                          InteractiveViewer(
+                            minScale: 1,
+                            maxScale: 2.5,
+                            child: _profilePreview(
+                              progress,
+                              editable: false,
+                              saved: saved,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          ProfileStats(
+                            children: [
+                              StatCard(
+                                icon: Icons.flag_outlined,
+                                value: progress.completed.toString(),
+                                label: 'Desafios\nconcluídos',
+                              ),
+                              const SizedBox(width: 12),
+                              StatCard(
+                                icon: Icons.emoji_events_outlined,
+                                value: progress.earned.length.toString(),
+                                label: 'Selos\nconquistados',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -523,7 +577,7 @@ class _ProfileCustomizationScreenState
                           child: OutlinedButton.icon(
                             onPressed: () => _enlargePreview(progress),
                             icon: const Icon(Icons.zoom_in),
-                            label: const Text('Ampliar prévia'),
+                            label: const Text('Comparar prévia'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -966,6 +1020,22 @@ class _ProfileCustomizationScreenState
                 ),
         ),
       ),
+    );
+  }
+}
+
+class _ProfilePreviewTab extends StatelessWidget {
+  const _ProfilePreviewTab({required this.index, required this.child});
+  final int index;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) {
+    final tabs = DefaultTabController.of(context);
+    return AnimatedBuilder(
+      animation: tabs,
+      child: child,
+      builder: (context, child) =>
+          TickerMode(enabled: tabs.index == index, child: child!),
     );
   }
 }

@@ -1,3 +1,4 @@
+import '../widgets/community_mention_suggestions.dart';
 import '../widgets/community_framed_image.dart';
 import 'profile_image_cropper.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import '../models/community_topics.dart';
 import '../services/community_service.dart';
 import '../widgets/profile_cover_media.dart';
 import '../services/community_draft_store.dart';
+import '../services/community_photo_preparation.dart';
 
 class CommunityPostComposer extends StatefulWidget {
   const CommunityPostComposer({
@@ -36,6 +38,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
     text: widget.prompt == null ? '' : '${widget.prompt}\n\n',
   );
   final _tag = TextEditingController();
+  final _mentionFocus = FocusNode();
   final _photos = <CommunityPhoto>[];
   String _draftId = CommunityService.newPostId();
   late final _account = widget.service.currentUserId;
@@ -49,6 +52,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
       ? widget.initialTopic!
       : communityTopics.keys.first;
   bool _busy = false, _picking = false;
+  int _uploaded = 0, _uploadTotal = 0;
   String? _error;
   @override
   void initState() {
@@ -139,6 +143,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
     WidgetsBinding.instance.removeObserver(this);
     _autosave?.cancel();
     _auth?.cancel();
+    _mentionFocus.dispose();
     _text.dispose();
     _tag.dispose();
     super.dispose();
@@ -205,9 +210,9 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
         }
         added = [];
         for (final file in files.take(limit)) {
-          if (await file.length() > CommunityPhoto.maxBytes)
-            throw ArgumentError('Cada foto deve ter até 5 MB.');
-          added.add(CommunityPhoto(await file.readAsBytes()));
+          if (await file.length() > CommunityPhoto.maxVideoBytes)
+            throw ArgumentError('Cada arquivo deve ter até 25 MB.');
+          added.add(await prepareCommunityPhoto(await file.readAsBytes()));
         }
       }
       if (mounted) setState(() => _photos.addAll(added.take(limit)));
@@ -236,6 +241,8 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
       return;
     }
     _finalizing = true;
+    _uploaded = 0;
+    _uploadTotal = _photos.length;
     _autosave?.cancel();
     setState(() {
       _busy = true;
@@ -250,6 +257,13 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
         topic: _topic,
         photos: List.of(_photos),
         draftId: _draftId,
+        onUploadProgress: (done, total) {
+          if (mounted)
+            setState(() {
+              _uploaded = done;
+              _uploadTotal = total;
+            });
+        },
       );
       if (_account != null) {
         try {
@@ -431,6 +445,20 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
                     ),
                   ),
                 ),
+              if (_busy && _uploadTotal > 0) ...[
+                Text(
+                  _uploaded == _uploadTotal
+                      ? 'Finalizando publicação…'
+                      : 'Anexos enviados: $_uploaded de $_uploadTotal',
+                ),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: _uploaded == _uploadTotal
+                      ? null
+                      : _uploaded / _uploadTotal,
+                ),
+                const SizedBox(height: 12),
+              ],
               FilledButton.icon(
                 onPressed: _busy || _picking ? null : _publish,
                 icon: _busy
@@ -468,6 +496,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _text,
+                      focusNode: _mentionFocus,
                       enabled: !_busy,
                       minLines: 4,
                       maxLines: 10,
@@ -484,6 +513,11 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
                           : null,
                     ),
                     const SizedBox(height: 12),
+                    CommunityMentionSuggestions(
+                      controller: _text,
+                      focusNode: _mentionFocus,
+                      service: widget.service,
+                    ),
                     DropdownButtonFormField<String>(
                       initialValue: _topic,
                       isExpanded: true,

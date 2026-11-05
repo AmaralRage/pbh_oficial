@@ -67,7 +67,7 @@ class MemberDisplayName extends StatelessWidget {
         const SizedBox(width: 6),
         Tooltip(
           message: founder
-              ? 'Líder e fundador do Projeto Bom Homem'
+              ? 'Líder e fundador do PROJETO BOM HOMEM'
               : 'Membro da comunidade PBH',
           child: Container(
             padding: EdgeInsets.symmetric(

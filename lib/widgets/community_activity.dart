@@ -1,3 +1,4 @@
+import 'community_activity_sheet.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/community_service.dart';
@@ -17,7 +18,9 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
   Timer? _timer;
   StreamSubscription? _auth;
   String? _account;
-  bool _failed = false, _loading = false;
+  bool _failed = false;
+  int _unreadCount = 0;
+  Future<void>? _pending;
   @override
   void initState() {
     super.initState();
@@ -26,7 +29,11 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
     _auth = widget.service.authChanges.listen((_) {
       if (_account == widget.service.currentUserId) return;
       _account = widget.service.currentUserId;
-      if (mounted) setState(() => _items = []);
+      if (mounted)
+        setState(() {
+          _items = [];
+          _unreadCount = 0;
+        });
       _load();
     });
     _load();
@@ -36,12 +43,22 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
     });
   }
 
-  Future<void> _load() async {
-    if (_loading) return;
-    _loading = true;
+  Future<void> _load() {
+    if (_pending != null) return _pending!;
+    final account = widget.service.currentUserId;
+    return _pending = _fetch().whenComplete(() {
+      _pending = null;
+      if (mounted && account != widget.service.currentUserId) {
+        unawaited(_load());
+      }
+    });
+  }
+
+  Future<void> _fetch() async {
     final account = widget.service.currentUserId;
     try {
       final items = await widget.service.replyActivity();
+      final unread = await widget.service.activityUnreadCount();
       if (mounted && account == widget.service.currentUserId)
         setState(() {
           final ids = <String>{};
@@ -49,13 +66,11 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
               .where((item) => ids.add(item['id'] as String))
               .toList();
           _failed = false;
+          _unreadCount = unread;
         });
     } catch (_) {
       if (mounted && account == widget.service.currentUserId)
         setState(() => _failed = true);
-    } finally {
-      _loading = false;
-      if (mounted && account != widget.service.currentUserId) _load();
     }
   }
 
@@ -76,87 +91,37 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
     final account = widget.service.currentUserId;
     await _load();
     if (!mounted || account != widget.service.currentUserId) return;
-    final items = List<Map<String, dynamic>>.of(_items);
-    final id = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * .6,
-          child: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'Respostas aos seus comentários',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (_failed)
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Não foi possível carregar. Feche e tente novamente.',
-                  ),
-                ),
-              if (!_failed && _items.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text(
-                    'As respostas aos seus comentários aparecerão aqui.',
-                  ),
-                ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final item in items)
-                      ListTile(
-                        tileColor: item['read_at'] == null
-                            ? Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: .08)
-                            : null,
-                        leading: Icon(
-                          item['read_at'] == null
-                              ? Icons.mark_chat_unread_outlined
-                              : Icons.chat_bubble_outline,
-                        ),
-                        title: Text(
-                          'Responderam ao seu comentário',
-                          style: TextStyle(
-                            fontWeight: item['read_at'] == null
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                        subtitle: Text(
-                          (DateTime.tryParse(
-                                    item['created_at'] as String,
-                                  )?.toLocal().toString() ??
-                                  '')
-                              .split('.')
-                              .first,
-                        ),
-                        onTap: () =>
-                            Navigator.pop(context, item['id'] as String),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+    if (_failed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível carregar a atividade. Tente novamente.',
           ),
         ),
+      );
+      return;
+    }
+    final item = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => CommunityActivitySheet(
+        service: widget.service,
+        initialItems: _items,
+        unreadCount: _unreadCount,
+        onPreferences: _preferences,
       ),
     );
-    if (id == null || !mounted || account != widget.service.currentUserId)
+    if (!mounted || account != widget.service.currentUserId) return;
+    if (item == null) {
+      await _load();
       return;
+    }
     try {
       final viewer = widget.service.currentUserId;
-      final item = items.firstWhere((n) => n['id'] == id);
       final post = await widget.service.postById(item['post_id'] as String);
       if (post == null) throw StateError('Publicação indisponível.');
       if (!mounted || viewer != widget.service.currentUserId) return;
-      await widget.service.readReply(id);
+      await widget.service.readReply(item['id'] as String);
       if (!mounted || viewer != widget.service.currentUserId) return;
       var displayed = post;
       await Navigator.push(
@@ -164,7 +129,7 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
         MaterialPageRoute<void>(
           builder: (_) => StatefulBuilder(
             builder: (detailContext, refresh) => Scaffold(
-              appBar: AppBar(title: const Text('Resposta da comunidade')),
+              appBar: AppBar(title: const Text('Atividade da comunidade')),
               body: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: CommunityPostCard(
@@ -181,7 +146,7 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
                     }
                     refresh(() => displayed = updated);
                   },
-                  openCommentsInitially: true,
+                  openCommentsInitially: item['kind'] != 'post_like',
                   focusCommentId: item['comment_id'] as String?,
                 ),
               ),
@@ -202,13 +167,118 @@ class _CommunityActivityButtonState extends State<CommunityActivityButton>
     }
   }
 
+  Future<void> _preferences() async {
+    final viewer = widget.service.currentUserId;
+    try {
+      final preferences = await widget.service.activityPreferences();
+      if (!mounted || viewer != widget.service.currentUserId) return;
+      var replies = preferences['replies'] != false,
+          comments = preferences['post_comments'] != false,
+          likes = preferences['post_likes'] != false,
+          mentions = preferences['mentions'] != false;
+      var saving = false;
+      String? error;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, refresh) => AlertDialog(
+            title: const Text('Avisos da comunidade'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Escolha quais novas atividades aparecem nesta central. Isso não altera os avisos já recebidos.',
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Respostas aos comentários'),
+                    value: replies,
+                    onChanged: saving
+                        ? null
+                        : (v) => refresh(() => replies = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Comentários nas publicações'),
+                    value: comments,
+                    onChanged: saving
+                        ? null
+                        : (v) => refresh(() => comments = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Curtidas nas publicações'),
+                    value: likes,
+                    onChanged: saving ? null : (v) => refresh(() => likes = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Menções ao seu @usuário'),
+                    value: mentions,
+                    onChanged: saving
+                        ? null
+                        : (v) => refresh(() => mentions = v),
+                  ),
+                  if (error != null) Text(error!),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        refresh(() {
+                          saving = true;
+                          error = null;
+                        });
+                        try {
+                          if (viewer != widget.service.currentUserId)
+                            throw StateError('A conta mudou.');
+                          await widget.service.saveActivityOptions(
+                            replies,
+                            comments,
+                            likes,
+                            mentions,
+                          );
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (_) {
+                          if (context.mounted)
+                            refresh(() {
+                              saving = false;
+                              error =
+                                  'Não foi possível salvar. Tente novamente.';
+                            });
+                        }
+                      },
+                child: Text(saving ? 'Salvando…' : 'Salvar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível carregar as preferências.'),
+          ),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: 'Respostas da comunidade',
+    tooltip: 'Atividade da comunidade',
     onPressed: _open,
     icon: Badge(
-      isLabelVisible: _items.any((n) => n['read_at'] == null),
-      label: Text('${_items.where((n) => n['read_at'] == null).length}'),
+      isLabelVisible: _unreadCount > 0,
+      label: Text(_unreadCount > 99 ? '99+' : '$_unreadCount'),
       child: const Icon(Icons.forum_outlined),
     ),
   );

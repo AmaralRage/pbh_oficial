@@ -13,6 +13,16 @@ class _CommunityHealthScreenState extends State<CommunityHealthScreen> {
   Map<String, dynamic>? _health;
   bool _busy = false;
   String? _error;
+  String _status(Object? value) => switch (value) {
+    'succeeded' => 'Concluída',
+    'failed' => 'Falhou',
+    'running' => 'Em execução',
+    'starting' => 'Iniciando',
+    _ => 'Sem registro',
+  };
+  String _date(DateTime? value) => value == null
+      ? 'ainda não registrada'
+      : '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year} às ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
   @override
   void initState() {
     super.initState();
@@ -123,18 +133,26 @@ class _CommunityHealthScreenState extends State<CommunityHealthScreen> {
                     Text(
                       'Agendamento: ${health['scheduled'] == true ? 'ativo' : 'inativo ou não encontrado'}',
                     ),
-                    Text(
-                      'Última execução: ${lastRun ?? 'ainda não registrada'}',
-                    ),
-                    Text(
-                      'Resultado: ${health['last_status'] ?? 'sem registro'}',
-                    ),
+                    Text('Última execução: ${_date(lastRun)}'),
+                    Text('Resultado: ${_status(health['last_status'])}'),
                     Text(
                       'Publicações vencidas aguardando limpeza: ${health['expired_posts']}',
                     ),
                     Text(
                       'Lotes de anexos pendentes: ${health['pending_media']}',
                     ),
+                    if (health.containsKey('due_media_objects'))
+                      Text(
+                        'Arquivos aguardando remoção: ${health['due_media_objects']}',
+                      ),
+                    if ((health['expired_posts'] as num? ?? 0) > 0 &&
+                        health['last_status'] == 'failed')
+                      const Padding(
+                        padding: EdgeInsets.only(top: 12),
+                        child: Text(
+                          'A última limpeza falhou e há publicações vencidas. Revise o agendamento no Supabase.',
+                        ),
+                      ),
                     const SizedBox(height: 12),
                     const Text(
                       'As publicações dos membros expiram após 7 dias. As do líder são preservadas. Os anexos são removidos pela API de armazenamento, em lotes.',
@@ -150,6 +168,29 @@ class _CommunityHealthScreenState extends State<CommunityHealthScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            if (health['features'] is List) ...[
+              Text(
+                'Recursos do banco',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              for (final feature in health['features'] as List)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    feature['available'] == true
+                        ? Icons.check_circle_outline
+                        : Icons.error_outline,
+                  ),
+                  title: Text(feature['label'] as String),
+                  subtitle: Text(
+                    feature['available'] == true
+                        ? 'Disponível'
+                        : 'Atualização do banco pendente',
+                  ),
+                ),
+              const SizedBox(height: 20),
+            ],
             Text(
               'Restrições ativas',
               style: Theme.of(context).textTheme.titleMedium,
@@ -164,7 +205,7 @@ class _CommunityHealthScreenState extends State<CommunityHealthScreen> {
                 child: ListTile(
                   title: Text(row['name'] as String),
                   subtitle: Text(
-                    'Até ${DateTime.tryParse(row['until_at'] as String)?.toLocal()}',
+                    'Até ${_date(DateTime.tryParse(row['until_at'] as String)?.toLocal())}',
                   ),
                   trailing: TextButton(
                     onPressed: _busy

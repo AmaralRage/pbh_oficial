@@ -38,9 +38,11 @@ void main() {
       final first = AppearanceService();
       await first.bind(null);
       await first.setReducedEffects(true);
+      await first.setHighContrast(true);
       final next = AppearanceService();
       await next.bind(null);
       expect(next.reducedEffects, isTrue);
+      expect(next.highContrast, isTrue);
       first.dispose();
       next.dispose();
     },

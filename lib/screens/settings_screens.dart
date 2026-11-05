@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:share_plus/share_plus.dart';
 import '../services/notification_preferences.dart';
 export '../services/notification_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/auth_service.dart';
+import '../services/private_support_service.dart';
+import 'private_support_screen.dart';
 import '../services/notification_push_service.dart';
 import '../services/mobile_push_service.dart';
 import 'blocked_members_screen.dart';
@@ -249,6 +249,53 @@ class PrivacySettingsScreen extends StatefulWidget {
 }
 
 class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
+  bool _closingSessions = false;
+
+  Future<void> _closeOtherSessions() async {
+    if (_closingSessions) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sair dos outros aparelhos?'),
+        content: const Text(
+          'Você continuará conectado aqui. As outras sessões não poderão ser renovadas, mas um acesso já emitido pode continuar até expirar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Encerrar outras sessões'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _closingSessions = true);
+    try {
+      await AuthService().signOutOtherDevices();
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A renovação das outras sessões foi encerrada.'),
+          ),
+        );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível encerrar as sessões. Tente novamente.',
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _closingSessions = false);
+    }
+  }
+
   bool _publicName = true;
   bool _shareProgress = false;
   bool _loading = true;
@@ -369,7 +416,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Solicitar exclusão da conta?'),
         content: const Text(
-          'O pedido será enviado ao suporte para processamento. Sua conta não será apagada automaticamente por este app.',
+          'O pedido será recebido pela equipe dentro do app para processamento. Sua conta não será apagada automaticamente por este app.',
         ),
         actions: [
           TextButton(
@@ -384,26 +431,24 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    final user = Supabase.instance.client.auth.currentUser;
-    final emailUri = Uri(
-      scheme: 'mailto',
-      path: AuthService.adminEmail,
-      queryParameters: {
-        'subject': 'Solicitação de exclusão de conta PBH Oficial',
-        'body':
-            'Solicito a exclusão da minha conta PBH Oficial.\nE-mail da conta: ${user?.email ?? 'não disponível'}',
-      },
-    );
-    if (await canLaunchUrl(emailUri)) {
-      await launchUrl(emailUri);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Não foi possível abrir seu aplicativo de e-mail. Fale com o suporte pelo canal de ajuda.',
-          ),
-        ),
+    try {
+      await PrivateSupportService().submit(
+        kind: 'account_deletion',
+        message: 'Solicito a exclusão da minha conta PBH Oficial.',
       );
+      if (context.mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitação enviada à equipe do PBH.')),
+        );
+    } catch (_) {
+      if (context.mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível enviar. Tente novamente mais tarde.',
+            ),
+          ),
+        );
     }
   }
 
@@ -509,6 +554,16 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Segurança', style: AppTextStyles.titleMedium),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: _closingSessions ? null : _closeOtherSessions,
+                icon: const Icon(Icons.devices_outlined),
+                label: Text(
+                  _closingSessions
+                      ? 'Encerrando...'
+                      : 'Sair dos outros aparelhos',
+                ),
+              ),
               const SizedBox(height: 6),
               Text(
                 'Redefina sua senha usando o link enviado ao e-mail da conta.',
@@ -545,33 +600,10 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 
-  Future<void> _shareFeedback(BuildContext context) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    final message =
-        'Olá! Preciso de ajuda com o PBH Oficial.\n\n'
-        'E-mail da conta: ${user?.email ?? 'não disponível'}\n'
-        'Descreva aqui o que aconteceu: ';
-    try {
-      final emailUri = Uri(
-        scheme: 'mailto',
-        path: AuthService.adminEmail,
-        queryParameters: {
-          'subject': 'Ajuda com o PBH Oficial',
-          'body': message,
-        },
+  Future<void> _shareFeedback(BuildContext context) =>
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(builder: (_) => const PrivateSupportScreen()),
       );
-      if (await canLaunchUrl(emailUri) && await launchUrl(emailUri)) return;
-      await Share.share(message, subject: 'Ajuda com o PBH Oficial');
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível abrir o menu de compartilhamento.'),
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) => _SettingsPage(
