@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'services/private_support_service.dart';
+import 'services/community_post_navigation.dart';
+import 'screens/community_publication_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_colors.dart';
 import 'screens/challenges_screen.dart';
@@ -43,7 +47,37 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with WidgetsBindingObserver {
+  Timer? _supportTimer;
+  bool _countLoading = false;
+  bool _openingPost = false;
+  void _handlePostLink() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openPendingPost();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _openPendingPost() async {
+    if (_openingPost || !mounted) return;
+    final id = CommunityPostNavigation.pending.value;
+    if (id == null) return;
+    CommunityPostNavigation.pending.value = null;
+    _openingPost = true;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CommunityPublicationScreen(postId: id),
+        ),
+      );
+    } finally {
+      _openingPost = false;
+      if (mounted && CommunityPostNavigation.pending.value != null)
+        _openPendingPost();
+    }
+  }
+
   static const _sectionNames = [
     'Início',
     'Desafios',
@@ -64,6 +98,14 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    CommunityPostNavigation.pending.addListener(_handlePostLink);
+    final link = Uri.base.queryParameters['community_post'];
+    if (link != null && validCommunityPostId(link))
+      CommunityPostNavigation.pending.value = link;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openPendingPost();
+    });
     _currentIndex = widget.initialIndex;
     if (widget.openHabitsInitially) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -108,6 +150,11 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _connectNotifications() {
+    _supportTimer?.cancel();
+    _supportTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed)
+        _refreshUnreadNotifications();
+    });
     _loadNotificationPreferences();
     _refreshUnreadNotifications();
     _announcementChannel = Supabase.instance.client
@@ -148,6 +195,7 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _disconnectNotifications() {
+    _supportTimer?.cancel();
     final channel = _announcementChannel;
     if (channel != null) Supabase.instance.client.removeChannel(channel);
     _announcementChannel = null;
@@ -156,23 +204,40 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   void dispose() {
+    CommunityPostNavigation.pending.removeListener(_handlePostLink);
+    _supportTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     final channel = _announcementChannel;
     if (channel != null) Supabase.instance.client.removeChannel(channel);
     super.dispose();
   }
 
   Future<void> _refreshUnreadNotifications() async {
-    if (!widget.isAuthenticated) return;
+    if (!widget.isAuthenticated || _countLoading) return;
+    final account = Supabase.instance.client.auth.currentUser?.id;
+    _countLoading = true;
     try {
       if (!_notificationAlertsEnabled) {
         if (mounted) setState(() => _unreadNotifications = 0);
         return;
       }
-      final count = await AnnouncementService().unreadCount();
-      if (mounted) setState(() => _unreadNotifications = count);
+      final counts = await Future.wait([
+        AnnouncementService().unreadCount().catchError((_) => 0),
+        PrivateSupportService().unreadCount().catchError((_) => 0),
+      ]);
+      if (mounted && account == Supabase.instance.client.auth.currentUser?.id)
+        setState(() => _unreadNotifications = counts[0] + counts[1]);
     } catch (_) {
-      if (mounted) setState(() => _unreadNotifications = 0);
+      if (mounted && account == Supabase.instance.client.auth.currentUser?.id)
+        setState(() => _unreadNotifications = 0);
+    } finally {
+      _countLoading = false;
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshUnreadNotifications();
   }
 
   Future<void> _loadNotificationPreferences() async {

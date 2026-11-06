@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'community_post_navigation.dart';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' show Color;
@@ -25,6 +27,7 @@ class MobilePushService {
   static StreamSubscription<AuthState>? _auth;
   static StreamSubscription<String>? _refresh;
   static StreamSubscription<RemoteMessage>? _messages;
+  static StreamSubscription<RemoteMessage>? _opened;
   static Future<void> _pending = Future.value();
   static AppLifecycleListener? _lifecycle;
   static final _notifications = FlutterLocalNotificationsPlugin();
@@ -56,6 +59,12 @@ class MobilePushService {
           const InitializationSettings(
             android: AndroidInitializationSettings('ic_stat_pbh_prominent'),
           ),
+          onDidReceiveNotificationResponse: (response) {
+            CommunityPostNavigation.fromLocalPayload(
+              response.payload,
+              _client?.auth.currentUser?.id,
+            );
+          },
         );
         final android = _notifications
             .resolvePlatformSpecificImplementation<
@@ -67,6 +76,23 @@ class MobilePushService {
             'Avisos do PBH',
             description: 'Mensagens da administração do projeto',
             importance: Importance.high,
+          ),
+        );
+        await android?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'pbh_community_posts',
+            'Comunidade',
+            description: 'Publicações em destaque do PROJETO BOM HOMEM',
+            importance: Importance.high,
+          ),
+        );
+        await android?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'pbh_community_posts_silent',
+            'Comunidade (sem som)',
+            importance: Importance.high,
+            playSound: false,
+            enableVibration: false,
           ),
         );
         await android?.createNotificationChannel(
@@ -96,6 +122,11 @@ class MobilePushService {
           if (_client?.auth.currentUser?.id != message.data['recipient_id'])
             return;
           final silent = message.data['silent'] == 'true' || !sound;
+          final community =
+              communityPostFromNotificationUrl(
+                message.data['destination_url'] as String?,
+              ) !=
+              null;
           unawaited(
             _notifications.show(
               48000,
@@ -103,22 +134,78 @@ class MobilePushService {
               notice.body,
               NotificationDetails(
                 android: AndroidNotificationDetails(
-                  silent ? 'pbh_announcements_silent' : 'pbh_announcements',
-                  silent ? 'Avisos silenciosos do PBH' : 'Avisos do PBH',
+                  community
+                      ? silent
+                            ? 'pbh_community_posts_silent'
+                            : 'pbh_community_posts'
+                      : silent
+                      ? 'pbh_announcements_silent'
+                      : 'pbh_announcements',
+                  community
+                      ? 'Comunidade'
+                      : silent
+                      ? 'Avisos silenciosos do PBH'
+                      : 'Avisos do PBH',
                   importance: Importance.high,
                   priority: Priority.high,
-                  icon: 'ic_stat_pbh_prominent',
-                  color: const Color(0xFF6D28D9),
-                  largeIcon: const DrawableResourceAndroidBitmap(
-                    'pbh_notification_large',
+                  icon: community
+                      ? 'ic_stat_pbh_community'
+                      : 'ic_stat_pbh_prominent',
+                  color: community
+                      ? const Color(0xFFFF6B2C)
+                      : const Color(0xFF6D28D9),
+                  subText: community ? 'Comunidade' : null,
+                  groupKey: community ? 'pbh.community' : null,
+                  category: community
+                      ? AndroidNotificationCategory.social
+                      : null,
+                  styleInformation: community
+                      ? BigTextStyleInformation(
+                          notice.body ?? '',
+                          contentTitle: notice.title,
+                          summaryText: 'Comunidade · PBH Oficial',
+                        )
+                      : null,
+                  largeIcon: DrawableResourceAndroidBitmap(
+                    community
+                        ? 'pbh_community_large'
+                        : 'pbh_notification_large',
                   ),
                   playSound: !silent,
                   enableVibration: !silent,
                 ),
               ),
+              payload: jsonEncode({
+                'recipient_id': message.data['recipient_id'],
+                'destination_url': message.data['destination_url'],
+              }),
             ),
           );
         });
+        _opened ??= FirebaseMessaging.onMessageOpenedApp.listen(
+          (message) => CommunityPostNavigation.fromNotification(
+            message.data,
+            _client?.auth.currentUser?.id,
+          ),
+        );
+        final initial = await FirebaseMessaging.instance.getInitialMessage();
+        if (initial != null)
+          CommunityPostNavigation.fromNotification(
+            initial.data,
+            _client?.auth.currentUser?.id,
+          );
+        final launch = await _notifications.getNotificationAppLaunchDetails();
+        if (launch?.didNotificationLaunchApp == true) {
+          try {
+            CommunityPostNavigation.fromNotification(
+              Map<String, dynamic>.from(
+                jsonDecode(launch!.notificationResponse?.payload ?? '{}')
+                    as Map,
+              ),
+              _client?.auth.currentUser?.id,
+            );
+          } catch (_) {}
+        }
         _ready = true;
       } catch (_) {
         // Missing Firebase configuration must never prevent PBH from opening.

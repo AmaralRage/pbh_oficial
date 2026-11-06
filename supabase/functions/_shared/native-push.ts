@@ -1,5 +1,6 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { importPKCS8, SignJWT } from 'npm:jose@6';
+import { communityNotificationPresentation } from './community-notification.ts';
 
 type Announcement = { id: string; title: string; message: string; audience: string; sound_enabled?: boolean; destination_url?: string | null };
 let cached: { token: string; expires: number } | undefined;
@@ -54,18 +55,20 @@ export async function sendNativeAnnouncement(admin: SupabaseClient, announcement
       if (currentError) throw currentError;
       if (!current || current.user_id !== device.user_id || current.token !== device.token) continue;
       const silent = isNativePushSilent(announcement.sound_enabled, current.sound_enabled);
+      const presentation = communityNotificationPresentation(announcement.destination_url, silent);
       let accepted = false;
       try {
         const response = await fetch(`https://fcm.googleapis.com/v1/projects/${auth.project}/messages:send`, {
           method: 'POST', headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: { token: device.token,
             notification: { title: announcement.title, body: announcement.message },
-            data: { announcement_id: announcement.id, recipient_id: device.user_id, silent: String(silent) },
+            data: { announcement_id: announcement.id, recipient_id: device.user_id, silent: String(silent),
+              destination_url: announcement.destination_url ?? '' },
             android: { priority: 'high', ttl: '86400s', notification: {
-              channel_id: silent ? 'pbh_announcements_silent' : 'pbh_announcements',
-              icon: 'ic_stat_pbh_prominent', tag: `announcement-${announcement.id}`,
-              image: 'https://pbh-oficial.vercel.app/icons/Icon-512.png',
-              color: '#6D28D9',
+              channel_id: presentation.channel,
+              icon: presentation.icon, tag: `announcement-${announcement.id}`,
+              ...(presentation.community ? {} : { image: 'https://pbh-oficial.vercel.app/icons/Icon-512.png' }),
+              color: presentation.color,
               ...(silent ? {} : { sound: 'default' }),
             } },
           } }), signal: AbortSignal.timeout(10000),

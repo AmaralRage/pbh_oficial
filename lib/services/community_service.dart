@@ -6,6 +6,10 @@ import '../models/community_post_model.dart';
 import '../models/community_photo.dart';
 import 'auth_service.dart';
 
+class CommunityBroadcastPending implements Exception {
+  const CommunityBroadcastPending();
+}
+
 class CommunityComment {
   const CommunityComment({
     required this.id,
@@ -474,6 +478,42 @@ class CommunityService {
   }
 
   Future<void> createPost(
+    String content, {
+    String? achievementTag,
+    String? topic,
+    List<CommunityPhoto> photos = const [],
+    String? draftId,
+    void Function(int completed, int total)? onUploadProgress,
+    bool notifyMembers = false,
+  }) async {
+    final id = draftId ?? newPostId();
+    final account = _userId;
+    if (notifyMembers && !canNotifyMembers)
+      throw StateError('Somente o líder pode avisar todos os membros.');
+    await _createPost(
+      content,
+      achievementTag: achievementTag,
+      topic: topic,
+      photos: photos,
+      draftId: id,
+      onUploadProgress: onUploadProgress,
+    );
+    if (notifyMembers) {
+      try {
+        if (account != _userId) throw StateError('A conta mudou.');
+        await _client
+            .rpc('queue_community_post_broadcast', params: {'p_post': id})
+            .timeout(const Duration(seconds: 20));
+      } catch (_) {
+        throw const CommunityBroadcastPending();
+      }
+    }
+  }
+
+  bool get canNotifyMembers =>
+      AuthService.isProjectLeader(_client.auth.currentUser);
+
+  Future<void> _createPost(
     String content, {
     String? achievementTag,
     String? topic,

@@ -8,6 +8,7 @@ import 'routine_local_reminder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'initial_notification_permission.dart';
+import 'community_post_navigation.dart';
 
 class RoutineLocalNotificationScheduler {
   static const _channelId = 'pbh_habit_routine';
@@ -38,6 +39,13 @@ class RoutineLocalNotificationScheduler {
           requestSoundPermission: false,
         ),
       ),
+      onDidReceiveNotificationResponse: (response) =>
+          CommunityPostNavigation.fromLocalPayload(
+            response.payload,
+            Supabase.instance.isInitialized
+                ? Supabase.instance.client.auth.currentUser?.id
+                : null,
+          ),
     );
     _initialized = true;
   }

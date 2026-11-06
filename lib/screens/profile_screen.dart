@@ -19,7 +19,7 @@ import '../services/challenge_service.dart';
 import '../services/community_service.dart';
 import '../services/habit_service.dart';
 import '../widgets/animated_entry.dart';
-import '../widgets/stat_card.dart';
+import '../widgets/profile_summary.dart';
 import '../widgets/profile_achievement_seals.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -94,27 +94,30 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ],
-              _ProfileProgress(onEdit: onEditProfile),
-              if (isAuthenticated) const SizedBox(height: 18),
-              if (isAuthenticated)
-                OutlinedButton.icon(
-                  onPressed: () {
-                    final id = Supabase.instance.client.auth.currentUser?.id;
-                    if (id != null)
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => MemberPublicationsScreen(userId: id),
-                        ),
-                      );
-                  },
-                  icon: const Icon(Icons.article_outlined),
-                  label: const Text('Minhas publicações'),
+              _ProfileProgress(
+                onEdit: onEditProfile,
+                goal: PersonalGoalCard(
+                  isAuthenticated: isAuthenticated,
+                  onSignIn: onOpenSignIn,
                 ),
-              const SizedBox(height: 16),
-              PersonalGoalCard(
-                isAuthenticated: isAuthenticated,
-                onSignIn: onOpenSignIn,
+                publications: isAuthenticated
+                    ? OutlinedButton.icon(
+                        onPressed: () {
+                          final id =
+                              Supabase.instance.client.auth.currentUser?.id;
+                          if (id != null)
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    MemberPublicationsScreen(userId: id),
+                              ),
+                            );
+                        },
+                        icon: const Icon(Icons.article_outlined),
+                        label: const Text('Minhas publicações'),
+                      )
+                    : null,
               ),
               const SizedBox(height: 18),
               OutlinedButton.icon(
@@ -199,7 +202,9 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _ProfileProgress extends StatefulWidget {
-  const _ProfileProgress({this.onEdit});
+  const _ProfileProgress({this.onEdit, required this.goal, this.publications});
+  final Widget goal;
+  final Widget? publications;
   final VoidCallback? onEdit;
   @override
   State<_ProfileProgress> createState() => _ProfileProgressState();
@@ -329,10 +334,19 @@ class _ProfileProgressState extends State<_ProfileProgress> {
       earned: achievements,
       onEdit: widget.onEdit,
     );
+    final personalSections = <Widget>[
+      const SizedBox(height: 14),
+      widget.goal,
+      if (widget.publications != null) ...[
+        const SizedBox(height: 8),
+        widget.publications!,
+      ],
+    ];
     if (_loading)
       return Column(
         children: [
           identity,
+          ...personalSections,
           const Padding(
             padding: EdgeInsets.all(28),
             child: CircularProgressIndicator(),
@@ -359,82 +373,43 @@ class _ProfileProgressState extends State<_ProfileProgress> {
         ],
       ),
     );
-    if (!_hasProgress) return Column(children: [identity, failureNotice]);
+    if (!_hasProgress)
+      return Column(children: [identity, failureNotice, ...personalSections]);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         identity,
         const SizedBox(height: 22),
         if (_loadFailed || _refreshing) failureNotice,
-        ProfileStats(
-          children: [
-            if (isAuthenticated) ...[
-              StatCard(
-                icon: Icons.local_fire_department,
-                value: '$_streak',
-                label: isProjectLeader
-                    ? 'Dias do\nprojeto'
-                    : 'Dias de\nsequência',
-              ),
-              const SizedBox(width: 12),
-            ],
-            StatCard(
-              icon: Icons.flag,
-              value: '$_completedChallenges',
-              label: 'Desafios\nconcluídos',
-            ),
-            const SizedBox(width: 12),
-            StatCard(
-              icon: Icons.emoji_events,
-              value: '${achievements.length}',
-              label: 'Selos\nconquistados',
-            ),
-          ],
+        ProfileSummaryStats(
+          streak: _streak,
+          completed: _completedChallenges,
+          seals: achievements.length,
+          founder: isProjectLeader,
+          showStreak: isAuthenticated,
         ),
+        ...personalSections,
         const SizedBox(height: 26),
-        if (style.highlights(achievements).isNotEmpty) ...[
-          Text('Selos em destaque', style: AppTextStyles.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            'Os marcos que você escolheu para contar sua história.',
-            style: AppTextStyles.bodySmall,
-          ),
-          const SizedBox(height: 14),
-          ProfileAchievementSeals(achievements: style.highlights(achievements)),
-          const SizedBox(height: 26),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Selos de dedicação',
-                style: AppTextStyles.titleMedium,
-              ),
-            ),
-            if (isProjectLeader)
-              IconButton(
-                tooltip: 'Conceder reconhecimento',
-                icon: Icon(
-                  Icons.add_moderator_outlined,
-                  color: context.pbhColors.orange,
-                ),
-                onPressed: () async {
-                  await showDialog<void>(
-                    context: context,
-                    builder: (_) => const GrantProfileSealDialog(),
-                  );
-                  if (mounted) _load();
-                },
-              ),
-          ],
+        ProfileSealSections(
+          highlights: style.highlights(achievements),
+          earned: achievements,
+          action: isProjectLeader
+              ? IconButton(
+                  tooltip: 'Conceder reconhecimento',
+                  icon: Icon(
+                    Icons.add_moderator_outlined,
+                    color: context.pbhColors.orange,
+                  ),
+                  onPressed: () async {
+                    await showDialog<void>(
+                      context: context,
+                      builder: (_) => const GrantProfileSealDialog(),
+                    );
+                    if (mounted) _load();
+                  },
+                )
+              : null,
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Sua dedicação deixa marcas. Toque em um selo para conhecer sua história.',
-          style: AppTextStyles.bodySmall,
-        ),
-        const SizedBox(height: 14),
-        ProfileAchievementSeals(achievements: achievements),
       ],
     );
   }

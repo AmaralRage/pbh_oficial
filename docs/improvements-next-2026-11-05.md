@@ -45,3 +45,21 @@ As etapas foram implementadas em sequência, com testes direcionados antes de av
 Antes de distribuir, testar em um Android com conta de teste: atualizar uma instalação já conectada, confirmar que a conta continua a mesma, fechar/reabrir comentários com texto, simular falha de rede ao publicar, repetir o envio e conferir que não duplica, enviar/responder um pedido de suporte e encerrar outras sessões.
 
 Não houve commit, push, instalação ou publicação nesta tarefa.
+
+## Complemento: avisos, atualização de publicações e carregamento
+
+Implementado em três etapas, com validação entre elas:
+
+1. **Respostas do suporte no sino:** o contador inclui respostas privadas não lidas. O aviso abre o atendimento com resposta pendente mais recente. Respostas são paginadas, começando pelas mais recentes; somente os IDs carregados são marcados como lidos, respeitando o proprietário. A consulta é renovada a cada 30 segundos com o app ativo e ao retornar ao aplicativo. Não é push de sistema nem envio de e-mail. Administradores que leem um atendimento não limpam o aviso do membro.
+2. **Atualização isolada de publicações:** edição de conteúdo, anexos e enquadramento atualiza o card afetado, mantendo a lista, os salvos e os estados de seguir. Mudanças nos comentários atualizam os números sem refazer o feed inteiro. Respostas antigas de consultas concorrentes são descartadas. Se a alteração foi salva, mas a consulta seguinte falhar, o app informa isso e permite tentar atualizar a visualização. Essa atualização corresponde às ações realizadas na própria tela; não foi ativada sincronização em tempo real de todas as edições de outros membros.
+3. **Carregamento e conexão:** comunidade, publicações de membros, avisos e suporte usam prévias estáticas de cards e ações de tentar novamente. Conteúdo que já foi carregado é preservado quando a atualização falha. Mensagens ao membro não incluem SQL, nomes de tabelas ou instruções de migração.
+
+**Implantação:** aplicar `supabase/migrations/20261105000600_support_reply_notifications.sql` após as migrações 004 e 005. A migração não foi executada remotamente. Sem ela, os avisos privados do suporte ainda não funcionarão, mas os avisos gerais continuam independentes.
+
+**Validação do complemento:** 251 testes Flutter passaram; análise estática sem erros ou avisos (há sugestões de estilo); teste SQL verificou o isolamento dos avisos e que marcar uma resposta carregada não marca outra que chegou depois. Testes de interface verificaram nova tentativa do suporte, atualização do card sem recarregar a lista, proteção contra resposta antiga da rede, preservação do feed sem conexão e layout com fonte ampliada em tela de 320 px.
+
+Não foi gerado APK, nem realizado commit, push ou publicação neste complemento. No Flutter/VS Code, usar Hot Restart para carregar os novos componentes.
+
+## Publicações com aviso geral do líder
+
+A opção exclusiva **Notificar todos os membros**, com fila protegida no servidor e abertura do post ao tocar no push, está documentada em [leader-post-notifications.md](leader-post-notifications.md). Requer a migração `20261105000700_leader_post_broadcasts.sql` e atualização da função de entrega; esses passos não foram executados remotamente.

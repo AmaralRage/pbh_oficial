@@ -17,6 +17,9 @@ final _png = base64Decode(
 class _Posts extends CommunityService {
   _Posts(SupabaseClient client) : super(client: client);
   bool fail = true;
+  bool leader = false;
+  @override
+  bool get canNotifyMembers => leader;
   final ids = <String?>[];
   final counts = <int>[];
   @override
@@ -37,6 +40,7 @@ class _Posts extends CommunityService {
     String? topic,
     List<CommunityPhoto> photos = const [],
     String? draftId,
+    bool notifyMembers = false,
     void Function(int completed, int total)? onUploadProgress,
   }) async {
     ids.add(draftId);
@@ -56,6 +60,30 @@ void main() {
     ),
   );
   tearDown(() => client.dispose());
+  testWidgets('only the leader sees broadcast opt-in, disabled by default', (
+    tester,
+  ) async {
+    final service = _Posts(client);
+    for (final leader in [false, true]) {
+      service.leader = leader;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CommunityPostComposer(key: ValueKey(leader), service: service),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Notificar todos os membros'),
+        leader ? findsOneWidget : findsNothing,
+      );
+      if (leader)
+        expect(
+          tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+          false,
+        );
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
   testWidgets(
     'one empty community invites real posts and requires login to publish',
     (tester) async {

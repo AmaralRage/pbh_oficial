@@ -1,6 +1,7 @@
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { sendNativeAnnouncement } from '../_shared/native-push.ts';
+import { isCommunityNotification } from '../_shared/community-notification.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -82,6 +83,7 @@ Deno.serve(async (request) => {
       url: announcement.destination_url || '/',
       tag: `announcement-${announcement.id}`,
       silent: !announcement.sound_enabled,
+      ...(isCommunityNotification(announcement.destination_url) ? { icon: '/icons/community-192.png' } : {}),
     });
     await Promise.all((subscriptions ?? []).map(async (subscription) => {
       try {

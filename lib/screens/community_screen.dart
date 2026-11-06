@@ -14,6 +14,8 @@ import '../widgets/filter_chip_row.dart';
 import '../widgets/community_comment_avatar.dart';
 import 'community_post_composer.dart';
 import '../widgets/community_activity.dart';
+import '../widgets/loading_cards.dart';
+import '../widgets/connection_notice.dart';
 
 const _weeklyPrompts = <String>[
   'Qual compromisso pequeno você conseguiu manter esta semana?',
@@ -61,6 +63,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   bool _hasMore = true;
   int _nextPostOffset = 0;
   int _requestVersion = 0;
+  final _postRefreshVersions = <String, int>{};
   String? _error;
   String? _loadMoreError;
 
@@ -204,11 +207,16 @@ class _CommunityScreenState extends State<CommunityScreen> {
     }
   }
 
-  Future<void> _refreshPost(String id) async {
+  Future<void> _refreshPost(String id, {bool reportFailure = false}) async {
     final version = _requestVersion;
+    final refresh = (_postRefreshVersions[id] ?? 0) + 1;
+    _postRefreshVersions[id] = refresh;
     try {
       final updated = await _service.postById(id);
-      if (!mounted || version != _requestVersion) return;
+      if (!mounted ||
+          version != _requestVersion ||
+          _postRefreshVersions[id] != refresh)
+        return;
       setState(() {
         _posts = [
           for (final post in _posts)
@@ -222,25 +230,28 @@ class _CommunityScreenState extends State<CommunityScreen> {
         ];
       });
     } catch (_) {
+      if (reportFailure && mounted && version == _requestVersion)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'A alteração foi salva, mas não foi possível atualizar a visualização.',
+            ),
+            action: SnackBarAction(
+              label: 'Atualizar',
+              onPressed: () => _refreshPost(id, reportFailure: true),
+            ),
+          ),
+        );
       // The committed reaction and its optimistic display remain valid offline.
       // A pull-to-refresh can reconcile counts when the connection returns.
     }
   }
 
   String _friendlyError(Object error) {
-    final details = error.toString();
-    final normalized = details.toLowerCase();
-    if (normalized.contains('community_feed') &&
-        (normalized.contains('pgrst205') ||
-            normalized.contains('schema cache') ||
-            normalized.contains('does not exist'))) {
-      return 'A estrutura da comunidade ainda não existe no Supabase. Execute a migration supabase/migrations/20261015000300_community_progress.sql no SQL Editor.';
-    }
-    if (normalized.contains('permission denied') ||
-        normalized.contains('42501')) {
-      return 'O Supabase recusou a consulta por falta de permissão. Confira as políticas RLS da migration 20261015000300.';
-    }
-    return details;
+    final message = error.toString().toLowerCase();
+    if (message.contains('42501') || message.contains('401'))
+      return 'Não foi possível acessar a comunidade. Entre novamente na sua conta e tente outra vez.';
+    return 'Não foi possível conectar à comunidade. Confira sua internet e tente novamente.';
   }
 
   Future<void> _selectFilter(int index) async {
@@ -546,22 +557,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
   );
 
   Widget _feedSliver() {
-    if (_loading)
-      return const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 48),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    if (_error != null)
+    if (_loading && _posts.isEmpty)
+      return const SliverToBoxAdapter(child: LoadingCards());
+    if (_error != null && _posts.isEmpty)
       return SliverToBoxAdapter(
-        child: _FeedMessage(
-          icon: Icons.cloud_off_outlined,
-          message: 'Não foi possível carregar a comunidade.',
-          details: _error,
-          action: 'Tentar novamente',
-          onTap: _load,
-        ),
+        child: ConnectionNotice(message: _error!, onRetry: () => _load()),
       );
     final posts = _posts;
     if (posts.isEmpty)
@@ -575,14 +575,32 @@ class _CommunityScreenState extends State<CommunityScreen> {
           onTap: _filterIndex == 1 ? null : _composePost,
         ),
       );
+    final notice = _error != null || _loading;
     return SliverList.builder(
-      itemCount: posts.length,
+      itemCount: posts.length + (notice ? 1 : 0),
       findChildIndexCallback: (key) {
         final index = posts.indexWhere((p) => ValueKey(p.id) == key);
-        return index < 0 ? null : index;
+        return index < 0 ? null : index + (notice ? 1 : 0);
       },
       itemBuilder: (_, index) {
-        final post = posts[index];
+        if (notice && index == 0)
+          return _error != null
+              ? ConnectionNotice(
+                  message:
+                      'Não foi possível atualizar. As publicações já carregadas continuam abaixo.',
+                  onRetry: () => _load(showLoading: false),
+                )
+              : const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    children: [
+                      Text('Atualizando publicações…'),
+                      SizedBox(height: 8),
+                      LinearProgressIndicator(),
+                    ],
+                  ),
+                );
+        final post = posts[index - (notice ? 1 : 0)];
         return Padding(
           key: ValueKey(post.id),
           padding: const EdgeInsets.only(bottom: 10),
@@ -591,6 +609,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
             isAuthenticated: widget.isAuthenticated,
             onRequireLogin: widget.onRequireLogin,
             onInteractionChanged: () => _refreshPost(post.id),
+            onPublicationChanged: () =>
+                _refreshPost(post.id, reportFailure: true),
             onChanged: post.isSample
                 ? () async {}
                 : () => _load(showLoading: false),
@@ -644,13 +664,11 @@ class _FeedMessage extends StatelessWidget {
   const _FeedMessage({
     required this.icon,
     required this.message,
-    this.details,
     this.action,
     this.onTap,
   });
   final IconData icon;
   final String message;
-  final String? details;
   final String? action;
   final VoidCallback? onTap;
   @override
@@ -665,17 +683,6 @@ class _FeedMessage extends StatelessWidget {
           textAlign: TextAlign.center,
           style: AppTextStyles.bodySmall,
         ),
-        if (details != null) ...[
-          const SizedBox(height: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: Text(
-              details!,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.statLabel,
-            ),
-          ),
-        ],
         if (action != null) TextButton(onPressed: onTap, child: Text(action!)),
       ],
     ),

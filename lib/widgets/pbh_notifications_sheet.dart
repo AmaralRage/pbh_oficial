@@ -5,6 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../services/announcement_service.dart';
+import 'support_reply_notice.dart';
+import 'loading_cards.dart';
+import 'connection_notice.dart';
+import '../services/community_post_navigation.dart';
+import '../screens/community_publication_screen.dart';
 
 class PbhNotificationsSheet extends StatefulWidget {
   const PbhNotificationsSheet({super.key, this.onChanged});
@@ -23,6 +28,7 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
   bool _markingAll = false;
   bool _unreadOnly = false;
   String? _error;
+  int _supportUnread = 0;
 
   @override
   void initState() {
@@ -86,6 +92,16 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
     await _markRead(item);
     final destination = item.destinationUrl;
     if (destination == null || destination.trim().isEmpty) return;
+    final post = communityPostFromNotificationUrl(destination);
+    if (post != null) {
+      if (mounted)
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => CommunityPublicationScreen(postId: post),
+          ),
+        );
+      return;
+    }
     final uri = Uri.tryParse(destination);
     if (uri == null ||
         !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -130,7 +146,8 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final unreadCount = _announcements.where((item) => !item.isRead).length;
+    final generalUnread = _announcements.where((item) => !item.isRead).length;
+    final unreadCount = generalUnread + _supportUnread;
     final visible = _unreadOnly
         ? _announcements.where((item) => !item.isRead).toList()
         : _announcements;
@@ -187,7 +204,7 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
                       ],
                     ),
                   ),
-                  if (unreadCount > 0)
+                  if (generalUnread > 0)
                     IconButton(
                       tooltip: 'Marcar todas como lidas',
                       onPressed: _markingAll ? null : _markAllRead,
@@ -225,13 +242,35 @@ class _PbhNotificationsSheetState extends State<PbhNotificationsSheet> {
               ),
             ),
             const Divider(height: 1),
+            SupportReplyNotice(
+              onChanged: () => widget.onChanged?.call(),
+              onCountChanged: (count) {
+                if (mounted) setState(() => _supportUnread = count);
+              },
+            ),
+            if (_error != null && _announcements.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: ConnectionNotice(
+                  message:
+                      'Não foi possível atualizar. Os avisos já carregados continuam disponíveis.',
+                  onRetry: _refresh,
+                ),
+              ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                  ? _EmptyNotifications(
-                      icon: Icons.cloud_off_outlined,
-                      title: _error!,
+                  ? const SingleChildScrollView(
+                      padding: EdgeInsets.all(18),
+                      child: LoadingCards(
+                        count: 3,
+                        showMedia: false,
+                        label: 'Carregando avisos',
+                      ),
+                    )
+                  : _error != null && _announcements.isEmpty
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.all(18),
+                      child: ConnectionNotice(onRetry: _refresh),
                     )
                   : visible.isEmpty
                   ? _EmptyNotifications(
@@ -393,6 +432,8 @@ class _NotificationCard extends StatelessWidget {
   final Announcement item;
   final String time;
   final VoidCallback onTap;
+  bool get _community =>
+      communityPostFromNotificationUrl(item.destinationUrl) != null;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -422,12 +463,14 @@ class _NotificationCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: context.pbhColors.orangeDim,
+                  color: _community
+                      ? AppColors.orange
+                      : context.pbhColors.orangeDim,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
-                  Icons.campaign_outlined,
-                  color: context.pbhColors.orange,
+                  _community ? Icons.groups_rounded : Icons.campaign_outlined,
+                  color: _community ? Colors.white : context.pbhColors.orange,
                   size: 21,
                 ),
               ),
@@ -436,6 +479,28 @@ class _NotificationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_community) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Comunidade',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            time,
+                            style: AppTextStyles.statLabel.copyWith(
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                    ],
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -461,11 +526,13 @@ class _NotificationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(item.message, style: AppTextStyles.bodySmall),
-                    const SizedBox(height: 9),
-                    Text(
-                      time,
-                      style: AppTextStyles.statLabel.copyWith(fontSize: 10),
-                    ),
+                    if (!_community) ...[
+                      const SizedBox(height: 9),
+                      Text(
+                        time,
+                        style: AppTextStyles.statLabel.copyWith(fontSize: 10),
+                      ),
+                    ],
                   ],
                 ),
               ),

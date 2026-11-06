@@ -7,10 +7,9 @@ import '../core/theme/app_text_styles.dart';
 import '../models/public_member_profile.dart';
 import '../services/public_member_profile_service.dart';
 import '../widgets/profile_identity_card.dart';
-import '../widgets/profile_achievement_seals.dart';
+import '../widgets/profile_summary.dart';
 import '../widgets/profile_theme_scope.dart';
 import '../widgets/profile_background.dart';
-import '../widgets/stat_card.dart';
 import '../widgets/personal_goal_card.dart';
 import '../services/personal_goal_service.dart';
 
@@ -29,7 +28,6 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
   PublicMemberProfile? _profile;
   bool _loading = true;
   bool _failed = false;
-  bool _showAll = false;
   int _version = 0;
   @override
   void initState() {
@@ -47,7 +45,6 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
       _loading = true;
       _failed = false;
       _profile = null;
-      _showAll = false;
     });
     try {
       final profile = await _service.fetch(widget.userId);
@@ -132,7 +129,7 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
             onRefresh: _load,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
                 ProfileIdentityCard(
                   userId: profile.id,
@@ -145,22 +142,6 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
                   founder: profile.founder,
                 ),
                 const SizedBox(height: 22),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          MemberPublicationsScreen(userId: profile.id),
-                    ),
-                  ),
-                  icon: const Icon(Icons.article_outlined),
-                  label: const Text('Ver publicações'),
-                ),
-                PublicGoalCard(
-                  key: ValueKey('goal-${profile.id}-$_version'),
-                  userId: profile.id,
-                  service: PersonalGoalService(client: _service.client),
-                ),
                 if (!profile.hasProgress)
                   Container(
                     padding: const EdgeInsets.all(18),
@@ -180,52 +161,38 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
                       style: AppTextStyles.bodySmall,
                     ),
                   ),
-                if (profile.hasProgress) ...[
-                  ProfileStats(
-                    children: [
-                      StatCard(
-                        icon: Icons.flag_outlined,
-                        value: '${profile.completed}',
-                        label: 'Desafios\nconcluídos',
-                      ),
-                      const SizedBox(width: 12),
-                      StatCard(
-                        icon: Icons.groups_outlined,
-                        value: '${profile.followers}',
-                        label: 'Pessoas que\nacompanham',
-                      ),
-                      const SizedBox(width: 12),
-                      StatCard(
-                        icon: Icons.emoji_events_outlined,
-                        value: '${profile.earned.length}',
-                        label: 'Selos\nconquistados',
-                      ),
-                    ],
+                if (profile.hasProgress)
+                  ProfileSummaryStats(
+                    streak: profile.streak ?? 0,
+                    completed: profile.completed ?? 0,
+                    seals: profile.earned.length,
+                    founder: profile.founder,
                   ),
-                  const SizedBox(height: 24),
-                  Text('Selos em destaque', style: AppTextStyles.titleMedium),
-                  const SizedBox(height: 14),
-                  if (highlights.isEmpty)
-                    Text(
-                      'Nenhum selo em destaque por enquanto.',
-                      style: AppTextStyles.bodySmall,
-                    )
-                  else
-                    ProfileAchievementSeals(achievements: highlights),
-                  const SizedBox(height: 20),
-                  if (profile.earned.isNotEmpty)
-                    ExpansionTile(
-                      shape: const Border(),
-                      collapsedShape: const Border(),
-                      tilePadding: EdgeInsets.zero,
-                      title: const Text('Todas as conquistas'),
-                      onExpansionChanged: (open) =>
-                          setState(() => _showAll = open),
-                      children: [
-                        if (_showAll)
-                          ProfileAchievementSeals(achievements: profile.earned),
-                      ],
+                const SizedBox(height: 14),
+                PublicGoalCard(
+                  key: ValueKey('goal-${profile.id}-$_version'),
+                  userId: profile.id,
+                  isOwn: profile.isOwn,
+                  service: PersonalGoalService(client: _service.client),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          MemberPublicationsScreen(userId: profile.id),
                     ),
+                  ),
+                  icon: const Icon(Icons.article_outlined),
+                  label: const Text('Ver publicações'),
+                ),
+                if (profile.hasProgress) ...[
+                  const SizedBox(height: 26),
+                  ProfileSealSections(
+                    highlights: highlights,
+                    earned: profile.earned,
+                  ),
                 ],
               ],
             ),

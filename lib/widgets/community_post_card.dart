@@ -1,3 +1,4 @@
+import 'comment_actions_menu.dart';
 import 'community_mention_suggestions.dart';
 import 'community_mention_text.dart';
 import '../screens/community_post_editor.dart';
@@ -35,6 +36,7 @@ class CommunityPostCard extends StatefulWidget {
     this.openCommentsInitially = false,
     this.focusCommentId,
     this.onInteractionChanged,
+    this.onPublicationChanged,
   });
 
   final CommunityPostModel post;
@@ -42,6 +44,7 @@ class CommunityPostCard extends StatefulWidget {
   final VoidCallback onRequireLogin;
   final Future<void> Function() onChanged;
   final Future<void> Function()? onInteractionChanged;
+  final Future<void> Function()? onPublicationChanged;
   final bool openCommentsInitially;
   final String? focusCommentId;
 
@@ -749,48 +752,12 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                                                             ),
                                                       ),
                                                     if (widget.isAuthenticated)
-                                                      PopupMenuButton<String>(
-                                                        tooltip:
-                                                            'Opções do comentário',
+                                                      CommentActionsMenu(
+                                                        isOwn:
+                                                            comment.userId ==
+                                                            _service
+                                                                .currentUserId,
                                                         enabled: !_busy,
-                                                        icon: Icon(
-                                                          Icons.more_horiz,
-                                                          size: 18,
-                                                          color: context
-                                                              .pbhColors
-                                                              .textTertiary,
-                                                        ),
-                                                        padding:
-                                                            EdgeInsets.zero,
-                                                        constraints:
-                                                            const BoxConstraints(
-                                                              minWidth: 32,
-                                                              minHeight: 32,
-                                                            ),
-                                                        itemBuilder: (_) => [
-                                                          const PopupMenuItem(
-                                                            value: 'reply',
-                                                            child: Text(
-                                                              'Responder',
-                                                            ),
-                                                          ),
-                                                          if (comment.userId ==
-                                                              _service
-                                                                  .currentUserId) ...[
-                                                            const PopupMenuItem(
-                                                              value: 'edit',
-                                                              child: Text(
-                                                                'Editar',
-                                                              ),
-                                                            ),
-                                                            const PopupMenuItem(
-                                                              value: 'delete',
-                                                              child: Text(
-                                                                'Excluir',
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ],
                                                         onSelected: (value) {
                                                           if (_busy) return;
                                                           if (value == 'reply')
@@ -1100,7 +1067,8 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         ..addAll(refreshed);
       if (mounted) setState(() => _commentCount++);
       refreshSheet(() {});
-      if (!widget.post.isSample) unawaited(widget.onChanged());
+      if (!widget.post.isSample)
+        unawaited((widget.onInteractionChanged ?? widget.onChanged)());
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
@@ -1198,7 +1166,8 @@ class _CommunityPostCardState extends State<CommunityPostCard>
         );
       }
       refreshSheet(() {});
-      if (!widget.post.isSample) unawaited(widget.onChanged());
+      if (!widget.post.isSample)
+        unawaited((widget.onInteractionChanged ?? widget.onChanged)());
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
@@ -1266,7 +1235,9 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       );
       updated[index] = framing;
       await _service.editImageFraming(current, updated);
-      await widget.onChanged();
+      await (widget.onPublicationChanged ??
+          widget.onInteractionChanged ??
+          widget.onChanged)();
       if (mounted)
         _showMessage(
           'Enquadramento atualizado. A foto original foi preservada.',
@@ -1375,8 +1346,10 @@ class _CommunityPostCardState extends State<CommunityPostCard>
           ),
         );
         if (saved == true) {
-          await widget.onChanged();
-          if (mounted) _showMessage('Publicação atualizada.');
+          if (mounted) _showMessage('Alteração salva.');
+          await (widget.onPublicationChanged ??
+              widget.onInteractionChanged ??
+              widget.onChanged)();
         }
       } else if (action == 'pin') {
         await _service.pinPost(widget.post.id, widget.post.pinnedAt == null);

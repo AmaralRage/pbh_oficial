@@ -288,8 +288,10 @@ class _ContentScreenState extends State<ContentScreen> {
                 'Escolha os temas para ordenar as recomendações.',
                 style: AppTextStyles.bodySmall,
               ),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
+                runSpacing: 10,
                 children: topics
                     .map(
                       (t) => FilterChip(
@@ -306,7 +308,7 @@ class _ContentScreenState extends State<ContentScreen> {
                     )
                     .toList(),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 28),
             ],
             Text('Explore os programas', style: AppTextStyles.titleMedium),
             const SizedBox(height: 12),
@@ -315,9 +317,10 @@ class _ContentScreenState extends State<ContentScreen> {
               selectedIndex: _filterIndex,
               onSelected: (i) => setState(() => _filterIndex = i),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             Wrap(
               spacing: 8,
+              runSpacing: 10,
               children: [
                 ChoiceChip(
                   label: const Text('Todos os temas'),
@@ -344,7 +347,7 @@ class _ContentScreenState extends State<ContentScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               '${list.length} programas encontrados',
               style: AppTextStyles.bodySmall,

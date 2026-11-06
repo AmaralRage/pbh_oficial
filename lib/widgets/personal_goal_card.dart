@@ -533,7 +533,9 @@ class PublicGoalCard extends StatefulWidget {
     super.key,
     required this.userId,
     required this.service,
+    this.isOwn = false,
   });
+  final bool isOwn;
   final String userId;
   final PersonalGoalService service;
   @override
@@ -581,13 +583,13 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: colors.orange.withValues(alpha: .35)),
+        border: Border.all(color: colors.orange.withValues(alpha: .3)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
             Color.alphaBlend(
-              colors.orange.withValues(alpha: .09),
+              colors.orange.withValues(alpha: .08),
               colors.surface,
             ),
             colors.surface,
@@ -595,32 +597,45 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(9),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: colors.orangeDim,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.my_location_rounded,
-                  size: 20,
+                  size: 22,
                   color: colors.orange,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'OBJETIVO PESSOAL',
-                  style: TextStyle(
-                    color: colors.orange,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.isOwn ? 'MEU OBJETIVO' : 'OBJETIVO PESSOAL',
+                      style: TextStyle(
+                        color: colors.orange,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Um passo de cada vez',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               if (_goal!['is_public'] != true)
@@ -634,21 +649,21 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                 ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           Text(
             _goal!['title'] as String,
             style: TextStyle(
               color: colors.textPrimary,
-              fontSize: 17,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
-              height: 1.4,
+              height: 1.35,
             ),
           ),
           if (nextStep.isNotEmpty) ...[
             const SizedBox(height: 16),
             ProfileSurface(
               blur: false,
-              padding: const EdgeInsets.all(13),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: colors.backgroundElevated,
                 borderRadius: BorderRadius.circular(14),
@@ -661,7 +676,7 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                     padding: const EdgeInsets.only(top: 1),
                     child: Icon(
                       Icons.arrow_forward_rounded,
-                      size: 18,
+                      size: 20,
                       color: colors.orange,
                     ),
                   ),
@@ -676,16 +691,16 @@ class _PublicGoalCardState extends State<PublicGoalCard> {
                             color: colors.orange,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: .8,
+                            letterSpacing: .6,
                           ),
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 6),
                         Text(
                           nextStep,
                           style: TextStyle(
                             color: colors.textPrimary,
-                            fontSize: 13,
-                            height: 1.5,
+                            fontSize: 14,
+                            height: 1.45,
                           ),
                         ),
                       ],

@@ -52,6 +52,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
       ? widget.initialTopic!
       : communityTopics.keys.first;
   bool _busy = false, _picking = false;
+  bool _notifyMembers = false;
   int _uploaded = 0, _uploadTotal = 0;
   String? _error;
   @override
@@ -257,6 +258,7 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
         topic: _topic,
         photos: List.of(_photos),
         draftId: _draftId,
+        notifyMembers: _notifyMembers && widget.service.canNotifyMembers,
         onUploadProgress: (done, total) {
           if (mounted)
             setState(() {
@@ -272,11 +274,12 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
       }
       _published = true;
       if (mounted) Navigator.of(context).pop(true);
-    } catch (_) {
+    } catch (error) {
       if (mounted)
         setState(
-          () => _error =
-              'Não foi possível publicar. Seu relato e suas fotos continuam aqui. Confira a conexão e tente novamente.',
+          () => _error = error is CommunityBroadcastPending
+              ? 'A publicação foi salva, mas não foi possível confirmar o aviso. Toque em Publicar novamente para tentar só o aviso, sem duplicar a publicação.'
+              : 'Não foi possível publicar. Seu relato e suas fotos continuam aqui. Confira a conexão e tente novamente.',
         );
     } finally {
       if (!_published) {
@@ -494,6 +497,24 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
                       'O texto e as fotos ficam visíveis na comunidade, inclusive para visitantes. Seu nome e sua foto seguem as configurações de privacidade.',
                     ),
                     const SizedBox(height: 16),
+                    if (widget.service.canNotifyMembers) ...[
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        secondary: Icon(
+                          Icons.campaign_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: const Text('Notificar todos os membros'),
+                        subtitle: const Text(
+                          'Enviar um aviso desta publicação aos celulares e navegadores com notificações ativadas. Exclusivo do líder.',
+                        ),
+                        value: _notifyMembers,
+                        onChanged: _busy
+                            ? null
+                            : (value) => setState(() => _notifyMembers = value),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     TextFormField(
                       controller: _text,
                       focusNode: _mentionFocus,
