@@ -78,7 +78,7 @@ Deno.serve(async (request) => {
       warning = 'Não foi possível concluir o push para celulares. Confira a configuração FCM no servidor.';
     }
     const payload = JSON.stringify({
-      title: isCommunityNotification(announcement.destination_url) ? '👑 Mensagem do Líder' : announcement.title,
+      title: isCommunityNotification(announcement.destination_url) ? 'Mensagem do Líder 👑' : announcement.title,
       body: announcement.message,
       url: announcement.destination_url || '/',
       tag: `announcement-${announcement.id}`,

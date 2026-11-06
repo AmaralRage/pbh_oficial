@@ -32,6 +32,7 @@ Deno.test('community push uses current author name, highlighted title and a boun
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261105000700_leader_post_broadcasts.sql',import.meta.url)));
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261105000800_community_notification_design.sql',import.meta.url)));
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261105000900_leader_message_notification_design.sql',import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261105001000_leader_message_title_suffix.sql',import.meta.url)));
     const asUser=async(id:string,role='authenticated')=>{
       await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec(`set role ${role}`);
     };
@@ -47,7 +48,7 @@ Deno.test('community push uses current author name, highlighted title and a boun
     await db.exec('reset role');
     assert.equal((await db.query('select * from public.community_post_broadcasts')).rows.length,1);
     const notice=(await db.query('select * from public.announcements')).rows[0];
-    assert.equal(notice.audience,'all');assert.equal(notice.message.length,240);assert.equal(notice.title,'👑 Mensagem do Líder');assert.ok(notice.message.startsWith('Nome atual: '));
+    assert.equal(notice.audience,'all');assert.equal(notice.message.length,240);assert.equal(notice.title,'Mensagem do Líder 👑');assert.ok(notice.message.startsWith('Nome atual: '));
     assert.equal(notice.destination_url,`https://pbh-oficial.vercel.app/?community_post=${post}`);
     const job=(await db.query('select * from public.announcement_schedules')).rows[0];
     assert.equal(job.status,'published');assert.equal(job.push_status,'pending');assert.equal(job.announcement_id,id);

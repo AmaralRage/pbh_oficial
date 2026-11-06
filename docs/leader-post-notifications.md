@@ -65,3 +65,5 @@ O ícone é gerado de formas simples pelo script `tools/generate-community-notif
 O modelo laranja foi substituído pelo exemplo roxo enviado depois: **PBH Oficial**, título **👑 Mensagem do Líder**, logo PBH e prévia com o nome atual do autor. Na central do app o cartão tem gradiente escuro roxo, borda discreta e horário no cabeçalho. No Android o aviso usa a marca PBH e o acento roxo; não há substituição da moldura ou da transparência controladas pelo sistema.
 
 Aplicar `20261105000900_leader_message_notification_design.sql` após a 008 e reimplantar as duas funções de envio para ativar o novo formato no servidor. O visual local completo entrará no próximo APK. O build 52 entregue anteriormente não foi alterado. Não houve deploy, envio real, commit ou push nesta revisão visual.
+
+O título foi posteriormente ajustado para **Mensagem do Líder 👑**, com a coroa ao final. Aplicar `20261105001000_leader_message_title_suffix.sql` após a 009 e atualizar as funções de envio. O build 53 já gerado não foi modificado por essa mudança de texto.

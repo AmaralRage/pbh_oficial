@@ -14,6 +14,6 @@ export function communityNotificationPresentation(destination?: string | null, s
       : silent ? 'pbh_announcements_silent' : 'pbh_announcements',
     icon: 'ic_stat_pbh_prominent',
     color: '#6D28D9',
-    title: community ? '👑 Mensagem do Líder' : null,
+    title: community ? 'Mensagem do Líder 👑' : null,
   };
 }

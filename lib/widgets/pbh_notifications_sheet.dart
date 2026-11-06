@@ -525,7 +525,7 @@ class _NotificationCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            _community ? '👑 Mensagem do Líder' : item.title,
+                            _community ? 'Mensagem do Líder 👑' : item.title,
                             style: AppTextStyles.titleMedium.copyWith(
                               fontSize: 14,
                             ),

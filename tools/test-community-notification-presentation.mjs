@@ -10,7 +10,7 @@ test('leader notifications use PBH branding and preserve silent delivery',async(
   const normal=module.communityNotificationPresentation(destination);
   assert.equal(normal.channel,'pbh_community_posts');
   assert.equal(normal.icon,'ic_stat_pbh_prominent');assert.equal(normal.color,'#6D28D9');
-  assert.equal(normal.title,'👑 Mensagem do Líder');
+  assert.equal(normal.title,'Mensagem do Líder 👑');
   assert.equal(module.communityNotificationPresentation(destination,true).channel,'pbh_community_posts_silent');
   const general=module.communityNotificationPresentation('https://other.invalid/');
   assert.equal(general.community,false);assert.equal(general.channel,'pbh_announcements');
