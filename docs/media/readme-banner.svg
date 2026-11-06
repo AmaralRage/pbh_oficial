@@ -20,7 +20,7 @@
     <text x="64" y="185" fill="#ffffff" font-size="82" font-weight="700" letter-spacing="-3">PBH OFICIAL</text>
     <text x="68" y="244" fill="#ddd5eb" font-size="26">Disciplina. Propósito. Evolução.</text>
     <text x="68" y="287" fill="#a99eb9" font-size="20">Construa sua jornada, um passo de cada vez.</text>
-    <rect x="68" y="337" width="282" height="42" rx="21" fill="#ff6b26"/>
-    <text x="209" y="364" text-anchor="middle" fill="#100c08" font-size="15" font-weight="700" letter-spacing="1">PEQUENAS AÇÕES. NOVOS HÁBITOS.</text>
+    <rect x="68" y="337" width="360" height="42" rx="21" fill="#ff6b26"/>
+    <text x="248" y="364" text-anchor="middle" fill="#100c08" font-size="15" font-weight="700" letter-spacing="1">PEQUENAS AÇÕES. NOVOS HÁBITOS.</text>
   </g>
 </svg>
