@@ -148,13 +148,8 @@ class MobilePushService {
                       : 'Avisos do PBH',
                   importance: Importance.high,
                   priority: Priority.high,
-                  icon: community
-                      ? 'ic_stat_pbh_community'
-                      : 'ic_stat_pbh_prominent',
-                  color: community
-                      ? const Color(0xFFFF6B2C)
-                      : const Color(0xFF6D28D9),
-                  subText: community ? 'Comunidade' : null,
+                  icon: 'ic_stat_pbh_prominent',
+                  color: const Color(0xFF6D28D9),
                   groupKey: community ? 'pbh.community' : null,
                   category: community
                       ? AndroidNotificationCategory.social
@@ -163,13 +158,10 @@ class MobilePushService {
                       ? BigTextStyleInformation(
                           notice.body ?? '',
                           contentTitle: notice.title,
-                          summaryText: 'Comunidade · PBH Oficial',
                         )
                       : null,
-                  largeIcon: DrawableResourceAndroidBitmap(
-                    community
-                        ? 'pbh_community_large'
-                        : 'pbh_notification_large',
+                  largeIcon: const DrawableResourceAndroidBitmap(
+                    'pbh_notification_large',
                   ),
                   playSound: !silent,
                   enableVibration: !silent,

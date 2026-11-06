@@ -61,7 +61,7 @@ export async function sendNativeAnnouncement(admin: SupabaseClient, announcement
         const response = await fetch(`https://fcm.googleapis.com/v1/projects/${auth.project}/messages:send`, {
           method: 'POST', headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: { token: device.token,
-            notification: { title: announcement.title, body: announcement.message },
+            notification: { title: presentation.title ?? announcement.title, body: announcement.message },
             data: { announcement_id: announcement.id, recipient_id: device.user_id, silent: String(silent),
               destination_url: announcement.destination_url ?? '' },
             android: { priority: 'high', ttl: '86400s', notification: {

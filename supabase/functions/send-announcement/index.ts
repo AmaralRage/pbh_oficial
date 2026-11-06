@@ -78,12 +78,12 @@ Deno.serve(async (request) => {
       warning = 'Não foi possível concluir o push para celulares. Confira a configuração FCM no servidor.';
     }
     const payload = JSON.stringify({
-      title: announcement.title,
+      title: isCommunityNotification(announcement.destination_url) ? '👑 Mensagem do Líder' : announcement.title,
       body: announcement.message,
       url: announcement.destination_url || '/',
       tag: `announcement-${announcement.id}`,
       silent: !announcement.sound_enabled,
-      ...(isCommunityNotification(announcement.destination_url) ? { icon: '/icons/community-192.png' } : {}),
+      ...(isCommunityNotification(announcement.destination_url) ? { icon: '/icons/Icon-192.png' } : {}),
     });
     await Promise.all((subscriptions ?? []).map(async (subscription) => {
       try {

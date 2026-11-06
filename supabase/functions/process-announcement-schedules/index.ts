@@ -47,10 +47,10 @@ Deno.serve(async (request) => {
                 try {
                   await webpush.sendNotification({ endpoint: subscription.endpoint,
                     keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({
-                    title: schedule.title, body: schedule.message,
+                    title: isCommunityNotification(schedule.destination_url) ? '👑 Mensagem do Líder' : schedule.title, body: schedule.message,
                     url: schedule.destination_url || '/', tag: `announcement-${schedule.announcement_id}`,
                     silent: !schedule.sound_enabled,
-                    ...(isCommunityNotification(schedule.destination_url) ? { icon: '/icons/community-192.png' } : {}),
+                    ...(isCommunityNotification(schedule.destination_url) ? { icon: '/icons/Icon-192.png' } : {}),
                   }), { timeout: 10000, TTL: 86400 });
                 } catch (error) {
                   const status = (error as { statusCode?: number }).statusCode;

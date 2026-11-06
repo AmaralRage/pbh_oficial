@@ -12,7 +12,8 @@ export function communityNotificationPresentation(destination?: string | null, s
     community,
     channel: community ? silent ? 'pbh_community_posts_silent' : 'pbh_community_posts'
       : silent ? 'pbh_announcements_silent' : 'pbh_announcements',
-    icon: community ? 'ic_stat_pbh_community' : 'ic_stat_pbh_prominent',
-    color: community ? '#FF6B2C' : '#6D28D9',
+    icon: 'ic_stat_pbh_prominent',
+    color: '#6D28D9',
+    title: community ? '👑 Mensagem do Líder' : null,
   };
 }

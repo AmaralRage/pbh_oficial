@@ -439,12 +439,25 @@ class _NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(top: 10),
     decoration: BoxDecoration(
-      color: item.isRead
+      color: _community
+          ? null
+          : item.isRead
           ? context.pbhColors.surface.withOpacity(.55)
           : context.pbhColors.surface,
-      borderRadius: BorderRadius.circular(18),
+      gradient: _community
+          ? LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: MediaQuery.highContrastOf(context)
+                  ? [context.pbhColors.surface, context.pbhColors.surface]
+                  : const [Color(0xEB301A3A), Color(0xF016111D)],
+            )
+          : null,
+      borderRadius: BorderRadius.circular(_community ? 24 : 18),
       border: Border.all(
-        color: item.isRead
+        color: _community
+            ? const Color(0xFFB57AFF).withValues(alpha: .3)
+            : item.isRead
             ? context.pbhColors.borderSubtle
             : context.pbhColors.border,
       ),
@@ -452,7 +465,7 @@ class _NotificationCard extends StatelessWidget {
     child: Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(_community ? 24 : 18),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(15),
@@ -464,15 +477,21 @@ class _NotificationCard extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: _community
-                      ? AppColors.orange
+                      ? Colors.black
                       : context.pbhColors.orangeDim,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  _community ? Icons.groups_rounded : Icons.campaign_outlined,
-                  color: _community ? Colors.white : context.pbhColors.orange,
-                  size: 21,
-                ),
+                clipBehavior: Clip.antiAlias,
+                child: _community
+                    ? Image.asset(
+                        'assets/images/pbh_notification_brand.png',
+                        fit: BoxFit.contain,
+                      )
+                    : Icon(
+                        Icons.campaign_outlined,
+                        color: context.pbhColors.orange,
+                        size: 21,
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -484,7 +503,7 @@ class _NotificationCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              'Comunidade',
+                              'PBH Oficial',
                               style: AppTextStyles.bodySmall.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -506,7 +525,7 @@ class _NotificationCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            item.title,
+                            _community ? '👑 Mensagem do Líder' : item.title,
                             style: AppTextStyles.titleMedium.copyWith(
                               fontSize: 14,
                             ),

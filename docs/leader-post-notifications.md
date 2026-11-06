@@ -59,3 +59,9 @@ O visual foi separado dos avisos gerais:
 Para ativar o formato novo, aplicar `20261105000800_community_notification_design.sql` **após a 007**, reimplantar `process-announcement-schedules` e `send-announcement` (ambas usam os módulos compartilhados atualizados) e publicar o arquivo web `icons/community-192.png` junto com o build web. Os ícones e canais Android novos entram no próximo APK; ele não foi gerado nesta alteração. Avisos já criados não são reescritos nem reenviados pela migração.
 
 O ícone é gerado de formas simples pelo script `tools/generate-community-notification-icon.dart`. Testes verificaram o nome atual, o título e o limite da prévia no banco, o canal silencioso, a preservação dos avisos gerais e a entrega Android independente de chaves web. Não houve envio real para aparelhos ou implantação remota durante essa alteração.
+
+### Revisão visual posterior: mensagem do líder
+
+O modelo laranja foi substituído pelo exemplo roxo enviado depois: **PBH Oficial**, título **👑 Mensagem do Líder**, logo PBH e prévia com o nome atual do autor. Na central do app o cartão tem gradiente escuro roxo, borda discreta e horário no cabeçalho. No Android o aviso usa a marca PBH e o acento roxo; não há substituição da moldura ou da transparência controladas pelo sistema.
+
+Aplicar `20261105000900_leader_message_notification_design.sql` após a 008 e reimplantar as duas funções de envio para ativar o novo formato no servidor. O visual local completo entrará no próximo APK. O build 52 entregue anteriormente não foi alterado. Não houve deploy, envio real, commit ou push nesta revisão visual.
