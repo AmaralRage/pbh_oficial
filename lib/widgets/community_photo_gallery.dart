@@ -2,6 +2,8 @@ import 'community_framed_image.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'profile_cover_media.dart';
+import '../services/community_image_download.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class CommunityPhotoGallery extends StatelessWidget {
   const CommunityPhotoGallery({
@@ -32,12 +34,25 @@ class CommunityPhotoGallery extends StatelessWidget {
       ? ProfileCoverMedia(url: urls[i], communityAttachment: true)
       : CommunityFramedImage(
           framing: i < framings.length ? framings[i] as List? : null,
-          child: photo(
-            urls[i],
-            cacheWidth: urls.length == 1 ? 1200 : 720,
-            fit: i < framings.length && framings[i] != null
-                ? BoxFit.fill
-                : BoxFit.cover,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Decode for the actual viewport, including the expanded crop.
+              // Round to stable buckets so small layout changes reuse the cache.
+              final pixels =
+                  (constraints.maxWidth *
+                          MediaQuery.devicePixelRatioOf(context))
+                      .clamp(128.0, 1600.0);
+              final width = ((pixels / 128).ceil() * 128).clamp(128, 1600);
+              return RepaintBoundary(
+                child: photo(
+                  urls[i],
+                  cacheWidth: width,
+                  fit: i < framings.length && framings[i] != null
+                      ? BoxFit.fill
+                      : BoxFit.cover,
+                ),
+              );
+            },
           ),
         );
   final VoidCallback? onRefresh;
@@ -144,6 +159,43 @@ class _PhotoViewer extends StatefulWidget {
 class _PhotoViewerState extends State<_PhotoViewer> {
   late final _pages = PageController(initialPage: widget.initial);
   late int _index = widget.initial;
+  bool _saving = false;
+  bool get _canDownload {
+    final path = _index < widget.paths.length
+        ? widget.paths[_index]
+        : Uri.tryParse(widget.urls[_index])?.path ?? '';
+    return CommunityImageDownload.supported &&
+        RegExp(r'\.(jpe?g|png|webp|gif)$', caseSensitive: false).hasMatch(path);
+  }
+
+  Future<void> _download() async {
+    if (_saving) return;
+    final url = widget.urls[_index];
+    setState(() => _saving = true);
+    try {
+      final saved = await CommunityImageDownload().download(url);
+      if (saved && mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              kIsWeb ? 'Download solicitado ao navegador.' : 'Foto salva.',
+            ),
+          ),
+        );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível baixar a foto. Recarregue os anexos e tente novamente.',
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   void dispose() {
     _pages.dispose();
@@ -157,6 +209,25 @@ class _PhotoViewerState extends State<_PhotoViewer> {
       backgroundColor: Colors.black,
       foregroundColor: Colors.white,
       title: Text('Anexo ${_index + 1} de ${widget.urls.length}'),
+      actions: [
+        if (_saving)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: SizedBox.square(
+              dimension: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+          )
+        else if (_canDownload)
+          IconButton(
+            tooltip: 'Baixar foto',
+            onPressed: _download,
+            icon: const Icon(Icons.download_rounded),
+          ),
+      ],
     ),
     body: SafeArea(
       child: PageView.builder(

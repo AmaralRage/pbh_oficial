@@ -19,11 +19,20 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || './', self.location.origin).href;
-  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+  let target;
+  try {
+    target = new URL(event.notification.data?.url || './', self.location.origin);
+    if (target.protocol !== 'https:' && target.origin !== self.location.origin) throw new Error('Unsupported destination');
+  } catch (_) { target = new URL('/', self.location.origin); }
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windows) => {
     for (const client of windows) {
-      if (client.url.startsWith(self.location.origin) && 'focus' in client) return client.focus();
+      if (target.origin !== self.location.origin || new URL(client.url).origin !== self.location.origin) continue;
+      if (!('navigate' in client) || !('focus' in client)) continue;
+      try {
+        const navigated = await client.navigate(target.href);
+        if (navigated) return navigated.focus();
+      } catch (_) { /* A closing tab must not consume the destination. */ }
     }
-    return clients.openWindow ? clients.openWindow(target) : undefined;
+    return clients.openWindow ? clients.openWindow(target.href) : undefined;
   }));
 });

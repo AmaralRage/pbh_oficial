@@ -1,4 +1,5 @@
 import '../widgets/community_mention_suggestions.dart';
+import '../widgets/community_topic_picker.dart';
 import '../widgets/community_framed_image.dart';
 import 'profile_image_cropper.dart';
 import 'package:flutter/material.dart';
@@ -539,24 +540,13 @@ class _CommunityPostComposerState extends State<CommunityPostComposer>
                       focusNode: _mentionFocus,
                       service: widget.service,
                     ),
-                    DropdownButtonFormField<String>(
-                      initialValue: _topic,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Assunto'),
-                      items: [
-                        for (final topic in communityTopics.entries)
-                          DropdownMenuItem(
-                            value: topic.key,
-                            child: Text(topic.value),
-                          ),
-                      ],
+                    CommunityTopicPicker(
+                      value: _topic,
                       onChanged: _busy
                           ? null
                           : (value) {
-                              if (value != null) {
-                                setState(() => _topic = value);
-                                _scheduleDraft();
-                              }
+                              setState(() => _topic = value);
+                              _scheduleDraft();
                             },
                     ),
                     const SizedBox(height: 12),

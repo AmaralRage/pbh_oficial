@@ -9,7 +9,26 @@ permissions:
   contents: read
 
 jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Detectar credenciais no codigo e no historico
+        run: node tools/security-secret-scan.mjs --history
+      - name: Validar o detector e a autorizacao dos workers
+        run: node --test tools/test-security-secret-scan.mjs tools/test-backup-integrity.mjs tools/test-announcement-worker.mjs tools/test-community-notification-presentation.mjs tools/test-push-navigation.mjs tools/test-private-chat-worker.mjs
+      - name: Preparar banco isolado de testes
+        run: npm install --prefix build/security-deps --no-save --ignore-scripts @electric-sql/pglite@0.3.16
+      - name: Testar isolamento entre membros e permissoes
+        run: node tools/run-security-tests.mjs
+
   checks:
+    needs: security
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +41,11 @@ jobs:
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - run: flutter build web --release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Conferir tambem o frontend compilado
+        run: node tools/security-secret-scan.mjs
 
   android:
     needs: checks

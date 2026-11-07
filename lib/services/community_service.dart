@@ -5,6 +5,7 @@ import 'dart:math';
 import '../models/community_post_model.dart';
 import '../models/community_photo.dart';
 import 'auth_service.dart';
+import 'comment_submission_store.dart';
 
 class CommunityBroadcastPending implements Exception {
   const CommunityBroadcastPending();
@@ -72,6 +73,7 @@ class CommunityService {
   CommunityService({SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
   final SupabaseClient _client;
+  final _commentSubmissions = CommentSubmissionStore();
 
   String? get _userId => _client.auth.currentUser?.id;
   String? get currentUserId => _userId;
@@ -632,14 +634,49 @@ class CommunityService {
   }) async {
     final userId = _userId;
     if (userId == null) throw StateError('Entre na sua conta para comentar.');
-    final table = isSample ? 'community_sample_comments' : 'community_comments';
-    final postColumn = isSample ? 'sample_post_key' : 'post_id';
-    await _client.from(table).insert({
-      postColumn: postId,
-      'user_id': userId,
-      'content': content.trim(),
-      if (replyToId != null) 'reply_to_id': replyToId,
-    });
+    final text = content.trim();
+    if (text.isEmpty || text.length > 1000) {
+      throw ArgumentError('Escreva até 1000 caracteres.');
+    }
+    final id = await _commentSubmissions.requestId(
+      userId,
+      postId,
+      text,
+      replyToId,
+      isSample,
+      newPostId,
+    );
+    if (_userId != userId) throw StateError('A conta mudou.');
+    await _client
+        .rpc(
+          'submit_community_comment',
+          params: {
+            'p_id': id,
+            'p_post': postId,
+            'p_content': text,
+            'p_reply': replyToId,
+            'p_sample': isSample,
+          },
+        )
+        .timeout(const Duration(seconds: 20));
+  }
+
+  Future<void> confirmCommentDraftCleared(
+    String postId,
+    String content, {
+    bool isSample = false,
+    String? replyToId,
+  }) async {
+    final user = _userId;
+    if (user != null) {
+      await _commentSubmissions.acknowledged(
+        user,
+        postId,
+        isSample,
+        content.trim(),
+        replyToId,
+      );
+    }
   }
 
   Future<void> editComment(

@@ -13,6 +13,9 @@ export function communityNotificationPresentation(destination?: string | null, s
     channel: community ? silent ? 'pbh_community_posts_silent' : 'pbh_community_posts'
       : silent ? 'pbh_announcements_silent' : 'pbh_announcements',
     icon: 'ic_stat_pbh_prominent',
+    image: community
+      ? 'https://pbh-oficial.vercel.app/icons/Icon-192.png'
+      : 'https://pbh-oficial.vercel.app/icons/Icon-512.png',
     color: '#6D28D9',
     title: community ? 'Mensagem do Líder 👑' : null,
   };

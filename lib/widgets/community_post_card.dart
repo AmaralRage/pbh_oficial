@@ -1038,23 +1038,39 @@ class _CommunityPostCardState extends State<CommunityPostCard>
     StateSetter refreshSheet,
   ) async {
     final content = _commentController.text.trim();
+    final replyId = _replyTarget?.id;
     if (content.isEmpty || _busy) return;
     if (_service.currentUserId != _commentDraftAccount) {
       widget.onRequireLogin();
       return;
     }
     setState(() => _busy = true);
+    var sent = false;
     try {
       await _service.addComment(
         widget.post.id,
         content,
         isSample: widget.post.isSample,
-        replyToId: _replyTarget?.id,
+        replyToId: replyId,
       );
-      _commentController.clear();
+      sent = true;
+      if (!mounted || _service.currentUserId != _commentDraftAccount) return;
+      if (mounted) setState(() => _commentCount++);
+      final unchanged =
+          _commentController.text.trim() == content &&
+          _replyTarget?.id == replyId;
+      if (unchanged) {
+        _commentController.clear();
+        _replyTarget = null;
+      }
       _commentSaveTimer?.cancel();
       await _saveCommentDraft();
-      _replyTarget = null;
+      await _service.confirmCommentDraftCleared(
+        widget.post.id,
+        content,
+        isSample: widget.post.isSample,
+        replyToId: replyId,
+      );
       final visibleLimit = comments.length < 30 ? 30 : comments.length + 1;
       final refreshed = await _service.fetchComments(
         widget.post.id,
@@ -1065,12 +1081,23 @@ class _CommunityPostCardState extends State<CommunityPostCard>
       comments
         ..clear()
         ..addAll(refreshed);
-      if (mounted) setState(() => _commentCount++);
       refreshSheet(() {});
       if (!widget.post.isSample)
         unawaited((widget.onInteractionChanged ?? widget.onChanged)());
     } catch (error) {
-      if (mounted) _showError(error);
+      if (mounted) {
+        if (sent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Comentário enviado. Reabra os comentários para atualizar a lista.',
+              ),
+            ),
+          );
+        } else {
+          _showError(error);
+        }
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
       refreshSheet(() {});

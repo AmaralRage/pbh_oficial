@@ -1,6 +1,7 @@
 param(
     [ValidateSet('Debug', 'Release')][string]$Mode = 'Debug',
-    [ValidateRange(1, 2100000000)][int]$BuildNumber
+    [ValidateRange(1, 2100000000)][int]$BuildNumber,
+    [string]$PreviousApk
 )
 $ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path $PSScriptRoot -Parent
@@ -13,16 +14,22 @@ try {
     if ($Mode -eq 'Release' -and -not (Test-Path android/key.properties)) {
         throw 'A assinatura de distribuicao precisa estar configurada em android/key.properties.'
     }
+    if ($Mode -eq 'Release' -and -not $PreviousApk) {
+        throw 'Informe -PreviousApk para verificar assinatura e compatibilidade com a instalacao existente.'
+    }
     $flutterCommand = Get-Command flutter -ErrorAction SilentlyContinue
     $flutterPath = if ($flutterCommand) { $flutterCommand.Source } else { 'C:/src/flutter/bin/flutter.bat' }
     if (-not (Test-Path -LiteralPath $flutterPath)) { throw 'Flutter nao encontrado.' }
     $modeFlag = '--' + $Mode.ToLowerInvariant()
     & $flutterPath build apk $modeFlag "--build-name=$appVersion" "--build-number=$BuildNumber"
     if ($LASTEXITCODE -ne 0) { throw 'A compilacao falhou. Nenhum APK foi publicado.' }
+    $sourceApk = "build/app/outputs/flutter-apk/app-$($Mode.ToLowerInvariant()).apk"
+    if ($PreviousApk) {
+        & (Join-Path $PSScriptRoot 'check-apk-update.ps1') -PreviousApk $PreviousApk -CandidateApk $sourceApk
+    }
     New-Item -ItemType Directory -Path build/releases -Force | Out-Null
     $suffix = if ($Mode -eq 'Debug') { '-teste' } else { '' }
     $outputName = "PBH-Oficial-v$appVersion-build$BuildNumber$suffix.apk"
-    $sourceApk = "build/app/outputs/flutter-apk/app-$($Mode.ToLowerInvariant()).apk"
     $outputApk = Join-Path 'build/releases' $outputName
     Copy-Item -LiteralPath $sourceApk -Destination $outputApk -Force
     $hash = (Get-FileHash -LiteralPath $outputApk -Algorithm SHA256).Hash

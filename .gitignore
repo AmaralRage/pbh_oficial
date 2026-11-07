@@ -33,3 +33,11 @@ android/app/google-services.json
 *.p12
 *.pfx
 *.key
+*.jks
+*.keystore
+**/key.properties
+
+# Private security evidence and backups must stay outside source control.
+backups/
+security-private/
+*.dump

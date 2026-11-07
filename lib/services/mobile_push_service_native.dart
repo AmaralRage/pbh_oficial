@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'community_post_navigation.dart';
+import 'chat_navigation.dart';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' show Color;
@@ -60,6 +61,10 @@ class MobilePushService {
             android: AndroidInitializationSettings('ic_stat_pbh_prominent'),
           ),
           onDidReceiveNotificationResponse: (response) {
+            ChatNavigation.fromLocalPayload(
+              response.payload,
+              _client?.auth.currentUser?.id,
+            );
             CommunityPostNavigation.fromLocalPayload(
               response.payload,
               _client?.auth.currentUser?.id,
@@ -104,6 +109,22 @@ class MobilePushService {
             enableVibration: false,
           ),
         );
+        await android?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'pbh_private_chat',
+            'Conversas privadas',
+            importance: Importance.high,
+          ),
+        );
+        await android?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'pbh_private_chat_silent',
+            'Conversas privadas (sem som)',
+            importance: Importance.high,
+            playSound: false,
+            enableVibration: false,
+          ),
+        );
         _messages ??= FirebaseMessaging.onMessage.listen((message) async {
           if (_pausedUser == _client?.auth.currentUser?.id &&
               _pausedUser != null) {
@@ -111,6 +132,10 @@ class MobilePushService {
           }
           if (_client?.auth.currentUser?.id != message.data['recipient_id'])
             return;
+          final chat = ChatNavigation.fromUrl(
+            message.data['destination_url'] as String?,
+          );
+          if (chat != null && ChatNavigation.activeThread == chat) return;
           final notice = message.notification;
           if (notice == null) return;
           if (!await deviceEnabled) return;
@@ -134,14 +159,20 @@ class MobilePushService {
               notice.body,
               NotificationDetails(
                 android: AndroidNotificationDetails(
-                  community
+                  chat != null
+                      ? (silent
+                            ? 'pbh_private_chat_silent'
+                            : 'pbh_private_chat')
+                      : community
                       ? silent
                             ? 'pbh_community_posts_silent'
                             : 'pbh_community_posts'
                       : silent
                       ? 'pbh_announcements_silent'
                       : 'pbh_announcements',
-                  community
+                  chat != null
+                      ? 'Conversas privadas'
+                      : community
                       ? 'Comunidade'
                       : silent
                       ? 'Avisos silenciosos do PBH'
@@ -174,13 +205,22 @@ class MobilePushService {
             ),
           );
         });
-        _opened ??= FirebaseMessaging.onMessageOpenedApp.listen(
-          (message) => CommunityPostNavigation.fromNotification(
+        _opened ??= FirebaseMessaging.onMessageOpenedApp.listen((message) {
+          ChatNavigation.fromNotification(
             message.data,
             _client?.auth.currentUser?.id,
-          ),
-        );
+          );
+          CommunityPostNavigation.fromNotification(
+            message.data,
+            _client?.auth.currentUser?.id,
+          );
+        });
         final initial = await FirebaseMessaging.instance.getInitialMessage();
+        if (initial != null)
+          ChatNavigation.fromNotification(
+            initial.data,
+            _client?.auth.currentUser?.id,
+          );
         if (initial != null)
           CommunityPostNavigation.fromNotification(
             initial.data,
@@ -189,10 +229,13 @@ class MobilePushService {
         final launch = await _notifications.getNotificationAppLaunchDetails();
         if (launch?.didNotificationLaunchApp == true) {
           try {
+            ChatNavigation.fromLocalPayload(
+              launch!.notificationResponse?.payload,
+              _client?.auth.currentUser?.id,
+            );
             CommunityPostNavigation.fromNotification(
               Map<String, dynamic>.from(
-                jsonDecode(launch!.notificationResponse?.payload ?? '{}')
-                    as Map,
+                jsonDecode(launch.notificationResponse?.payload ?? '{}') as Map,
               ),
               _client?.auth.currentUser?.id,
             );

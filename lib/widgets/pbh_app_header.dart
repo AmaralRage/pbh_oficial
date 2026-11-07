@@ -17,6 +17,8 @@ class PbhAppHeader extends StatelessWidget {
   final int notificationPulseKey;
   final VoidCallback onNotificationsChanged;
   final bool showNotifications;
+  final VoidCallback? onChatPressed;
+  final int unreadChats;
 
   const PbhAppHeader({
     super.key,
@@ -27,6 +29,8 @@ class PbhAppHeader extends StatelessWidget {
     this.notificationPulseKey = 0,
     required this.onNotificationsChanged,
     this.showNotifications = true,
+    this.onChatPressed,
+    this.unreadChats = 0,
   });
 
   @override
@@ -51,6 +55,7 @@ class PbhAppHeader extends StatelessWidget {
                   icon: Icon(Icons.menu, color: context.pbhColors.textPrimary),
                   onPressed: onMenuPressed,
                 ),
+                if (onChatPressed != null) const SizedBox(width: 48),
                 Expanded(
                   child: Center(
                     child: Semantics(
@@ -72,6 +77,17 @@ class PbhAppHeader extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (onChatPressed != null)
+                  IconButton(
+                    tooltip: 'Conversas',
+                    onPressed: onChatPressed,
+                    icon: Badge(
+                      isLabelVisible: unreadChats > 0,
+                      label: Text(unreadChats > 99 ? '99+' : '$unreadChats'),
+                      backgroundColor: context.pbhColors.orange,
+                      child: const Icon(Icons.chat_bubble_outline),
+                    ),
+                  ),
                 if (showNotifications)
                   IconButton(
                     constraints: const BoxConstraints.tightFor(

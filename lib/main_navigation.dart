@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'services/private_support_service.dart';
+import 'services/chat_service.dart';
+import 'screens/chat_inbox_screen.dart';
+import 'screens/chat_room_screen.dart';
+import 'services/chat_navigation.dart';
 import 'services/community_post_navigation.dart';
 import 'screens/community_publication_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -50,8 +54,66 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation>
     with WidgetsBindingObserver {
   Timer? _supportTimer;
+  RealtimeChannel? _chatChannel;
+  int _chatUnread = 0;
+  bool _chatCountLoading = false;
+  Future<void> _refreshChat() async {
+    if (_chatCountLoading || !widget.isAuthenticated) return;
+    _chatCountLoading = true;
+    final service = ChatService(),
+        account = Supabase.instance.client.auth.currentUser?.id;
+    try {
+      final count = await service.unread();
+      if (mounted && account == Supabase.instance.client.auth.currentUser?.id)
+        setState(() => _chatUnread = count);
+    } catch (_) {
+    } finally {
+      _chatCountLoading = false;
+    }
+  }
+
+  Future<void> _openChats() async {
+    if (!widget.isAuthenticated) {
+      widget.onOpenSignIn?.call();
+      return;
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => const ChatInboxScreen()),
+    );
+    if (mounted) _refreshChat();
+  }
+
   bool _countLoading = false;
   bool _openingPost = false;
+  bool _openingChatLink = false;
+  void _handleChatLink() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openPendingChat();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _openPendingChat() async {
+    if (_openingChatLink || !widget.isAuthenticated || !mounted) return;
+    final id = ChatNavigation.pending.value;
+    if (id == null) return;
+    ChatNavigation.pending.value = null;
+    _openingChatLink = true;
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => ChatRoomScreen(threadId: id)),
+      );
+    } finally {
+      _openingChatLink = false;
+      if (mounted) {
+        _refreshChat();
+        if (ChatNavigation.pending.value != null) _openPendingChat();
+      }
+    }
+  }
+
   void _handlePostLink() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _openPendingPost();
@@ -100,6 +162,11 @@ class _MainNavigationState extends State<MainNavigation>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     CommunityPostNavigation.pending.addListener(_handlePostLink);
+    ChatNavigation.pending.addListener(_handleChatLink);
+    final chatLink = Uri.base.queryParameters['chat'];
+    if (chatLink != null && validCommunityPostId(chatLink))
+      ChatNavigation.pending.value = chatLink;
+    _handleChatLink();
     final link = Uri.base.queryParameters['community_post'];
     if (link != null && validCommunityPostId(link))
       CommunityPostNavigation.pending.value = link;
@@ -150,10 +217,15 @@ class _MainNavigationState extends State<MainNavigation>
   }
 
   void _connectNotifications() {
+    _handleChatLink();
+    _chatChannel ??= ChatService().watchInbox(_refreshChat, null);
+    _refreshChat();
     _supportTimer?.cancel();
     _supportTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed)
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
         _refreshUnreadNotifications();
+        _refreshChat();
+      }
     });
     _loadNotificationPreferences();
     _refreshUnreadNotifications();
@@ -195,6 +267,10 @@ class _MainNavigationState extends State<MainNavigation>
   }
 
   void _disconnectNotifications() {
+    if (_chatChannel != null)
+      Supabase.instance.client.removeChannel(_chatChannel!);
+    _chatChannel = null;
+    _chatUnread = 0;
     _supportTimer?.cancel();
     final channel = _announcementChannel;
     if (channel != null) Supabase.instance.client.removeChannel(channel);
@@ -205,6 +281,7 @@ class _MainNavigationState extends State<MainNavigation>
   @override
   void dispose() {
     CommunityPostNavigation.pending.removeListener(_handlePostLink);
+    ChatNavigation.pending.removeListener(_handleChatLink);
     _supportTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     final channel = _announcementChannel;
@@ -237,7 +314,10 @@ class _MainNavigationState extends State<MainNavigation>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refreshUnreadNotifications();
+    if (state == AppLifecycleState.resumed) {
+      _refreshUnreadNotifications();
+      _refreshChat();
+    }
   }
 
   Future<void> _loadNotificationPreferences() async {
@@ -369,6 +449,8 @@ class _MainNavigationState extends State<MainNavigation>
         child: Column(
           children: [
             PbhAppHeader(
+              onChatPressed: widget.isAuthenticated ? _openChats : null,
+              unreadChats: _chatUnread,
               currentSection: sectionNames[_currentIndex],
               onMenuPressed: _openMenu,
               onLogoPressed: _returnToLaunch,

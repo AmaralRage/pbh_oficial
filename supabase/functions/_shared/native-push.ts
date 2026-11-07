@@ -8,7 +8,7 @@ export function isNativePushSilent(announcementSound?: boolean, deviceSound?: bo
   return announcementSound === false || deviceSound === false;
 }
 
-async function credentials() {
+export async function credentials() {
   const raw = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON');
   if (!raw) throw new Error('Native Push is not configured');
   const account = JSON.parse(raw);
@@ -67,7 +67,7 @@ export async function sendNativeAnnouncement(admin: SupabaseClient, announcement
             android: { priority: 'high', ttl: '86400s', notification: {
               channel_id: presentation.channel,
               icon: presentation.icon, tag: `announcement-${announcement.id}`,
-              ...(presentation.community ? {} : { image: 'https://pbh-oficial.vercel.app/icons/Icon-512.png' }),
+              image: presentation.image,
               color: presentation.color,
               ...(silent ? {} : { sound: 'default' }),
             } },

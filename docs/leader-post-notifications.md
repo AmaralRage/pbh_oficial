@@ -53,7 +53,7 @@ O visual foi separado dos avisos gerais:
 - Ícone de pessoas em branco sobre laranja PBH, com um ícone monocromático próprio para a barra de status Android.
 - Canal **Comunidade**, título **🔥 Post em destaque** e texto **Nome atual: prévia da publicação…**. O nome vem da identidade atual do autor no servidor; a prévia é limitada e não inclui quebras de linha.
 - No app, o cartão da comunidade mostra a seção e o horário acima do título, mantendo as cores e a tipografia do projeto. Avisos gerais mantêm sua apresentação anterior.
-- No Android com app aberto, o aviso usa o canal específico, subtítulo da comunidade e expansão de texto. No recebimento em segundo plano, o FCM usa o canal, ícone e cor próprios; não é enviada uma imagem de capa grande para esse tipo de aviso.
+- No Android com app aberto, o aviso usa o canal específico, logo PBH local e expansão de texto. No recebimento em segundo plano, o FCM usa o canal, ícone e cor próprios e agora recebe também o logo PBH de 192 pixels no campo `image`. O Android controla a posição da imagem e a apresentação expandida; essa alteração não garante a composição exata de uma referência visual de outro sistema.
 - A moldura, a transparência, o local exato do ícone e a exibição do horário são controlados pelo sistema do celular. Não foi criado um layout que substitua os controles do Android ou que prometa reproduzir exatamente um cartão de iOS.
 
 Para ativar o formato novo, aplicar `20261105000800_community_notification_design.sql` **após a 007**, reimplantar `process-announcement-schedules` e `send-announcement` (ambas usam os módulos compartilhados atualizados) e publicar o arquivo web `icons/community-192.png` junto com o build web. Os ícones e canais Android novos entram no próximo APK; ele não foi gerado nesta alteração. Avisos já criados não são reescritos nem reenviados pela migração.
@@ -67,3 +67,9 @@ O modelo laranja foi substituído pelo exemplo roxo enviado depois: **PBH Oficia
 Aplicar `20261105000900_leader_message_notification_design.sql` após a 008 e reimplantar as duas funções de envio para ativar o novo formato no servidor. O visual local completo entrará no próximo APK. O build 52 entregue anteriormente não foi alterado. Não houve deploy, envio real, commit ou push nesta revisão visual.
 
 O título foi posteriormente ajustado para **Mensagem do Líder 👑**, com a coroa ao final. Aplicar `20261105001000_leader_message_title_suffix.sql` após a 009 e atualizar as funções de envio. O build 53 já gerado não foi modificado por essa mudança de texto.
+
+### Publicação em 7 de novembro de 2026
+
+As funções foram efetivamente republicadas via CLI autenticado: `send-announcement` versão 8 e `process-announcement-schedules` versão 7, ambas confirmadas `ACTIVE`. Os campos de destino, destinatário e imagem PBH estão incluídos no código enviado. Não foi disparado um aviso real para testar. A alteração vale para novos envios, não modifica notificações já entregues.
+
+O RPC `submit_community_comment(uuid,text,text,uuid,boolean)` e os grants de INSERT de `id` também foram confirmados no banco remoto. A função é invoker, tem `search_path` vazio, permite execução por `authenticated` e nega execução por `anon`; a migração não foi reaplicada porque já estava presente.

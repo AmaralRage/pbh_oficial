@@ -6,6 +6,8 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../widgets/official_hero_background.dart';
 import '../widgets/pbh_logo.dart';
+import '../services/community_post_navigation.dart';
+import '../services/chat_navigation.dart';
 import 'auth_gate.dart';
 
 class LaunchScreen extends StatefulWidget {
@@ -20,6 +22,31 @@ class LaunchScreen extends StatefulWidget {
 class _LaunchScreenState extends State<LaunchScreen>
     with SingleTickerProviderStateMixin {
   bool _starting = false;
+  @override
+  void initState() {
+    super.initState();
+    CommunityPostNavigation.pending.addListener(_startFromNotification);
+    ChatNavigation.pending.addListener(_startFromNotification);
+    final chat = Uri.base.queryParameters['chat'];
+    if (chat != null && validCommunityPostId(chat))
+      ChatNavigation.pending.value = chat;
+    _startFromNotification();
+  }
+
+  void _startFromNotification() {
+    if ((CommunityPostNavigation.pending.value == null &&
+            ChatNavigation.pending.value == null) ||
+        _starting)
+      return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          (CommunityPostNavigation.pending.value != null ||
+              ChatNavigation.pending.value != null))
+        _start();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
   late final AnimationController _entrance = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
@@ -35,18 +62,20 @@ class _LaunchScreenState extends State<LaunchScreen>
 
   @override
   void dispose() {
+    CommunityPostNavigation.pending.removeListener(_startFromNotification);
+    ChatNavigation.pending.removeListener(_startFromNotification);
     _entrance.dispose();
     super.dispose();
   }
 
   Future<void> _start() async {
     if (_starting) return;
+    setState(() => _starting = true);
     final onStart = widget.onStart;
     if (onStart != null) {
       onStart();
       return;
     }
-    setState(() => _starting = true);
     Navigator.of(context).pushReplacement(
       fadeSlideRoute(AuthGate(supabaseConfigured: SupabaseConfig.isConfigured)),
     );

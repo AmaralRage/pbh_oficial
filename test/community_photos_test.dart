@@ -60,6 +60,32 @@ void main() {
     ),
   );
   tearDown(() => client.dispose());
+  testWidgets(
+    'small feed previews decode less while the viewer retains the full image',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CommunityPhotoGallery(
+              urls: ['https://example.invalid/photo.png'],
+            ),
+          ),
+        ),
+      );
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(image.image, isA<ResizeImage>());
+      expect((image.image as ResizeImage).width, lessThan(600));
+      await tester.tap(find.byType(InkWell).first);
+      await tester.pumpAndSettle();
+      final full = tester.widgetList<Image>(find.byType(Image)).last;
+      expect(full.image, isA<NetworkImage>());
+      expect(full.fit, BoxFit.contain);
+    },
+  );
   testWidgets('only the leader sees broadcast opt-in, disabled by default', (
     tester,
   ) async {

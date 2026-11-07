@@ -9,6 +9,7 @@ test('leader notifications use PBH branding and preserve silent delivery',async(
   const destination='https://pbh-oficial.vercel.app/?community_post=bc500000-0000-4000-8000-000000000003';
   const normal=module.communityNotificationPresentation(destination);
   assert.equal(normal.channel,'pbh_community_posts');
+  assert.equal(normal.image,'https://pbh-oficial.vercel.app/icons/Icon-192.png');
   assert.equal(normal.icon,'ic_stat_pbh_prominent');assert.equal(normal.color,'#6D28D9');
   assert.equal(normal.title,'Mensagem do Líder 👑');
   assert.equal(module.communityNotificationPresentation(destination,true).channel,'pbh_community_posts_silent');
@@ -16,5 +17,6 @@ test('leader notifications use PBH branding and preserve silent delivery',async(
   assert.equal(general.community,false);assert.equal(general.channel,'pbh_announcements');
   assert.equal(general.color,'#6D28D9');
   assert.equal(general.title,null);
+  assert.equal(general.image,'https://pbh-oficial.vercel.app/icons/Icon-512.png');
   assert.equal(module.isCommunityNotification('https://other.invalid/?community_post=bc500000-0000-4000-8000-000000000003'),false);
 });

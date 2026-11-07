@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'member_publications_screen.dart';
+import 'chat_room_screen.dart';
+import '../services/chat_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
@@ -26,6 +28,31 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
   final _service = PublicMemberProfileService();
   StreamSubscription<AuthState>? _auth;
   PublicMemberProfile? _profile;
+  bool _openingChat = false;
+  Future<void> _chat() async {
+    if (_openingChat) return;
+    setState(() => _openingChat = true);
+    try {
+      final id = await ChatService().open(widget.userId);
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => ChatRoomScreen(threadId: id)),
+      );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'N?o foi poss?vel iniciar esta conversa. Tente novamente.',
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _openingChat = false);
+    }
+  }
+
   bool _loading = true;
   bool _failed = false;
   int _version = 0;
@@ -142,6 +169,17 @@ class _PublicMemberProfileScreenState extends State<PublicMemberProfileScreen>
                   founder: profile.founder,
                 ),
                 const SizedBox(height: 22),
+                if (!profile.isOwn && _service.client.auth.currentUser != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: OutlinedButton.icon(
+                      onPressed: _openingChat ? null : _chat,
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: Text(
+                        _openingChat ? 'Abrindo conversa?' : 'Conversar',
+                      ),
+                    ),
+                  ),
                 if (!profile.hasProgress)
                   Container(
                     padding: const EdgeInsets.all(18),
