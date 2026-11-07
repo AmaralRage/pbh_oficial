@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pbh_oficial/models/chat_models.dart';
@@ -20,8 +21,9 @@ class _MemoryStore extends ChatLocalStore {
     String user,
     String thread,
     String preset,
-    Uint8List? photo,
-  ) async {}
+    Uint8List? photo, {
+    double dim = .54,
+  }) async {}
 }
 
 class _Chat extends ChatService {
@@ -56,6 +58,20 @@ class _Chat extends ChatService {
   @override
   Future<void> close(RealtimeChannel channel) async {}
   @override
+  Future<void> typing(String thread, bool active) async {}
+  @override
+  Future<DateTime?> peerTyping(String thread) async => null;
+  @override
+  RealtimeChannel watchTyping(String thread, void Function() changed) =>
+      client.channel('typing-fixture');
+  @override
+  Future<bool> muted(String thread) async => false;
+  @override
+  Future<List<ChatMessage>> replyContext(
+    String thread,
+    List<String> ids,
+  ) async => [];
+  @override
   Future<void> send(String thread, ChatDraft draft) async {
     attempts.add(draft);
     if (attempts.length == 1) throw StateError('lost response');
@@ -63,6 +79,51 @@ class _Chat extends ChatService {
 }
 
 void main() {
+  testWidgets(
+    'microphone tap opens recording and cancellation restores the action',
+    (tester) async {
+      final service = (await tester.runAsync(() async => _Chat()))!;
+      const channel = MethodChannel('com.llfbandit.record/messages');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        if (call.method == 'hasPermission') return false;
+        return null;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatRoomScreen(
+            threadId: 'cc070000-0000-4000-8000-000000000001',
+            service: service,
+            localStore: _MemoryStore(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Gravar áudio'));
+      await tester.pumpAndSettle();
+      expect(find.text('Permita o microfone'), findsOneWidget);
+      expect(find.textContaining('Permita o microfone'), findsOneWidget);
+      expect(service.attempts, isEmpty);
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Permita o microfone'), findsNothing);
+      final button = tester.widget<IconButton>(
+        find.byWidgetPredicate(
+          (w) => w is IconButton && w.tooltip == 'Gravar áudio',
+        ),
+      );
+      expect(button.onPressed, isNotNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() => service.client.dispose());
+    },
+  );
   testWidgets(
     'small-screen chat keeps failed draft and retries with the same UUID',
     (tester) async {
@@ -90,7 +151,12 @@ void main() {
         find.text('Mensagens e anexos desaparecem após 7 dias.'),
         findsOneWidget,
       );
+      expect(find.byTooltip('Gravar áudio'), findsOneWidget);
+      expect(find.byTooltip('Enviar mensagem'), findsNothing);
       await tester.enterText(find.byType(TextField), 'Olá, irmão!');
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Enviar mensagem'), findsOneWidget);
+      expect(find.byTooltip('Gravar áudio'), findsNothing);
       await tester.tap(find.byTooltip('Enviar mensagem'));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 100)),
@@ -106,6 +172,7 @@ void main() {
       expect(service.attempts, hasLength(2));
       expect(service.attempts.first.id, service.attempts.last.id);
       expect(find.text('Olá, irmão!'), findsNothing);
+      expect(find.byTooltip('Gravar áudio'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.runAsync(() => service.client.dispose());

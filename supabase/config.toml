@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.process-private-chat]
 verify_jwt = false
+
+[functions.validate-chat-audio]
+verify_jwt = true

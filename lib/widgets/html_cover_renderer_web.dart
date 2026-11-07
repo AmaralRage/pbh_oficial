@@ -31,7 +31,7 @@ class _HtmlCoverRendererState extends State<HtmlCoverRenderer> {
       ..style.width = '100%'
       ..style.height = '100%'
       ..style.pointerEvents = 'none'
-      ..srcdoc = widget.document;
+      ..srcdoc = widget.document.toJS;
     _frame.onLoad.listen((_) {
       if (mounted) _play();
     });
@@ -52,14 +52,15 @@ class _HtmlCoverRendererState extends State<HtmlCoverRenderer> {
   @override
   void didUpdateWidget(covariant HtmlCoverRenderer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.document != widget.document) _frame.srcdoc = widget.document;
+    if (oldWidget.document != widget.document)
+      _frame.srcdoc = widget.document.toJS;
     _play();
   }
 
   @override
   void dispose() {
     web.window.removeEventListener('message', _ready);
-    _frame.srcdoc = '';
+    _frame.srcdoc = ''.toJS;
     _frame.remove();
     super.dispose();
   }

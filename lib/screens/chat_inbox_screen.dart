@@ -7,16 +7,24 @@ import '../services/chat_service.dart';
 import 'chat_room_screen.dart';
 
 const chatExpiryNotice = 'Mensagens e anexos desaparecem após 7 dias.';
-Widget chatAvatar(String name, String? url, {double radius = 25, bool founder = false}) =>
-    CircleAvatar(
-      radius: radius,
-      backgroundColor: const Color(0xFF25252A),
-      foregroundImage: url == null || url.isEmpty
-          ? founder ? const AssetImage('assets/images/perfil.png') : null
-          : NetworkImage(url),
-      onForegroundImageError: (url == null || url.isEmpty) && !founder ? null : (_, __) {},
-      child: Text(name.isEmpty ? '?' : name.substring(0, 1).toUpperCase()),
-    );
+Widget chatAvatar(
+  String name,
+  String? url, {
+  double radius = 25,
+  bool founder = false,
+}) => CircleAvatar(
+  radius: radius,
+  backgroundColor: const Color(0xFF25252A),
+  foregroundImage: url == null || url.isEmpty
+      ? founder
+            ? const AssetImage('assets/images/perfil.png')
+            : null
+      : NetworkImage(url),
+  onForegroundImageError: (url == null || url.isEmpty) && !founder
+      ? null
+      : (_, __) {},
+  child: Text(name.isEmpty ? '?' : name.substring(0, 1).toUpperCase()),
+);
 
 class ChatInboxScreen extends StatefulWidget {
   const ChatInboxScreen({super.key, this.service});
@@ -51,7 +59,13 @@ class _ChatInboxState extends State<ChatInboxScreen>
       },
     );
     _auth = _service.client.auth.onAuthStateChange.listen((_) {
-      if (_service.userId != _account && mounted) Navigator.pop(context);
+      if (_service.userId != _account && mounted) {
+        setState(() {
+          _generation++;
+          _threads.clear();
+        });
+        Navigator.pop(context);
+      }
     });
   }
 
@@ -153,192 +167,217 @@ class _ChatInboxState extends State<ChatInboxScreen>
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Conversas'),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          tooltip: 'Nova conversa',
-          onPressed: _new,
-          icon: Icon(Icons.edit_square, color: context.pbhColors.orange),
-        ),
-      ],
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _new,
-      icon: const Icon(Icons.edit_square),
-      label: const Text('Nova conversa'),
-      backgroundColor: context.pbhColors.orange,
-      foregroundColor: Colors.black,
-    ),
-    body: SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-            child: TextField(
-              controller: _search,
-              onChanged: (_) {
-                _debounce?.cancel();
-                _debounce = Timer(
-                  const Duration(milliseconds: 350),
-                  () => _load(),
-                );
-              },
-              decoration: InputDecoration(
-                hintText: 'Buscar conversa',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: context.pbhColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
+  Widget build(BuildContext context) => _service.userId != _account
+      ? Scaffold(
+          appBar: AppBar(title: const Text('Conversas')),
+          body: const Center(
+            child: Text('Sua conta mudou. Abra as conversas novamente.'),
           ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              'Suas conversas são privadas',
-              style: TextStyle(color: context.pbhColors.textSecondary),
-            ),
-          ),
-          if (!_connected || _failed)
-            TextButton.icon(
-              onPressed: () => _load(),
-              icon: const Icon(Icons.sync),
-              label: Text(
-                _failed
-                    ? 'Não foi possível atualizar. Tentar novamente'
-                    : 'Reconectando às conversas…',
+        )
+      : Scaffold(
+          appBar: AppBar(
+            title: const Text('Conversas'),
+            centerTitle: true,
+            actions: [
+              IconButton(
+                tooltip: 'Nova conversa',
+                onPressed: _new,
+                icon: Icon(Icons.edit_square, color: context.pbhColors.orange),
               ),
-            ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => _load(),
-              child: _loading && _threads.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: _threads.length + 1,
-                      separatorBuilder: (_, __) => Divider(
-                        color: context.pbhColors.borderSubtle,
-                        height: 1,
-                        indent: 70,
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _new,
+            icon: const Icon(Icons.edit_square),
+            label: const Text('Nova conversa'),
+            backgroundColor: context.pbhColors.orange,
+            foregroundColor: Colors.black,
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+                  child: TextField(
+                    controller: _search,
+                    onChanged: (_) {
+                      _debounce?.cancel();
+                      _debounce = Timer(
+                        const Duration(milliseconds: 350),
+                        () => _load(),
+                      );
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Buscar conversa',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: context.pbhColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
                       ),
-                      itemBuilder: (_, i) {
-                        if (i == _threads.length)
-                          return Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 28, 8, 100),
-                            child: Column(
-                              children: [
-                                if (_threads.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 30),
-                                    child: Text(
-                                      _failed
-                                          ? 'Suas conversas aparecerão ao reconectar.'
-                                          : _search.text.isNotEmpty
-                                          ? 'Nenhuma conversa encontrada.'
-                                          : 'Sua próxima conversa começa aqui.',
-                                      textAlign: TextAlign.center,
-                                    ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Suas conversas são privadas',
+                    style: TextStyle(color: context.pbhColors.textSecondary),
+                  ),
+                ),
+                if (!_connected || _failed)
+                  TextButton.icon(
+                    onPressed: () => _load(),
+                    icon: const Icon(Icons.sync),
+                    label: Text(
+                      _failed
+                          ? 'Não foi possível atualizar. Tentar novamente'
+                          : 'Reconectando às conversas…',
+                    ),
+                  ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => _load(),
+                    child: _loading && _threads.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: _threads.length + 1,
+                            separatorBuilder: (_, __) => Divider(
+                              color: context.pbhColors.borderSubtle,
+                              height: 1,
+                              indent: 70,
+                            ),
+                            itemBuilder: (_, i) {
+                              if (i == _threads.length)
+                                return Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    8,
+                                    28,
+                                    8,
+                                    100,
                                   ),
-                                if (_more && _threads.isNotEmpty)
-                                  TextButton(
-                                    onPressed: _loading
-                                        ? null
-                                        : () => _load(more: true),
-                                    child: Text(
-                                      _loading
-                                          ? 'Carregando…'
-                                          : 'Carregar mais conversas',
-                                    ),
-                                  ),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: context.pbhColors.surface,
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: Row(
+                                  child: Column(
                                     children: [
-                                      Icon(
-                                        Icons.history,
-                                        color: context.pbhColors.orange,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      const Expanded(
-                                        child: Text(chatExpiryNotice),
+                                      if (_threads.isEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 30,
+                                          ),
+                                          child: Text(
+                                            _failed
+                                                ? 'Suas conversas aparecerão ao reconectar.'
+                                                : _search.text.isNotEmpty
+                                                ? 'Nenhuma conversa encontrada.'
+                                                : 'Sua próxima conversa começa aqui.',
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      if (_more && _threads.isNotEmpty)
+                                        TextButton(
+                                          onPressed: _loading
+                                              ? null
+                                              : () => _load(more: true),
+                                          child: Text(
+                                            _loading
+                                                ? 'Carregando…'
+                                                : 'Carregar mais conversas',
+                                          ),
+                                        ),
+                                      Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: context.pbhColors.surface,
+                                          borderRadius: BorderRadius.circular(
+                                            18,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.history,
+                                              color: context.pbhColors.orange,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            const Expanded(
+                                              child: Text(chatExpiryNotice),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),
+                                );
+                              final thread = _threads[i],
+                                  mine = thread.lastSender == _account;
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 0,
                                 ),
-                              ],
-                            ),
-                          );
-                        final thread = _threads[i],
-                            mine = thread.lastSender == _account;
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 0,
-                          ),
-                          leading: chatAvatar(thread.name, thread.avatar, founder: thread.founder),
-                          title: Text(
-                            thread.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(
-                              '${mine ? 'Você: ' : ''}${thread.preview.isNotEmpty
-                                  ? thread.preview
-                                  : thread.hasImage
-                                  ? 'Foto'
-                                  : 'Inicie uma conversa'}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                _time(thread.lastAt),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              if (thread.unread > 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Badge(
-                                    backgroundColor: context.pbhColors.orange,
-                                    textColor: Colors.black,
-                                    label: Text(
-                                      thread.unread > 99
-                                          ? '99+'
-                                          : '${thread.unread}',
-                                    ),
+                                leading: chatAvatar(
+                                  thread.name,
+                                  thread.avatar,
+                                  founder: thread.founder,
+                                ),
+                                title: Text(
+                                  thread.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                            ],
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    '${mine ? 'Você: ' : ''}${thread.preview.isNotEmpty
+                                        ? thread.preview
+                                        : thread.hasImage
+                                        ? 'Foto'
+                                        : 'Inicie uma conversa'}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      _time(thread.lastAt),
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                    if (thread.unread > 0)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: Badge(
+                                          backgroundColor:
+                                              context.pbhColors.orange,
+                                          textColor: Colors.black,
+                                          label: Text(
+                                            thread.unread > 99
+                                                ? '99+'
+                                                : '${thread.unread}',
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                onTap: () => _open(thread),
+                              );
+                            },
                           ),
-                          onTap: () => _open(thread),
-                        );
-                      },
-                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    ),
-  );
+        );
 }
 
 class _ChatMemberSearch extends StatefulWidget {

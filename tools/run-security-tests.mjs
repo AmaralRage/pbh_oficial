@@ -7,6 +7,8 @@ const moduleUrl = process.env.PBH_PGLITE_MODULE || new URL('build/security-deps/
 await import(moduleUrl); // Fail before claiming any tests ran if the dependency is absent.
 const selected = [
   'private_chat_test',
+  'private_chat_audio_test',
+  'chat_notification_previews_test',
   'idempotent_comments_test',
   'member_data_isolation_test', 'private_support_replies_test',
   'support_reply_notifications_test', 'journey_privacy_test',

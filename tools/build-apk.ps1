@@ -21,8 +21,15 @@ try {
     $flutterPath = if ($flutterCommand) { $flutterCommand.Source } else { 'C:/src/flutter/bin/flutter.bat' }
     if (-not (Test-Path -LiteralPath $flutterPath)) { throw 'Flutter nao encontrado.' }
     $modeFlag = '--' + $Mode.ToLowerInvariant()
-    & $flutterPath build apk $modeFlag "--build-name=$appVersion" "--build-number=$BuildNumber"
-    if ($LASTEXITCODE -ne 0) { throw 'A compilacao falhou. Nenhum APK foi publicado.' }
+    # PowerShell 5 treats Java warnings on stderr as errors. Use the actual
+    # Flutter exit code, while preserving the diagnostic output.
+    $buildPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $flutterPath build apk $modeFlag "--build-name=$appVersion" "--build-number=$BuildNumber"
+        $buildExit = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $buildPreference }
+    if ($buildExit -ne 0) { throw 'A compilacao falhou. Nenhum APK foi publicado.' }
     $sourceApk = "build/app/outputs/flutter-apk/app-$($Mode.ToLowerInvariant()).apk"
     if ($PreviousApk) {
         & (Join-Path $PSScriptRoot 'check-apk-update.ps1') -PreviousApk $PreviousApk -CandidateApk $sourceApk

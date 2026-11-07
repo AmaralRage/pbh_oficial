@@ -49,10 +49,15 @@ class ChatMessage {
     this.imagePath,
     this.imageUrl,
     this.replyTo,
+    this.audioPath,
+    this.audioDurationMs,
+    this.audioFormat,
   });
   final String id, senderId, body;
   final String? imagePath, imageUrl, replyTo;
   final DateTime createdAt, expiresAt;
+  final String? audioPath, audioFormat;
+  final int? audioDurationMs;
   factory ChatMessage.fromMap(Map<String, dynamic> m, {String? imageUrl}) =>
       ChatMessage(
         id: m['id'] as String,
@@ -63,6 +68,9 @@ class ChatMessage {
         imagePath: m['image_path'] as String?,
         imageUrl: imageUrl,
         replyTo: m['reply_to'] as String?,
+        audioPath: m['audio_path'] as String?,
+        audioFormat: m['audio_format'] as String?,
+        audioDurationMs: (m['audio_duration_ms'] as num?)?.toInt(),
       );
 }
 
@@ -72,8 +80,22 @@ class ChatDraft {
     required this.text,
     this.photo,
     this.replyId,
+    this.voice,
   });
   final String id, text;
   final Uint8List? photo;
   final String? replyId;
+  final ChatVoice? voice;
+}
+
+class ChatVoice {
+  const ChatVoice({
+    required this.bytes,
+    required this.format,
+    required this.durationMs,
+  });
+  final Uint8List bytes;
+  final String format;
+  final int durationMs;
+  String get contentType => format == 'm4a' ? 'audio/mp4' : 'audio/webm';
 }

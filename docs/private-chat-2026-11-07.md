@@ -5,17 +5,20 @@ O cabeçalho tem acesso a **Conversas**, com contador de mensagens não lidas. A
 ## Recursos
 
 - Conversas individuais com texto, uma foto por mensagem, respostas e exclusão das próprias mensagens para ambos os participantes.
+- Mensagens de voz de até dois minutos e 1 MB. O microfone aparece quando o campo está vazio e vira envio ao digitar ou anexar foto. A gravação permite parar, ouvir, descartar e enviar.
 - Atualização por Realtime, paginação do histórico e recuperação ao retornar ao app.
 - Confirmação de leitura e notificação privada que abre a conversa correspondente.
 - Rascunho local preservado quando o envio falha. O mesmo identificador é reutilizado para confirmar um envio cuja resposta se perdeu, evitando duplicatas.
 - Papel de parede por conversa, salvo somente neste aparelho e separado por conta. Ele não é enviado ao outro membro nem ao Storage.
+- Prévia do papel de parede com controle de escurecimento de 0% a 85%, inclusive para ajustar uma imagem já escolhida pelo menu da conversa.
+- Avatares consultam a identidade pública verificada, incluindo a foto padrão do fundador quando não houver uma foto enviada.
 - Cores acompanham o tema do aplicativo. O avatar no cabeçalho abre o perfil do membro.
 
 ## Privacidade e armazenamento
 
 Somente os dois participantes autenticados podem consultar mensagens e anexos. Bloqueios da comunidade também impedem acesso à conversa. Clientes não têm permissão para inserir ou modificar diretamente as tabelas: as operações passam por funções com validação de identidade.
 
-As mensagens expiram individualmente **sete dias após o envio**. Elas deixam de aparecer nas consultas assim que expiram. Uma tarefa executada a cada minuto remove até 1.000 mensagens expiradas e aciona a fila de remoção de fotos pela Storage API. Falhas no worker deixam o anexo na fila para nova tentativa; os metadados de Storage não são apagados por SQL. Backups ou arquivos já salvos por um participante não são apagados por essa rotina.
+As mensagens expiram individualmente **sete dias após o envio**. Elas deixam de aparecer nas consultas assim que expiram. Uma tarefa executada a cada minuto remove até 1.000 mensagens expiradas e aciona a fila de remoção de fotos e áudios pela Storage API. Falhas no worker deixam o anexo na fila para nova tentativa; os metadados de Storage não são apagados por SQL. Backups ou arquivos já salvos por um participante não são apagados por essa rotina.
 
 Fotos ficam no bucket privado `chat-photos`, sem URLs públicas permanentes. O app redimensiona e comprime as imagens para JPEG de até 512 KB e 1.280 pixels no maior lado, removendo EXIF. URLs assinadas duram 60 segundos; uma URL emitida antes de expiração ou bloqueio pode continuar válida até terminar esse prazo.
 
@@ -23,7 +26,7 @@ Há limites de 30 mensagens por minuto por remetente, 20 novas conversas por dia
 
 Este chat usa as proteções de acesso do Supabase e transporte HTTPS; **não implementa criptografia de ponta a ponta**. Os administradores com acesso privilegiado ao banco podem tecnicamente consultar seu conteúdo. Rascunhos ficam no armazenamento interno do app ou IndexedDB do navegador, sem uma camada adicional de criptografia criada por este recurso.
 
-Notificações não incluem o texto da mensagem nem o nome do remetente: mostram apenas um aviso genérico. O worker seleciona dispositivos e assinaturas somente do destinatário, verifica novamente sua titularidade antes de enviar e registra recibos privados para reduzir reenvios. As permissões do celular e a configuração de notificações continuam necessárias.
+Notificações mostram o nome, a foto pública e uma prévia da mensagem do remetente. Áudios mostram “Mensagem de áudio” e a duração; fotos mostram “Foto” e a legenda, quando houver. O worker seleciona dispositivos e assinaturas somente do destinatário, verifica novamente sua titularidade antes de enviar e registra recibos privados para reduzir reenvios. As permissões do celular e a configuração de notificações continuam necessárias. Veja [a implementação e os testes](chat-notifications-2026-11-07.md).
 
 ## Backend ativado
 
@@ -33,7 +36,7 @@ Conferido no projeto: RLS nas cinco tabelas, negação de INSERT direto por clie
 
 ## Como validar no aplicativo
 
-Validações realizadas: 267 testes Flutter, 14 testes SQL de segurança e 8 testes Node passaram. A compilação Flutter Web concluiu com sucesso. O scanner de credenciais não encontrou chaves privilegiadas nos arquivos examinados. As sondagens anônimas das cinco tabelas do chat foram negadas com HTTP 401/código 42501, sem baixar registros.
+Validações realizadas após o suporte a áudio: 272 testes Flutter, 15 testes SQL de segurança e 12 testes Node passaram. A compilação Flutter Web e a verificação de compilação Android concluíram com sucesso. O scanner de credenciais não encontrou chaves privilegiadas nos arquivos examinados. As sondagens anônimas das cinco tabelas do chat foram negadas com HTTP 401/código 42501, sem baixar registros.
 
 1. Reinicie o app pelo Flutter/VS Code para carregar as novas telas.
 2. Com duas contas de teste, abra **Conversas → Nova conversa** e localize a outra conta pelo nome ou @usuário.

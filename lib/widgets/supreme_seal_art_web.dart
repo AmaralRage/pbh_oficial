@@ -59,14 +59,14 @@ class _SupremeSealArtState extends State<SupremeSealArt> {
       assetPath: widget.achievement.htmlAsset!,
       celebrate: widget.celebrate,
     ).then((source) {
-      if (mounted) frame.srcdoc = source;
+      if (mounted) frame.srcdoc = source.toJS;
     });
   }
 
   @override
   void dispose() {
     _messages?.cancel();
-    _frame?.srcdoc = '';
+    _frame?.srcdoc = ''.toJS;
     _frame?.remove();
     super.dispose();
   }

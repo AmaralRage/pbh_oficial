@@ -12,6 +12,10 @@ import 'public_member_profile_screen.dart';
 import '../services/community_service.dart';
 import '../services/chat_local_store.dart';
 import '../services/chat_image_preparation.dart';
+import '../widgets/chat_voice_recorder.dart';
+import '../widgets/chat_audio_player.dart';
+import '../widgets/chat_reply_swipe.dart';
+import '../widgets/chat_message_search.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   const ChatRoomScreen({
@@ -38,7 +42,121 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
   final _sendEntrances = <String>{};
   String _id = CommunityService.newPostId();
   String? _reply;
+  final _replyContexts = <String, ChatMessage>{};
+  final _composerFocus = FocusNode();
+  bool _muted = false, _muteBusy = false, _peerTyping = false;
+  RealtimeChannel? _typingChannel;
+  Timer? _typingStop, _peerTypingExpiry;
+  DateTime? _typingSent;
+  Future<void> _stopTyping() async {
+    _typingStop?.cancel();
+    if (_typingSent == null) return;
+    _typingSent = null;
+    try {
+      await _service.typing(widget.threadId, false);
+    } catch (_) {}
+  }
+
+  void _typingEdited() {
+    if (!_visible || _text.text.trim().isEmpty) {
+      unawaited(_stopTyping());
+      return;
+    }
+    _typingStop?.cancel();
+    _typingStop = Timer(
+      const Duration(seconds: 3),
+      () => unawaited(_stopTyping()),
+    );
+    final now = DateTime.now();
+    if (_typingSent == null ||
+        now.difference(_typingSent!) >= const Duration(seconds: 3)) {
+      _typingSent = now;
+      unawaited(
+        _service.typing(widget.threadId, true).catchError((Object _) {}),
+      );
+    }
+  }
+
+  Future<void> _readTyping() async {
+    try {
+      final until = await _service.peerTyping(widget.threadId);
+      if (!mounted || _service.userId != _account) return;
+      _peerTypingExpiry?.cancel();
+      final remaining = until?.difference(DateTime.now()) ?? Duration.zero;
+      setState(() => _peerTyping = remaining > Duration.zero);
+      if (_peerTyping)
+        _peerTypingExpiry = Timer(
+          remaining > const Duration(seconds: 6)
+              ? const Duration(seconds: 6)
+              : remaining,
+          () {
+            if (mounted) setState(() => _peerTyping = false);
+          },
+        );
+    } catch (_) {
+      if (mounted) setState(() => _peerTyping = false);
+    }
+  }
+
+  Future<void> _readMuted() async {
+    try {
+      final value = await _service.muted(widget.threadId);
+      if (mounted && _service.userId == _account)
+        setState(() => _muted = value);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleMuted() async {
+    if (_muteBusy) return;
+    setState(() => _muteBusy = true);
+    try {
+      await _service.setMuted(widget.threadId, !_muted);
+      if (mounted) {
+        setState(() => _muted = !_muted);
+        _notice(
+          _muted
+              ? 'Conversa silenciada. As mensagens continuam chegando.'
+              : 'Notificações desta conversa ativadas.',
+        );
+      }
+    } catch (_) {
+      _notice('Não foi possível alterar as notificações. Tente novamente.');
+    } finally {
+      if (mounted) setState(() => _muteBusy = false);
+    }
+  }
+
+  void _respond(ChatMessage message) {
+    if (_sending || !message.expiresAt.isAfter(DateTime.now())) return;
+    setState(() {
+      _reply = message.id;
+      _replyContexts[message.id] = message;
+    });
+    _edited();
+    _composerFocus.requestFocus();
+  }
+
+  Future<void> _searchConversation() async {
+    unawaited(_stopTyping());
+    final message = await showModalBottomSheet<ChatMessage>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: ChatMessageSearch(service: _service, threadId: widget.threadId),
+      ),
+    );
+    if (mounted && _service.userId == _account && message != null)
+      _respond(message);
+  }
+
   Uint8List? _photo, _wallpaper;
+  ChatVoice? _voice;
+  bool _recorderOpen = false;
+  double _wallpaperDim = .54;
   ChatThread? _thread;
   RealtimeChannel? _channel;
   StreamSubscription<AuthState>? _auth;
@@ -62,6 +180,8 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
     ChatNavigation.activeThread = widget.threadId;
     _restore();
     _load(reset: true);
+    _readMuted();
+    _typingChannel = _service.watchTyping(widget.threadId, _readTyping);
     _channel = _service.watchRoom(
       widget.threadId,
       (reset) {
@@ -81,7 +201,11 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       if (_visible) _load();
     });
     _auth = _service.client.auth.onAuthStateChange.listen((_) {
-      if (mounted && _service.userId != _account) Navigator.pop(context);
+      if (mounted && _service.userId != _account) {
+        setState(() => _generation++);
+        unawaited(ChatAudioPlayback.pauseAll());
+        Navigator.pop(context);
+      }
     });
   }
 
@@ -90,8 +214,13 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       (ModalRoute.of(context)?.isCurrent ?? false) &&
       (WidgetsBinding.instance.lifecycleState == null ||
           WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed);
-  ChatDraft get _draft =>
-      ChatDraft(id: _id, text: _text.text, photo: _photo, replyId: _reply);
+  ChatDraft get _draft => ChatDraft(
+    id: _id,
+    text: _text.text,
+    photo: _photo,
+    replyId: _reply,
+    voice: _voice,
+  );
   Future<void> _restore() async {
     try {
       final draft = await _store.load(_account!, widget.threadId);
@@ -102,11 +231,16 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
           _id = draft.id;
           _text.text = draft.text;
           _photo = draft.photo;
+          _voice = draft.voice;
           _reply = draft.replyId;
           _attempted = true;
         }
         if (wall['photo'] is String)
           _wallpaper = base64Decode(wall['photo'] as String);
+        _wallpaperDim = ((wall['dim'] as num?)?.toDouble() ?? .54).clamp(
+          0,
+          .85,
+        );
       });
     } catch (_) {
       _notice('Não foi possível restaurar o rascunho neste aparelho.');
@@ -130,6 +264,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
   }
 
   void _edited() {
+    _typingEdited();
     if (_attempted) {
       _id = CommunityService.newPostId();
       _attempted = false;
@@ -156,9 +291,21 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
         before: older && _messages.isNotEmpty ? _messages.last : null,
       );
       final info = await _service.inbox(thread: widget.threadId);
+      final contexts = await _service.replyContext(
+        widget.threadId,
+        {
+          ...rows.map((m) => m.replyTo).whereType<String>(),
+          if (_reply != null) _reply!,
+          ..._messages.map((m) => m.replyTo).whereType<String>(),
+        }.toList(),
+      );
       if (!mounted || generation != _generation || _service.userId != _account)
         return;
       setState(() {
+        _replyContexts.clear();
+        for (final m in contexts) {
+          _replyContexts[m.id] = m;
+        }
         if (reset || info.isEmpty) _messages.clear();
         final merged = {
           for (final m in _messages) m.id: m,
@@ -197,9 +344,12 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _send() async {
-    if (_sending || _restoring || (_text.text.trim().isEmpty && _photo == null))
+    if (_sending ||
+        _restoring ||
+        (_text.text.trim().isEmpty && _photo == null && _voice == null))
       return;
     _draftTimer?.cancel();
+    unawaited(_stopTyping());
     final draft = _draft;
     setState(() => _sending = true);
     _attempted = true;
@@ -211,6 +361,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       setState(() {
         _text.clear();
         _photo = null;
+        _voice = null;
         _reply = null;
         _id = CommunityService.newPostId();
         _attempted = false;
@@ -230,6 +381,34 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _record() async {
+    if (_sending ||
+        _restoring ||
+        _recorderOpen ||
+        _text.text.trim().isNotEmpty ||
+        _photo != null ||
+        _voice != null)
+      return;
+    setState(() => _recorderOpen = true);
+    try {
+      final voice = await showModalBottomSheet<ChatVoice>(
+        context: context,
+        isScrollControlled: true,
+        isDismissible: false,
+        enableDrag: false,
+        showDragHandle: false,
+        backgroundColor: context.pbhColors.surface,
+        builder: (_) => const ChatVoiceRecorder(),
+      );
+      if (voice == null || !mounted || _service.userId != _account) return;
+      setState(() => _voice = voice);
+      _edited();
+      await _send();
+    } finally {
+      if (mounted) setState(() => _recorderOpen = false);
+    }
+  }
+
   Future<void> _pick({bool wallpaper = false}) async {
     try {
       final file = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -238,8 +417,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       final bytes = await prepareChatImage(await file.readAsBytes());
       if (!mounted) return;
       if (wallpaper) {
-        await _store.saveWallpaper(_account!, widget.threadId, 'custom', bytes);
-        if (mounted) setState(() => _wallpaper = bytes);
+        await _configureWallpaper(bytes);
       } else {
         setState(() => _photo = bytes);
         _edited();
@@ -247,6 +425,103 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
     } catch (_) {
       _notice('Escolha uma foto estática de até 15 MB.');
     }
+  }
+
+  Future<void> _configureWallpaper(Uint8List bytes) async {
+    var dim = _wallpaperDim;
+    final selected = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: context.pbhColors.surface,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Papel de parede',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Ajuste o escurecimento para deixar a conversa mais confortável.',
+                  ),
+                  const SizedBox(height: 18),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: SizedBox(
+                      height: 220,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.memory(bytes, fit: BoxFit.cover),
+                          ColoredBox(
+                            color: Colors.black.withValues(alpha: dim),
+                          ),
+                          Align(
+                            alignment: Alignment.bottomLeft,
+                            child: Container(
+                              margin: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: context.pbhColors.surface,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Text('Prévia da conversa'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text('Escurecimento: ${(dim * 100).round()}%'),
+                  Slider(
+                    value: dim,
+                    min: 0,
+                    max: .85,
+                    divisions: 17,
+                    activeColor: context.pbhColors.orange,
+                    label: '${(dim * 100).round()}%',
+                    onChanged: (value) => update(() => dim = value),
+                  ),
+                  const Text(
+                    'Essa personalização fica salva apenas neste aparelho.',
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, dim),
+                    child: const Text('Salvar papel de parede'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancelar'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (selected == null || !mounted || _service.userId != _account) return;
+    await _store.saveWallpaper(
+      _account!,
+      widget.threadId,
+      'custom',
+      bytes,
+      dim: selected,
+    );
+    if (mounted)
+      setState(() {
+        _wallpaper = bytes;
+        _wallpaperDim = selected;
+      });
   }
 
   Future<void> _actions(ChatMessage message) async {
@@ -280,8 +555,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
     );
     if (!mounted || _sending) return;
     if (action == 'reply') {
-      setState(() => _reply = message.id);
-      _edited();
+      _respond(message);
     }
     if (action == 'copy')
       await Clipboard.setData(ClipboardData(text: message.body));
@@ -316,6 +590,12 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed)
+      unawaited(_stopTyping());
+    else {
+      _readTyping();
+      _readMuted();
+    }
     ChatNavigation.activeThread = state == AppLifecycleState.resumed
         ? widget.threadId
         : null;
@@ -331,7 +611,11 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
     _events?.cancel();
     _clock?.cancel();
     _draftTimer?.cancel();
-    if (!_restoring && _account != null)
+    unawaited(_stopTyping());
+    _peerTypingExpiry?.cancel();
+    _composerFocus.dispose();
+    if (_typingChannel != null) unawaited(_service.close(_typingChannel!));
+    if (!_restoring && _account != null && _service.userId == _account)
       unawaited(
         _store
             .save(_account, widget.threadId, _draft)
@@ -346,6 +630,14 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    if (_service.userId != _account) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Conversa')),
+        body: const Center(
+          child: Text('Sua conta mudou. Abra a conversa novamente.'),
+        ),
+      );
+    }
     final colors = context.pbhColors;
     return Scaffold(
       appBar: AppBar(
@@ -372,24 +664,49 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                 radius: 18,
                 backgroundImage: _thread?.avatar?.isNotEmpty == true
                     ? NetworkImage(_thread!.avatar!)
-                    : _thread?.founder == true ? const AssetImage('assets/images/perfil.png') : null,
-                onBackgroundImageError: _thread?.avatar?.isNotEmpty == true || _thread?.founder == true
+                    : _thread?.founder == true
+                    ? const AssetImage('assets/images/perfil.png')
+                    : null,
+                onBackgroundImageError:
+                    _thread?.avatar?.isNotEmpty == true ||
+                        _thread?.founder == true
                     ? (_, __) {}
                     : null,
-                child: _thread?.avatar?.isNotEmpty == true || _thread?.founder == true
+                child:
+                    _thread?.avatar?.isNotEmpty == true ||
+                        _thread?.founder == true
                     ? null
                     : const Icon(Icons.person_outline),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  _thread?.name ?? 'Conversa',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _thread?.name ?? 'Conversa',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (_peerTyping)
+                      Text(
+                        'digitando…',
+                        style: TextStyle(fontSize: 12, color: colors.orange),
+                      ),
+                    if (_muted)
+                      Text(
+                        'Notificações silenciadas',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -399,9 +716,19 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
           PopupMenuButton<String>(
             tooltip: 'Personalizar conversa',
             onSelected: (value) async {
+              if (value == 'search') {
+                await _searchConversation();
+                return;
+              }
+              if (value == 'mute') {
+                await _toggleMuted();
+                return;
+              }
               try {
                 if (value == 'photo') {
                   await _pick(wallpaper: true);
+                } else if (value == 'dim' && _wallpaper != null) {
+                  await _configureWallpaper(_wallpaper!);
                 } else {
                   await _store.saveWallpaper(
                     _account!,
@@ -419,9 +746,38 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
             },
             itemBuilder: (_) => [
               const PopupMenuItem(
+                value: 'search',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.search_rounded),
+                  title: Text('Buscar na conversa'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'mute',
+                enabled: !_muteBusy,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    _muted
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_off_outlined,
+                  ),
+                  title: Text(
+                    _muted ? 'Ativar notificações' : 'Silenciar conversa',
+                  ),
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
                 value: 'photo',
                 child: Text('Escolher papel de parede'),
               ),
+              if (_wallpaper != null)
+                const PopupMenuItem(
+                  value: 'dim',
+                  child: Text('Escurecer papel de parede'),
+                ),
               const PopupMenuItem(
                 value: 'default',
                 child: Text('Restaurar fundo'),
@@ -459,8 +815,8 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                       : DecorationImage(
                           image: MemoryImage(_wallpaper!),
                           fit: BoxFit.cover,
-                          colorFilter: const ColorFilter.mode(
-                            Colors.black54,
+                          colorFilter: ColorFilter.mode(
+                            Colors.black.withValues(alpha: _wallpaperDim),
                             BlendMode.darken,
                           ),
                         ),
@@ -504,9 +860,11 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                                 : const SizedBox.shrink();
                           final m = _messages[index],
                               mine = m.senderId == _account;
-                          final reply = _messages
-                              .where((r) => r.id == m.replyTo)
-                              .firstOrNull;
+                          final reply =
+                              _messages
+                                  .where((r) => r.id == m.replyTo)
+                                  .firstOrNull ??
+                              _replyContexts[m.replyTo];
                           return _SentMessageEntrance(
                             key: ValueKey(m.id),
                             animate: mine && _sendEntrances.contains(m.id),
@@ -515,7 +873,8 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                               alignment: mine
                                   ? Alignment.centerRight
                                   : Alignment.centerLeft,
-                              child: GestureDetector(
+                              child: ChatReplySwipe(
+                                onReply: _sending ? null : () => _respond(m),
                                 onLongPress: _sending
                                     ? null
                                     : () => _actions(m),
@@ -539,111 +898,135 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      if (m.replyTo != null)
-                                        Container(
-                                          margin: const EdgeInsets.only(
-                                            bottom: 8,
-                                          ),
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              left: BorderSide(
-                                                color: colors.orange,
-                                                width: 3,
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (m.replyTo != null)
+                                            Container(
+                                              margin: const EdgeInsets.only(
+                                                bottom: 8,
+                                              ),
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  left: BorderSide(
+                                                    color: colors.orange,
+                                                    width: 3,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                reply?.body.isNotEmpty == true
+                                                    ? reply!.body
+                                                    : reply?.imagePath != null
+                                                    ? 'Foto'
+                                                    : reply?.audioPath != null
+                                                    ? 'Áudio'
+                                                    : 'Mensagem indisponível',
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: colors.textSecondary,
+                                                  fontSize: 12,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          child: Text(
-                                            reply?.body.isNotEmpty == true
-                                                ? reply!.body
-                                                : reply?.imagePath != null
-                                                ? 'Foto'
-                                                : 'Mensagem indisponível',
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: colors.textSecondary,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      if (m.imagePath != null)
-                                        m.imageUrl == null
-                                            ? const Padding(
-                                                padding: EdgeInsets.all(20),
-                                                child: Text(
-                                                  'Foto indisponível. Atualize a conversa.',
-                                                ),
-                                              )
-                                            : GestureDetector(
-                                                onTap: () => Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute<void>(
-                                                    builder: (_) => Scaffold(
-                                                      backgroundColor:
-                                                          Colors.black,
-                                                      appBar: AppBar(),
-                                                      body: Center(
-                                                        child: InteractiveViewer(
-                                                          child: Image.network(
-                                                            m.imageUrl!,
-                                                            fit: BoxFit.contain,
-                                                            errorBuilder:
-                                                                (
-                                                                  _,
-                                                                  __,
-                                                                  ___,
-                                                                ) => const Text(
-                                                                  'Atualize a conversa para abrir a foto.',
-                                                                ),
+                                          if (m.imagePath != null)
+                                            m.imageUrl == null
+                                                ? const Padding(
+                                                    padding: EdgeInsets.all(20),
+                                                    child: Text(
+                                                      'Foto indisponível. Atualize a conversa.',
+                                                    ),
+                                                  )
+                                                : GestureDetector(
+                                                    onTap: () => Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute<void>(
+                                                        builder: (_) => Scaffold(
+                                                          backgroundColor:
+                                                              Colors.black,
+                                                          appBar: AppBar(),
+                                                          body: Center(
+                                                            child: InteractiveViewer(
+                                                              child: Image.network(
+                                                                m.imageUrl!,
+                                                                fit: BoxFit
+                                                                    .contain,
+                                                                errorBuilder:
+                                                                    (
+                                                                      _,
+                                                                      __,
+                                                                      ___,
+                                                                    ) => const Text(
+                                                                      'Atualize a conversa para abrir a foto.',
+                                                                    ),
+                                                              ),
+                                                            ),
                                                           ),
                                                         ),
                                                       ),
                                                     ),
-                                                  ),
-                                                ),
-                                                child: ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  child: Image.network(
-                                                    m.imageUrl!,
-                                                    width: 240,
-                                                    height: 240,
-                                                    fit: BoxFit.cover,
-                                                    cacheWidth: 720,
-                                                    errorBuilder:
-                                                        (
-                                                          _,
-                                                          __,
-                                                          ___,
-                                                        ) => const SizedBox(
-                                                          height: 100,
-                                                          child: Center(
-                                                            child: Icon(
-                                                              Icons
-                                                                  .broken_image_outlined,
-                                                            ),
+                                                    child: ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
                                                           ),
-                                                        ),
+                                                      child: Image.network(
+                                                        m.imageUrl!,
+                                                        width: 240,
+                                                        height: 240,
+                                                        fit: BoxFit.cover,
+                                                        cacheWidth: 720,
+                                                        errorBuilder:
+                                                            (
+                                                              _,
+                                                              __,
+                                                              ___,
+                                                            ) => const SizedBox(
+                                                              height: 100,
+                                                              child: Center(
+                                                                child: Icon(
+                                                                  Icons
+                                                                      .broken_image_outlined,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                      ),
+                                                    ),
                                                   ),
+                                          if (m.audioPath != null)
+                                            ChatAudioPlayer(
+                                              format: m.audioFormat ?? 'm4a',
+                                              key: ValueKey('audio-${m.id}'),
+                                              load: () => _service.audio(
+                                                widget.threadId,
+                                                m,
+                                              ),
+                                              durationMs:
+                                                  m.audioDurationMs ?? 1,
+                                            ),
+                                          if (m.body.isNotEmpty)
+                                            Padding(
+                                              padding: EdgeInsets.only(
+                                                top: m.imagePath != null
+                                                    ? 8
+                                                    : 0,
+                                              ),
+                                              child: Text(
+                                                m.body,
+                                                style: const TextStyle(
+                                                  fontSize: 15,
                                                 ),
                                               ),
-                                      if (m.body.isNotEmpty)
-                                        Padding(
-                                          padding: EdgeInsets.only(
-                                            top: m.imagePath != null ? 8 : 0,
-                                          ),
-                                          child: Text(
-                                            m.body,
-                                            style: const TextStyle(
-                                              fontSize: 15,
                                             ),
-                                          ),
-                                        ),
+                                        ],
+                                      ),
                                       const SizedBox(height: 5),
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -689,6 +1072,21 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                 dense: true,
                 leading: Icon(Icons.reply, color: colors.orange),
                 title: const Text('Respondendo a uma mensagem'),
+                subtitle: Text(
+                  (_messages.where((m) => m.id == _reply).firstOrNull ??
+                                  _replyContexts[_reply])
+                              ?.body
+                              .isNotEmpty ==
+                          true
+                      ? (_messages.where((m) => m.id == _reply).firstOrNull ??
+                                _replyContexts[_reply])!
+                            .body
+                      : (_replyContexts[_reply]?.audioPath != null
+                            ? 'Mensagem de áudio'
+                            : 'Foto ou mensagem'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: IconButton(
                   tooltip: 'Cancelar resposta',
                   onPressed: _sending
@@ -725,42 +1123,89 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   IconButton(
-                    tooltip: 'Anexar foto',
-                    onPressed: _sending || _restoring ? null : () => _pick(),
+                    tooltip: _voice != null ? 'Descartar áudio' : 'Anexar foto',
+                    onPressed: _sending || _restoring || _recorderOpen
+                        ? null
+                        : _voice != null
+                        ? () {
+                            setState(() => _voice = null);
+                            _edited();
+                          }
+                        : () => _pick(),
                     icon: Icon(
-                      Icons.add_photo_alternate_outlined,
+                      _voice != null
+                          ? Icons.delete_outline
+                          : Icons.add_photo_alternate_outlined,
                       color: colors.orange,
                     ),
                   ),
                   Expanded(
-                    child: TextField(
-                      controller: _text,
-                      enabled: !_sending && !_restoring,
-                      onChanged: (_) => _edited(),
-                      minLines: 1,
-                      maxLines: 5,
-                      maxLength: 2000,
-                      decoration: InputDecoration(
-                        hintText: 'Mensagem…',
-                        counterText: '',
-                        filled: true,
-                        fillColor: colors.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                    ),
+                    child: _voice != null
+                        ? ChatAudioPlayer(
+                            format: _voice!.format,
+                            key: ValueKey('draft-$_id'),
+                            load: () async => _voice!.bytes,
+                            durationMs: _voice!.durationMs,
+                          )
+                        : TextField(
+                            controller: _text,
+                            focusNode: _composerFocus,
+                            enabled: !_sending && !_restoring && !_recorderOpen,
+                            onChanged: (_) => _edited(),
+                            minLines: 1,
+                            maxLines: 5,
+                            maxLength: 2000,
+                            decoration: InputDecoration(
+                              hintText: 'Mensagem…',
+                              counterText: '',
+                              filled: true,
+                              fillColor: colors.surface,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                            ),
+                          ),
                   ),
                   IconButton(
-                    tooltip: 'Enviar mensagem',
-                    onPressed: _sending || _restoring ? null : _send,
+                    tooltip: _voice != null
+                        ? 'Enviar áudio'
+                        : _text.text.trim().isNotEmpty || _photo != null
+                        ? 'Enviar mensagem'
+                        : 'Gravar áudio',
+                    onPressed: _sending || _restoring || _recorderOpen
+                        ? null
+                        : _voice != null ||
+                              _text.text.trim().isNotEmpty ||
+                              _photo != null
+                        ? _send
+                        : _record,
                     icon: _sending
                         ? const SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Icon(Icons.send_rounded, color: colors.orange),
+                        : AnimatedSwitcher(
+                            duration: Duration(
+                              milliseconds:
+                                  MediaQuery.disableAnimationsOf(context)
+                                  ? 0
+                                  : 160,
+                            ),
+                            child: Icon(
+                              _voice != null ||
+                                      _text.text.trim().isNotEmpty ||
+                                      _photo != null
+                                  ? Icons.send_rounded
+                                  : Icons.mic_rounded,
+                              key: ValueKey(
+                                _voice != null ||
+                                    _text.text.trim().isNotEmpty ||
+                                    _photo != null,
+                              ),
+                              color: colors.orange,
+                            ),
+                          ),
                   ),
                 ],
               ),

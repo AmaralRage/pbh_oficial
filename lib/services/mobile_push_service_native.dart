@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'community_post_navigation.dart';
 import 'chat_navigation.dart';
+import 'chat_push_notifications_native.dart';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' show Color;
@@ -13,6 +14,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'initial_notification_permission.dart';
 import 'routine_local_notification_scheduler.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleListener;
+
+@pragma('vm:entry-point')
+Future<void> pbhChatBackgroundMessage(RemoteMessage message) async {
+  if (message.data['chat_id'] == null || message.notification != null) return;
+  await Firebase.initializeApp();
+  await ChatPushNotifications.instance.show(message.data);
+}
 
 class MobilePushService {
   static bool get isSupported => Platform.isAndroid;
@@ -54,6 +62,7 @@ class MobilePushService {
     if (!_ready) {
       try {
         await Firebase.initializeApp();
+        FirebaseMessaging.onBackgroundMessage(pbhChatBackgroundMessage);
         // Token collection starts only after the system permission is granted.
         await FirebaseMessaging.instance.setAutoInitEnabled(false);
         await _notifications.initialize(
@@ -136,6 +145,12 @@ class MobilePushService {
             message.data['destination_url'] as String?,
           );
           if (chat != null && ChatNavigation.activeThread == chat) return;
+          if (chat != null) {
+            final shown = await ChatPushNotifications.instance.show(
+              message.data,
+            );
+            if (shown || message.notification == null) return;
+          }
           final notice = message.notification;
           if (notice == null) return;
           if (!await deviceEnabled) return;
@@ -251,6 +266,8 @@ class MobilePushService {
     await _refresh?.cancel();
     _auth = client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn) _pausedUser = null;
+      if (state.event == AuthChangeEvent.signedOut)
+        unawaited(ChatPushNotifications.instance.clear());
       _syncSoon();
     });
     _refresh = FirebaseMessaging.instance.onTokenRefresh.listen(
@@ -329,7 +346,7 @@ class MobilePushService {
     final installation = await _installation();
     if (client.auth.currentUser?.id != user) return false;
     await client.rpc(
-      'register_native_push_v2',
+      'register_native_push_v3',
       params: {
         'p_installation_id': installation,
         'p_token': token,
@@ -340,6 +357,8 @@ class MobilePushService {
             true,
       },
     );
+    if (client.auth.currentUser?.id == user)
+      await ChatPushNotifications.instance.resume(user);
     return true;
   }
 
@@ -373,6 +392,8 @@ class MobilePushService {
   }
 
   static Future<void> unregister() async {
+    final user = _client?.auth.currentUser?.id;
+    if (user != null) await ChatPushNotifications.instance.pause(user);
     if (!_ready || _client?.auth.currentUser == null) return;
     _pausedUser = _client!.auth.currentUser!.id;
     await _pending;
