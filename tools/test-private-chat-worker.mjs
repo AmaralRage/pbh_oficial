@@ -6,6 +6,19 @@ import assert from 'node:assert/strict';
 const presentationSource=await fs.readFile(new URL('../supabase/functions/_shared/chat-notification.ts',import.meta.url),'utf8');
 const {chatNotificationPresentation}=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(presentationSource)).toString('base64'));
 
+test('private diagnostic uses FCM validation only and returns no tokens or content',async()=>{
+  const source=(await fs.readFile(new URL('../supabase/functions/process-private-chat/index.ts',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');
+  let handler,validations=0;
+  const admin={from:(table)=>{
+    const q={select:()=>q,order:()=>q,limit:()=>q,then:(resolve)=>resolve({data:table==='chat_messages'?[]:[{token:'fixture-private-device'}]})};return q;
+  },rpc:()=>{throw Error('Diagnostic must never claim messages');}};
+  vm.runInNewContext(stripTypeScriptTypes(source),{Response,AbortSignal,Set,Error,JSON,Date,chatNotificationPresentation,Deno:{env:{get:(key)=>key==='ANNOUNCEMENT_CRON_SECRET'?'fixture':undefined},serve:(fn)=>handler=fn},createClient:()=>admin,credentials:async()=>({project:'fixture',token:'private-auth'}),fetch:async(_,options)=>{
+    const payload=JSON.parse(options.body);assert.equal(payload.validate_only,true);assert.equal(payload.message.token,'fixture-private-device');validations++;return Response.json({name:'validated'});
+  }});
+  const response=await handler(new Request('https://test.invalid',{method:'POST',headers:{'x-pbh-cron-secret':'fixture'},body:JSON.stringify({diagnostic:true})}));
+  assert.deepEqual(await response.json(),{stage:'native_delivery',status:200,code:'VALID'});assert.equal(validations,1);
+});
+
 
 test('private worker authenticates before database access and acknowledges only removed media',async()=>{
   const source=(await fs.readFile(new URL('../supabase/functions/process-private-chat/index.ts',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');
@@ -28,9 +41,10 @@ for (const [styleVersion,allowed] of [[0,true],[1,true],[1,false]]) test('privat
   const source=(await fs.readFile(new URL('../supabase/functions/process-private-chat/index.ts',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');
   let handler,claim=0,finished=false;const sent=[],scopes=[];
   const query=(table)=>{
-    const filters=[];const q={select:()=>q,eq:(key,value)=>{filters.push([key,value]);return q;},limit:()=>q,maybeSingle:()=>q,upsert:()=>Promise.resolve({data:null}),then:(resolve)=>{
+    const filters=[];const q={select:()=>q,update:()=>q,eq:(key,value)=>{filters.push([key,value]);return q;},limit:()=>q,maybeSingle:()=>q,upsert:()=>Promise.resolve({data:null}),then:(resolve)=>{
       scopes.push({table,filters});
       if(table==='chat_push_receipts')return Promise.resolve(resolve({data:[]}));
+      if(table==='chat_push_jobs')return Promise.resolve(resolve({data:null}));
       if(table==='web_push_subscriptions')return Promise.resolve(resolve({data:[]}));
       if(table==='native_push_tokens'){assert.ok(filters.some(([key,value])=>key==='user_id'&&value==='recipient'));return Promise.resolve(resolve({data:filters.some(([key])=>key==='installation_id')?{token:'device',sound_enabled:false,chat_style_version:styleVersion}:[{installation_id:'installation',token:'device',sound_enabled:false,chat_style_version:styleVersion}]}));}
       throw Error('Unexpected table '+table);

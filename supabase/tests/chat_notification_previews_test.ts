@@ -24,6 +24,13 @@ Deno.test('push previews stay private and client versions preserve older devices
    insert into public.profiles(id,display_name) values('${a}','A'),('${b}','B'),('${c}','C');`);
   await db.exec("alter table auth.users add column raw_app_meta_data jsonb default '{}'");
   for(const migration of ['20261023000200_native_push_tokens','20261027000200_device_notification_sound','20261107000200_private_chat','20261107000300_chat_retention_delivery','20261107000400_private_chat_audio','20261107000500_chat_notification_previews']) await db.exec(await Deno.readTextFile(new URL('../migrations/'+migration+'.sql',import.meta.url)));
+  // Reproduce the remote drift: registration exists but its sound column is absent.
+  await db.exec('alter table public.native_push_tokens drop column sound_enabled');
+  await as(a);await assert.rejects(db.query('select public.register_native_push_v3($1,$2,true)',[message,'fixture-device-token-123456']),/sound_enabled/);
+  await db.exec('reset role');
+  await db.exec(await Deno.readTextFile(new URL('../migrations/20261107000800_repair_native_push_sound.sql',import.meta.url)));
+  await db.exec(await Deno.readTextFile(new URL('../migrations/20261107000800_repair_native_push_sound.sql',import.meta.url)));
+  await db.exec(await Deno.readTextFile(new URL('../migrations/20261107000700_chat_push_diagnostics.sql',import.meta.url)));
   await as('', 'anon');await assert.rejects(db.query('select public.register_native_push_v3($1,$2,true)',[message,'fixture-device-token-123456']),/permission denied/);
   await as(a);
   await db.query('select public.register_native_push_v3($1,$2,true)',[message,'fixture-device-token-123456']);
