@@ -9,6 +9,9 @@ import 'package:pbh_oficial/screens/chat_room_screen.dart';
 import 'package:pbh_oficial/widgets/chat_audio_player.dart';
 import 'package:pbh_oficial/widgets/chat_reply_swipe.dart';
 import 'package:pbh_oficial/widgets/chat_message_search.dart';
+import 'package:pbh_oficial/widgets/chat_date_separator.dart';
+import 'package:pbh_oficial/widgets/chat_message_frame.dart';
+import 'package:pbh_oficial/screens/chat_inbox_screen.dart';
 
 final message = ChatMessage(
   id: 'message',
@@ -97,7 +100,301 @@ class _Service extends ChatService {
   Future<void> close(RealtimeChannel channel) async {}
 }
 
+class _InboxService extends _Service {
+  @override
+  Future<List<ChatThread>> inbox({
+    ChatThread? before,
+    String? thread,
+    String query = '',
+  }) async => [
+    ChatThread(
+      id: 'thread',
+      peerId: 'peer',
+      name: 'Arthur Morgan com um nome comprido',
+      lastAt: DateTime.now(),
+      activityAt: DateTime.now(),
+      peerReadAt: DateTime.now(),
+      muted: true,
+      unread: 12,
+      audioDurationMs: 35000,
+    ),
+  ];
+  @override
+  RealtimeChannel watchInbox(
+    void Function() changed,
+    void Function(bool)? connection,
+  ) => client.channel('inbox-fixture');
+}
+
+class _HistoryService extends _Service {
+  final now = DateTime.now();
+  late final rows = List.generate(
+    40,
+    (i) => ChatMessage(
+      id: 'history-$i',
+      senderId: 'other',
+      body: 'Mensagem do histórico $i',
+      createdAt: now.subtract(Duration(minutes: i)),
+      expiresAt: now.add(const Duration(days: 7)),
+    ),
+  );
+  void Function(bool)? changed;
+  int readCalls = 0;
+  int unreadCount = 0;
+  @override
+  Future<List<ChatMessage>> messages(
+    String thread, {
+    ChatMessage? before,
+  }) async => before == null ? List.of(rows) : [];
+  @override
+  Future<List<ChatThread>> inbox({
+    ChatThread? before,
+    String? thread,
+    String query = '',
+  }) async => [
+    ChatThread(
+      id: 'thread',
+      peerId: 'other',
+      name: 'Membro',
+      lastAt: now,
+      activityAt: now,
+      peerReadAt: now,
+      unread: unreadCount,
+    ),
+  ];
+  @override
+  Future<void> markRead(String thread, String through) async {
+    readCalls++;
+    unreadCount = 0;
+  }
+
+  @override
+  RealtimeChannel watchRoom(
+    String thread,
+    void Function(bool) change,
+    void Function(bool) connection,
+  ) {
+    changed = change;
+    return client.channel('history-fixture');
+  }
+}
+
 void main() {
+  testWidgets(
+    'chat supports enlarged text and accessible reply action on a narrow screen',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final service = (await tester.runAsync(() async => _HistoryService()))!;
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.8)),
+            child: child!,
+          ),
+          home: ChatRoomScreen(
+            threadId: 'thread',
+            service: service,
+            localStore: _Store(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      service.typingChanged!();
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('digitando…'), findsOneWidget);
+      expect(find.byTooltip('Gravar áudio'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() => service.client.dispose());
+    },
+  );
+  testWidgets(
+    'unread marker keeps the original boundary after marking messages read',
+    (tester) async {
+      final service = (await tester.runAsync(() async => _HistoryService()))!;
+      service.unreadCount = 3;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatRoomScreen(
+            threadId: 'thread',
+            service: service,
+            localStore: _Store(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Mensagens novas · 3'), findsOneWidget);
+      expect(service.unreadCount, 0);
+      service.changed!(false);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.text('Mensagens novas · 3'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() => service.client.dispose());
+    },
+  );
+  testWidgets(
+    'history stays away from bottom on arrival and jump clears new-message counter',
+    (tester) async {
+      final service = (await tester.runAsync(() async => _HistoryService()))!;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatRoomScreen(
+            threadId: 'thread',
+            service: service,
+            localStore: _Store(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, 600));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Voltar para mensagens recentes'), findsOneWidget);
+      final readBefore = service.readCalls;
+      service.rows.insert(
+        0,
+        ChatMessage(
+          id: 'new-incoming',
+          senderId: 'other',
+          body: 'Acabou de chegar',
+          createdAt: service.now.add(const Duration(seconds: 1)),
+          expiresAt: service.now.add(const Duration(days: 7)),
+        ),
+      );
+      service.changed!(false);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.text('1'), findsOneWidget);
+      expect(service.readCalls, readBefore);
+      await tester.tap(find.byTooltip('Voltar para mensagens recentes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Acabou de chegar'), findsOneWidget);
+      expect(find.byTooltip('Voltar para mensagens recentes'), findsNothing);
+      expect(service.readCalls, greaterThan(readBefore));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() => service.client.dispose());
+    },
+  );
+  testWidgets(
+    'inbox fits unread audio and mute state at 320 px with one new-conversation action',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final service = (await tester.runAsync(() async => _InboxService()))!;
+      await tester.pumpWidget(
+        MaterialApp(home: ChatInboxScreen(service: service)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Áudio · 0:35'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
+      expect(find.byIcon(Icons.notifications_off_outlined), findsOneWidget);
+      expect(find.text('Nova conversa'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() => service.client.dispose());
+    },
+  );
+  testWidgets(
+    'reference layout keeps incoming text and outgoing audio readable at 320 px',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const ChatMessageFrame(
+                    mine: false,
+                    grouped: false,
+                    time: '09:17',
+                    read: false,
+                    child: Text(
+                      'Uma mensagem recebida com texto maior para conferir a leitura.',
+                    ),
+                  ),
+                  ChatMessageFrame(
+                    mine: true,
+                    grouped: false,
+                    time: '09:18',
+                    read: true,
+                    child: ChatAudioPlayer(
+                      load: () async => Uint8List(0),
+                      durationMs: 65000,
+                      format: 'm4a',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byIcon(Icons.person_outline), findsOneWidget);
+      expect(find.text('09:17'), findsOneWidget);
+      expect(find.text('1:05'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  test(
+    'chat grouping respects author, five-minute gaps and day boundaries',
+    () {
+      ChatMessage at(DateTime date, [String sender = 'other']) => ChatMessage(
+        id: date.toString(),
+        senderId: sender,
+        body: 'Mensagem',
+        createdAt: date,
+        expiresAt: date.add(const Duration(days: 7)),
+      );
+      final now = DateTime(2026, 11, 9, 12);
+      expect(chatDateLabel(now, now), 'Hoje');
+      expect(chatDateLabel(DateTime(2026, 11, 8, 23), now), 'Ontem');
+      expect(chatDateLabel(DateTime(2026, 11, 7), now), '07/11/2026');
+      expect(
+        connectedChatMessages(
+          at(now),
+          at(now.subtract(const Duration(minutes: 4))),
+        ),
+        isTrue,
+      );
+      expect(
+        connectedChatMessages(
+          at(now),
+          at(now.subtract(const Duration(minutes: 6))),
+        ),
+        isFalse,
+      );
+      expect(connectedChatMessages(at(now), at(now, 'me')), isFalse);
+      expect(
+        connectedChatMessages(
+          at(DateTime(2026, 11, 9)),
+          at(DateTime(2026, 11, 8, 23, 59)),
+        ),
+        isFalse,
+      );
+    },
+  );
   testWidgets(
     'audio speed cycles through 1x, 1.5x, 2x without downloading audio',
     (tester) async {
@@ -180,6 +477,12 @@ void main() {
   testWidgets(
     'chat swipe previews original, typing expires, mute can be reversed',
     (tester) async {
+      tester.view.physicalSize = const Size(360, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
       final service = (await tester.runAsync(() async => _Service()))!;
       await tester.pumpWidget(
         MaterialApp(

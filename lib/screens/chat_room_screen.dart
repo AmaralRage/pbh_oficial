@@ -16,6 +16,11 @@ import '../widgets/chat_voice_recorder.dart';
 import '../widgets/chat_audio_player.dart';
 import '../widgets/chat_reply_swipe.dart';
 import '../widgets/chat_message_search.dart';
+import '../widgets/chat_date_separator.dart';
+import '../widgets/chat_message_frame.dart';
+import 'chat_photo_preview_screen.dart';
+import '../widgets/chat_send_failure.dart';
+import 'chat_photo_viewer_screen.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   const ChatRoomScreen({
@@ -153,6 +158,23 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       _respond(message);
   }
 
+  Future<void> _openPhoto(ChatMessage message) async {
+    try {
+      await ChatAudioPlayback.pauseAll();
+    } catch (_) {}
+    if (!mounted || _service.userId != _account) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatPhotoViewerScreen(
+          threadId: widget.threadId,
+          message: message,
+          service: _service,
+        ),
+      ),
+    );
+  }
+
   Uint8List? _photo, _wallpaper;
   ChatVoice? _voice;
   bool _recorderOpen = false;
@@ -169,6 +191,52 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       _attempted = false,
       _restoring = true;
   bool _resetPending = false;
+  bool _sendFailure = false;
+  bool _awayFromBottom = false, _reading = false, _loadedOnce = false;
+  final _newIncomingIds = <String>{};
+  bool _capturedUnread = false;
+  int _initialUnreadCount = 0;
+  String? _unreadBoundary;
+  Future<void> _markVisibleRead() async {
+    if (_reading || !_visible || (_scroll.hasClients && _scroll.offset >= 80))
+      return;
+    final incoming = _messages.where((m) => m.senderId != _account).firstOrNull;
+    if (incoming == null || incoming.id == _lastRead) return;
+    _reading = true;
+    try {
+      await _service.markRead(widget.threadId, incoming.id);
+      if (mounted && _service.userId == _account) _lastRead = incoming.id;
+    } catch (_) {
+    } finally {
+      _reading = false;
+    }
+  }
+
+  void _scrolled() {
+    if (!mounted || !_scroll.hasClients) return;
+    final away = _scroll.offset > 160;
+    if (away != _awayFromBottom || (!away && _newIncomingIds.isNotEmpty))
+      setState(() {
+        _awayFromBottom = away;
+        if (!away) _newIncomingIds.clear();
+      });
+    if (_scroll.offset < 80) unawaited(_markVisibleRead());
+  }
+
+  Future<void> _jumpToLatest() async {
+    if (!_scroll.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _scroll.jumpTo(0);
+    } else {
+      await _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    if (mounted) await _markVisibleRead();
+  }
+
   final _scroll = ScrollController();
   int _generation = 0;
   String? _lastRead;
@@ -176,6 +244,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scroll.addListener(_scrolled);
     _thread = widget.initial;
     ChatNavigation.activeThread = widget.threadId;
     _restore();
@@ -220,6 +289,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
     photo: _photo,
     replyId: _reply,
     voice: _voice,
+    attempted: _attempted,
   );
   Future<void> _restore() async {
     try {
@@ -233,7 +303,8 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
           _photo = draft.photo;
           _voice = draft.voice;
           _reply = draft.replyId;
-          _attempted = true;
+          _attempted = draft.attempted;
+          _sendFailure = draft.attempted;
         }
         if (wall['photo'] is String)
           _wallpaper = base64Decode(wall['photo'] as String);
@@ -264,6 +335,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
   }
 
   void _edited() {
+    _sendFailure = false;
     _typingEdited();
     if (_attempted) {
       _id = CommunityService.newPostId();
@@ -303,6 +375,26 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
         return;
       setState(() {
         _replyContexts.clear();
+        if (!_capturedUnread) {
+          _capturedUnread = true;
+          _initialUnreadCount =
+              info.firstOrNull?.unread ?? widget.initial?.unread ?? 0;
+        }
+        if (_loadedOnce && !older && _awayFromBottom) {
+          final existing = _messages.map((m) => m.id).toSet();
+          final newest = _messages.firstOrNull?.createdAt;
+          _newIncomingIds.addAll(
+            rows
+                .where(
+                  (m) =>
+                      m.senderId != _account &&
+                      !existing.contains(m.id) &&
+                      (newest == null || !m.createdAt.isBefore(newest)),
+                )
+                .map((m) => m.id),
+          );
+        }
+        _loadedOnce = true;
         for (final m in contexts) {
           _replyContexts[m.id] = m;
         }
@@ -321,20 +413,19 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
             return time == 0 ? b.id.compareTo(a.id) : time;
           });
         if (older || reset) _more = rows.length == 40;
+        if (_unreadBoundary == null && _initialUnreadCount > 0) {
+          final incoming = _messages
+              .where((m) => m.senderId != _account)
+              .toList();
+          if (incoming.length >= _initialUnreadCount)
+            _unreadBoundary = incoming[_initialUnreadCount - 1].id;
+        }
+        final available = _messages.map((m) => m.id).toSet();
+        _newIncomingIds.removeWhere((id) => !available.contains(id));
         _thread = info.isEmpty ? null : info.first;
         _failed = false;
       });
-      if (_visible &&
-          (!_scroll.hasClients || _scroll.offset < 80) &&
-          _messages.isNotEmpty) {
-        final incoming = _messages
-            .where((m) => m.senderId != _account)
-            .firstOrNull;
-        if (incoming != null && incoming.id != _lastRead) {
-          await _service.markRead(widget.threadId, incoming.id);
-          _lastRead = incoming.id;
-        }
-      }
+      await _markVisibleRead();
     } catch (_) {
       if (mounted && generation == _generation) setState(() => _failed = true);
     } finally {
@@ -350,9 +441,12 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       return;
     _draftTimer?.cancel();
     unawaited(_stopTyping());
-    final draft = _draft;
-    setState(() => _sending = true);
     _attempted = true;
+    final draft = _draft;
+    setState(() {
+      _sending = true;
+      _sendFailure = false;
+    });
     _sendEntrances.add(draft.id);
     try {
       await _store.save(_account!, widget.threadId, draft);
@@ -365,6 +459,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
         _reply = null;
         _id = CommunityService.newPostId();
         _attempted = false;
+        _sendFailure = false;
       });
       try {
         await _store.save(_account, widget.threadId, _draft);
@@ -373,9 +468,8 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       }
       await _load();
     } catch (_) {
-      _notice(
-        'Não foi possível confirmar o envio. Sua mensagem foi mantida; tente novamente.',
-      );
+      if (mounted && _service.userId == _account)
+        setState(() => _sendFailure = true);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -419,8 +513,21 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       if (wallpaper) {
         await _configureWallpaper(bytes);
       } else {
-        setState(() => _photo = bytes);
+        unawaited(_stopTyping());
+        final caption = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                ChatPhotoPreviewScreen(bytes: bytes, caption: _text.text),
+          ),
+        );
+        if (!mounted || caption == null || _service.userId != _account) return;
+        setState(() {
+          _photo = bytes;
+          _text.text = caption;
+        });
         _edited();
+        await _send();
       }
     } catch (_) {
       _notice('Escolha uma foto estática de até 15 MB.');
@@ -639,8 +746,38 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       );
     }
     final colors = context.pbhColors;
+    Widget menuOption(IconData icon, String title) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: colors.orange.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 19, color: colors.orange),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: colors.textPrimary,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight:
+            64 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 1.8),
         title: InkWell(
           onTap: _thread == null
               ? null
@@ -697,8 +834,8 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                       Text(
                         'digitando…',
                         style: TextStyle(fontSize: 12, color: colors.orange),
-                      ),
-                    if (_muted)
+                      )
+                    else if (_muted)
                       Text(
                         'Notificações silenciadas',
                         style: TextStyle(
@@ -715,6 +852,22 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
         actions: [
           PopupMenuButton<String>(
             tooltip: 'Personalizar conversa',
+            position: PopupMenuPosition.under,
+            offset: const Offset(-8, 6),
+            color: colors.surface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 10,
+            shadowColor: Colors.black54,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: BorderSide(color: colors.borderSubtle),
+            ),
+            constraints: const BoxConstraints(minWidth: 260, maxWidth: 290),
+            menuPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 10,
+            ),
             onSelected: (value) async {
               if (value == 'search') {
                 await _searchConversation();
@@ -745,472 +898,626 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'search',
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.search_rounded),
-                  title: Text('Buscar na conversa'),
+              PopupMenuItem(
+                enabled: false,
+                height: 28,
+                child: Text(
+                  'Conversa',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textSecondary,
+                    letterSpacing: .4,
+                  ),
                 ),
+              ),
+              PopupMenuItem(
+                value: 'search',
+                child: menuOption(Icons.search_rounded, 'Buscar na conversa'),
               ),
               PopupMenuItem(
                 value: 'mute',
                 enabled: !_muteBusy,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    _muted
-                        ? Icons.notifications_active_outlined
-                        : Icons.notifications_off_outlined,
-                  ),
-                  title: Text(
-                    _muted ? 'Ativar notificações' : 'Silenciar conversa',
+                child: menuOption(
+                  _muted
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_off_outlined,
+                  _muted ? 'Ativar notificações' : 'Silenciar conversa',
+                ),
+              ),
+              const PopupMenuDivider(height: 16),
+              PopupMenuItem(
+                enabled: false,
+                height: 28,
+                child: Text(
+                  'Personalização',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textSecondary,
+                    letterSpacing: .4,
                   ),
                 ),
               ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'photo',
-                child: Text('Escolher papel de parede'),
+                child: menuOption(
+                  Icons.wallpaper_rounded,
+                  'Escolher papel de parede',
+                ),
               ),
               if (_wallpaper != null)
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'dim',
-                  child: Text('Escurecer papel de parede'),
+                  child: menuOption(
+                    Icons.brightness_4_outlined,
+                    'Escurecer papel de parede',
+                  ),
                 ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'default',
-                child: Text('Restaurar fundo'),
+                child: menuOption(Icons.restart_alt_rounded, 'Restaurar fundo'),
               ),
             ],
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                'Mensagens e anexos desaparecem após 7 dias.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: colors.textSecondary),
-              ),
-            ),
-            if (_failed || !_connected)
-              TextButton.icon(
-                onPressed: () => _load(reset: true),
-                icon: const Icon(Icons.sync),
-                label: Text(
-                  _failed
-                      ? 'Não foi possível atualizar. Tentar novamente'
-                      : 'Reconectando…',
+      body: Container(
+        decoration: BoxDecoration(
+          image: _wallpaper == null
+              ? null
+              : DecorationImage(
+                  image: MemoryImage(_wallpaper!),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withValues(alpha: _wallpaperDim),
+                    BlendMode.darken,
+                  ),
                 ),
-              ),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  image: _wallpaper == null
-                      ? null
-                      : DecorationImage(
-                          image: MemoryImage(_wallpaper!),
-                          fit: BoxFit.cover,
-                          colorFilter: ColorFilter.mode(
-                            Colors.black.withValues(alpha: _wallpaperDim),
-                            BlendMode.darken,
-                          ),
-                        ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-                child: _loading && _messages.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView.builder(
-                        reverse: true,
-                        controller: _scroll,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        itemCount: _messages.length + 1,
-                        findChildIndexCallback: (key) {
-                          if (key is! ValueKey<String>) return null;
-                          final index = _messages.indexWhere(
-                            (m) => m.id == key.value,
-                          );
-                          return index < 0 ? null : index;
-                        },
-                        itemBuilder: (_, index) {
-                          if (index == _messages.length)
-                            return _more && _messages.isNotEmpty
-                                ? TextButton(
-                                    onPressed: _loading
-                                        ? null
-                                        : () => _load(older: true),
-                                    child: const Text(
-                                      'Carregar mensagens anteriores',
-                                    ),
-                                  )
-                                : _messages.isEmpty
-                                ? const Padding(
-                                    padding: EdgeInsets.all(24),
-                                    child: Text(
-                                      'Comece a conversa com uma mensagem.',
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  )
-                                : const SizedBox.shrink();
-                          final m = _messages[index],
-                              mine = m.senderId == _account;
-                          final reply =
-                              _messages
-                                  .where((r) => r.id == m.replyTo)
-                                  .firstOrNull ??
-                              _replyContexts[m.replyTo];
-                          return _SentMessageEntrance(
-                            key: ValueKey(m.id),
-                            animate: mine && _sendEntrances.contains(m.id),
-                            onEnd: () => _sendEntrances.remove(m.id),
-                            child: Align(
-                              alignment: mine
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: ChatReplySwipe(
-                                onReply: _sending ? null : () => _respond(m),
-                                onLongPress: _sending
-                                    ? null
-                                    : () => _actions(m),
-                                child: Container(
-                                  constraints: BoxConstraints(
-                                    maxWidth:
-                                        MediaQuery.sizeOf(context).width * .8,
-                                  ),
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: mine
-                                        ? Color.alphaBlend(
-                                            colors.orange.withValues(alpha: .2),
-                                            colors.surface,
-                                          )
-                                        : colors.surface,
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: colors.borderSubtle,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (m.replyTo != null)
-                                            Container(
-                                              margin: const EdgeInsets.only(
-                                                bottom: 8,
-                                              ),
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                border: Border(
-                                                  left: BorderSide(
-                                                    color: colors.orange,
-                                                    width: 3,
-                                                  ),
-                                                ),
-                                              ),
-                                              child: Text(
-                                                reply?.body.isNotEmpty == true
-                                                    ? reply!.body
-                                                    : reply?.imagePath != null
-                                                    ? 'Foto'
-                                                    : reply?.audioPath != null
-                                                    ? 'Áudio'
-                                                    : 'Mensagem indisponível',
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  color: colors.textSecondary,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                          if (m.imagePath != null)
-                                            m.imageUrl == null
-                                                ? const Padding(
-                                                    padding: EdgeInsets.all(20),
-                                                    child: Text(
-                                                      'Foto indisponível. Atualize a conversa.',
-                                                    ),
-                                                  )
-                                                : GestureDetector(
-                                                    onTap: () => Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute<void>(
-                                                        builder: (_) => Scaffold(
-                                                          backgroundColor:
-                                                              Colors.black,
-                                                          appBar: AppBar(),
-                                                          body: Center(
-                                                            child: InteractiveViewer(
-                                                              child: Image.network(
-                                                                m.imageUrl!,
-                                                                fit: BoxFit
-                                                                    .contain,
-                                                                errorBuilder:
-                                                                    (
-                                                                      _,
-                                                                      __,
-                                                                      ___,
-                                                                    ) => const Text(
-                                                                      'Atualize a conversa para abrir a foto.',
-                                                                    ),
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    child: ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            12,
-                                                          ),
-                                                      child: Image.network(
-                                                        m.imageUrl!,
-                                                        width: 240,
-                                                        height: 240,
-                                                        fit: BoxFit.cover,
-                                                        cacheWidth: 720,
-                                                        errorBuilder:
-                                                            (
-                                                              _,
-                                                              __,
-                                                              ___,
-                                                            ) => const SizedBox(
-                                                              height: 100,
-                                                              child: Center(
-                                                                child: Icon(
-                                                                  Icons
-                                                                      .broken_image_outlined,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                          if (m.audioPath != null)
-                                            ChatAudioPlayer(
-                                              format: m.audioFormat ?? 'm4a',
-                                              key: ValueKey('audio-${m.id}'),
-                                              load: () => _service.audio(
-                                                widget.threadId,
-                                                m,
-                                              ),
-                                              durationMs:
-                                                  m.audioDurationMs ?? 1,
-                                            ),
-                                          if (m.body.isNotEmpty)
-                                            Padding(
-                                              padding: EdgeInsets.only(
-                                                top: m.imagePath != null
-                                                    ? 8
-                                                    : 0,
-                                              ),
-                                              child: Text(
-                                                m.body,
-                                                style: const TextStyle(
-                                                  fontSize: 15,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '${m.createdAt.hour.toString().padLeft(2, '0')}:${m.createdAt.minute.toString().padLeft(2, '0')}',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: colors.textSecondary,
-                                            ),
-                                          ),
-                                          if (mine)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                left: 5,
-                                              ),
-                                              child: Icon(
-                                                Icons.done_all,
-                                                size: 15,
-                                                color:
-                                                    _thread != null &&
-                                                        !m.createdAt.isAfter(
-                                                          _thread!.peerReadAt,
-                                                        )
-                                                    ? colors.orange
-                                                    : colors.textSecondary,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ),
-            if (_reply != null)
-              ListTile(
-                dense: true,
-                leading: Icon(Icons.reply, color: colors.orange),
-                title: const Text('Respondendo a uma mensagem'),
-                subtitle: Text(
-                  (_messages.where((m) => m.id == _reply).firstOrNull ??
-                                  _replyContexts[_reply])
-                              ?.body
-                              .isNotEmpty ==
-                          true
-                      ? (_messages.where((m) => m.id == _reply).firstOrNull ??
-                                _replyContexts[_reply])!
-                            .body
-                      : (_replyContexts[_reply]?.audioPath != null
-                            ? 'Mensagem de áudio'
-                            : 'Foto ou mensagem'),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: IconButton(
-                  tooltip: 'Cancelar resposta',
-                  onPressed: _sending
-                      ? null
-                      : () {
-                          setState(() => _reply = null);
-                          _edited();
-                        },
-                  icon: const Icon(Icons.close),
-                ),
-              ),
-            if (_photo != null)
-              SizedBox(
-                height: 90,
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.memory(_photo!, width: 90, fit: BoxFit.cover),
-                    IconButton(
-                      tooltip: 'Remover foto',
-                      onPressed: _sending
-                          ? null
-                          : () {
-                              setState(() => _photo = null);
-                              _edited();
-                            },
-                      icon: const Icon(Icons.close),
+                    Icon(
+                      Icons.history_rounded,
+                      size: 13,
+                      color: colors.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Mensagens e anexos desaparecem após 7 dias.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colors.textSecondary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  IconButton(
-                    tooltip: _voice != null ? 'Descartar áudio' : 'Anexar foto',
-                    onPressed: _sending || _restoring || _recorderOpen
-                        ? null
-                        : _voice != null
-                        ? () {
-                            setState(() => _voice = null);
-                            _edited();
-                          }
-                        : () => _pick(),
-                    icon: Icon(
-                      _voice != null
-                          ? Icons.delete_outline
-                          : Icons.add_photo_alternate_outlined,
-                      color: colors.orange,
-                    ),
+              if (_failed || !_connected)
+                TextButton.icon(
+                  onPressed: () => _load(reset: true),
+                  icon: const Icon(Icons.sync),
+                  label: Text(
+                    _failed
+                        ? 'Não foi possível atualizar. Tentar novamente'
+                        : 'Reconectando…',
                   ),
-                  Expanded(
-                    child: _voice != null
-                        ? ChatAudioPlayer(
-                            format: _voice!.format,
-                            key: ValueKey('draft-$_id'),
-                            load: () async => _voice!.bytes,
-                            durationMs: _voice!.durationMs,
-                          )
-                        : TextField(
-                            controller: _text,
-                            focusNode: _composerFocus,
-                            enabled: !_sending && !_restoring && !_recorderOpen,
-                            onChanged: (_) => _edited(),
-                            minLines: 1,
-                            maxLines: 5,
-                            maxLength: 2000,
-                            decoration: InputDecoration(
-                              hintText: 'Mensagem…',
-                              counterText: '',
-                              filled: true,
-                              fillColor: colors.surface,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
+                ),
+              Expanded(
+                child: Container(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _loading && _messages.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : ListView.builder(
+                              reverse: true,
+                              controller: _scroll,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              itemCount:
+                                  _messages.length + 1 + (_sendFailure ? 1 : 0),
+                              findChildIndexCallback: (key) {
+                                if (key is! ValueKey<String>) return null;
+                                final index = _messages.indexWhere(
+                                  (m) => m.id == key.value,
+                                );
+                                return index < 0
+                                    ? null
+                                    : index + (_sendFailure ? 1 : 0);
+                              },
+                              itemBuilder: (_, itemIndex) {
+                                if (_sendFailure && itemIndex == 0)
+                                  return ChatSendFailure(
+                                    draft: _draft,
+                                    onRetry: _sending ? null : _send,
+                                  );
+                                final index =
+                                    itemIndex - (_sendFailure ? 1 : 0);
+                                if (index == _messages.length)
+                                  return _more && _messages.isNotEmpty
+                                      ? TextButton(
+                                          onPressed: _loading
+                                              ? null
+                                              : () => _load(older: true),
+                                          child: const Text(
+                                            'Carregar mensagens anteriores',
+                                          ),
+                                        )
+                                      : _messages.isEmpty
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(24),
+                                          child: Text(
+                                            'Comece a conversa com uma mensagem.',
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        )
+                                      : const SizedBox.shrink();
+                                final m = _messages[index],
+                                    mine = m.senderId == _account;
+                                final older = index + 1 < _messages.length
+                                    ? _messages[index + 1]
+                                    : null;
+                                final newer = index > 0
+                                    ? _messages[index - 1]
+                                    : null;
+                                final joinsNewer = connectedChatMessages(
+                                  m,
+                                  newer,
+                                );
+                                final reply =
+                                    _messages
+                                        .where((r) => r.id == m.replyTo)
+                                        .firstOrNull ??
+                                    _replyContexts[m.replyTo];
+                                return _SentMessageEntrance(
+                                  key: ValueKey(m.id),
+                                  animate:
+                                      mine && _sendEntrances.contains(m.id),
+                                  onEnd: () => _sendEntrances.remove(m.id),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (older == null ||
+                                          !sameChatDay(
+                                            m.createdAt,
+                                            older.createdAt,
+                                          ))
+                                        ChatDateSeparator(
+                                          label: chatDateLabel(
+                                            m.createdAt,
+                                            DateTime.now(),
+                                          ),
+                                        ),
+                                      if (m.id == _unreadBoundary)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          child: Semantics(
+                                            liveRegion: true,
+                                            child: Container(
+                                              width: double.infinity,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Color.alphaBlend(
+                                                  colors.orange.withValues(
+                                                    alpha: .15,
+                                                  ),
+                                                  colors.surface,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                'Mensagens novas · $_initialUnreadCount',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  color: colors.textPrimary,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      Align(
+                                        alignment: mine
+                                            ? Alignment.centerRight
+                                            : Alignment.centerLeft,
+                                        child: ChatReplySwipe(
+                                          onReply: _sending
+                                              ? null
+                                              : () => _respond(m),
+                                          onLongPress: _sending
+                                              ? null
+                                              : () => _actions(m),
+                                          child: ChatMessageFrame(
+                                            mine: mine,
+                                            grouped: joinsNewer,
+                                            avatar: _thread?.avatar,
+                                            founder: _thread?.founder == true,
+                                            photo: m.imagePath != null,
+                                            time:
+                                                '${m.createdAt.hour.toString().padLeft(2, '0')}:${m.createdAt.minute.toString().padLeft(2, '0')}',
+                                            read:
+                                                _thread != null &&
+                                                !m.createdAt.isAfter(
+                                                  _thread!.peerReadAt,
+                                                ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    if (m.replyTo != null)
+                                                      Container(
+                                                        margin:
+                                                            const EdgeInsets.only(
+                                                              bottom: 8,
+                                                            ),
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              8,
+                                                            ),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              border: Border(
+                                                                left: BorderSide(
+                                                                  color: colors
+                                                                      .orange,
+                                                                  width: 3,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                        child: Text(
+                                                          reply?.body.isNotEmpty ==
+                                                                  true
+                                                              ? reply!.body
+                                                              : reply?.imagePath !=
+                                                                    null
+                                                              ? 'Foto'
+                                                              : reply?.audioPath !=
+                                                                    null
+                                                              ? 'Áudio'
+                                                              : 'Mensagem indisponível',
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: TextStyle(
+                                                            color: colors
+                                                                .textSecondary,
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    if (m.imagePath != null)
+                                                      m.imageUrl == null
+                                                          ? const Padding(
+                                                              padding:
+                                                                  EdgeInsets.all(
+                                                                    20,
+                                                                  ),
+                                                              child: Text(
+                                                                'Foto indisponível. Atualize a conversa.',
+                                                              ),
+                                                            )
+                                                          : GestureDetector(
+                                                              onTap: () =>
+                                                                  _openPhoto(m),
+                                                              child: ClipRRect(
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      12,
+                                                                    ),
+                                                                child: Image.network(
+                                                                  m.imageUrl!,
+                                                                  width: 240,
+                                                                  height: 240,
+                                                                  fit: BoxFit
+                                                                      .cover,
+                                                                  cacheWidth:
+                                                                      720,
+                                                                  errorBuilder:
+                                                                      (
+                                                                        _,
+                                                                        __,
+                                                                        ___,
+                                                                      ) => const SizedBox(
+                                                                        height:
+                                                                            100,
+                                                                        child: Center(
+                                                                          child: Icon(
+                                                                            Icons.broken_image_outlined,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                    if (m.audioPath != null)
+                                                      ChatAudioPlayer(
+                                                        format:
+                                                            m.audioFormat ??
+                                                            'm4a',
+                                                        key: ValueKey(
+                                                          'audio-${m.id}',
+                                                        ),
+                                                        load: () =>
+                                                            _service.audio(
+                                                              widget.threadId,
+                                                              m,
+                                                            ),
+                                                        durationMs:
+                                                            m.audioDurationMs ??
+                                                            1,
+                                                      ),
+                                                    if (m.body.isNotEmpty)
+                                                      Padding(
+                                                        padding:
+                                                            EdgeInsets.only(
+                                                              left:
+                                                                  m.imagePath !=
+                                                                      null
+                                                                  ? 7
+                                                                  : 0,
+                                                              right:
+                                                                  m.imagePath !=
+                                                                      null
+                                                                  ? 7
+                                                                  : 0,
+                                                              bottom:
+                                                                  m.imagePath !=
+                                                                      null
+                                                                  ? 3
+                                                                  : 0,
+                                                              top:
+                                                                  m.imagePath !=
+                                                                      null
+                                                                  ? 8
+                                                                  : 0,
+                                                            ),
+                                                        child: Text(
+                                                          m.body,
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 15,
+                                                                height: 1.35,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                      if (_awayFromBottom)
+                        Positioned(
+                          right: 16,
+                          bottom: 12,
+                          child: IconButton.filled(
+                            tooltip: 'Voltar para mensagens recentes',
+                            style: IconButton.styleFrom(
+                              backgroundColor: colors.surfaceElevated,
+                              foregroundColor: colors.orange,
+                              minimumSize: const Size(48, 48),
+                            ),
+                            onPressed: _jumpToLatest,
+                            icon: Badge(
+                              isLabelVisible: _newIncomingIds.isNotEmpty,
+                              label: Text(
+                                _newIncomingIds.length > 99
+                                    ? '99+'
+                                    : '${_newIncomingIds.length}',
+                              ),
+                              child: const Icon(
+                                Icons.keyboard_double_arrow_down_rounded,
                               ),
                             ),
                           ),
+                        ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: _voice != null
-                        ? 'Enviar áudio'
-                        : _text.text.trim().isNotEmpty || _photo != null
-                        ? 'Enviar mensagem'
-                        : 'Gravar áudio',
-                    onPressed: _sending || _restoring || _recorderOpen
-                        ? null
-                        : _voice != null ||
-                              _text.text.trim().isNotEmpty ||
-                              _photo != null
-                        ? _send
-                        : _record,
-                    icon: _sending
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : AnimatedSwitcher(
-                            duration: Duration(
-                              milliseconds:
-                                  MediaQuery.disableAnimationsOf(context)
-                                  ? 0
-                                  : 160,
-                            ),
-                            child: Icon(
-                              _voice != null ||
-                                      _text.text.trim().isNotEmpty ||
-                                      _photo != null
-                                  ? Icons.send_rounded
-                                  : Icons.mic_rounded,
-                              key: ValueKey(
-                                _voice != null ||
-                                    _text.text.trim().isNotEmpty ||
-                                    _photo != null,
-                              ),
-                              color: colors.orange,
-                            ),
-                          ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              if (_reply != null)
+                ListTile(
+                  dense: true,
+                  leading: Icon(Icons.reply, color: colors.orange),
+                  title: const Text('Respondendo a uma mensagem'),
+                  subtitle: Text(
+                    (_messages.where((m) => m.id == _reply).firstOrNull ??
+                                    _replyContexts[_reply])
+                                ?.body
+                                .isNotEmpty ==
+                            true
+                        ? (_messages.where((m) => m.id == _reply).firstOrNull ??
+                                  _replyContexts[_reply])!
+                              .body
+                        : (_replyContexts[_reply]?.audioPath != null
+                              ? 'Mensagem de áudio'
+                              : 'Foto ou mensagem'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Cancelar resposta',
+                    onPressed: _sending
+                        ? null
+                        : () {
+                            setState(() => _reply = null);
+                            _edited();
+                          },
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              if (_photo != null)
+                SizedBox(
+                  height: 90,
+                  child: Row(
+                    children: [
+                      Image.memory(_photo!, width: 90, fit: BoxFit.cover),
+                      IconButton(
+                        tooltip: 'Remover foto',
+                        onPressed: _sending
+                            ? null
+                            : () {
+                                setState(() => _photo = null);
+                                _edited();
+                              },
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 10, 12, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      tooltip: _voice != null
+                          ? 'Descartar áudio'
+                          : 'Anexar foto',
+                      onPressed: _sending || _restoring || _recorderOpen
+                          ? null
+                          : _voice != null
+                          ? () {
+                              setState(() => _voice = null);
+                              _edited();
+                            }
+                          : () => _pick(),
+                      icon: Icon(
+                        _voice != null
+                            ? Icons.delete_outline
+                            : Icons.add_circle_outline_rounded,
+                        color: colors.orange,
+                      ),
+                    ),
+                    Expanded(
+                      child: _voice != null
+                          ? ChatAudioPlayer(
+                              format: _voice!.format,
+                              key: ValueKey('draft-$_id'),
+                              load: () async => _voice!.bytes,
+                              durationMs: _voice!.durationMs,
+                            )
+                          : TextField(
+                              controller: _text,
+                              focusNode: _composerFocus,
+                              enabled:
+                                  !_sending && !_restoring && !_recorderOpen,
+                              onChanged: (_) => _edited(),
+                              minLines: 1,
+                              maxLines: 5,
+                              maxLength: 2000,
+                              decoration: InputDecoration(
+                                hintText: 'Mensagem…',
+                                counterText: '',
+                                filled: true,
+                                fillColor: colors.surface,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(28),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(28),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      style: IconButton.styleFrom(
+                        backgroundColor: colors.orange,
+                        foregroundColor: colors.orange.computeLuminance() > .179
+                            ? Colors.black
+                            : Colors.white,
+                        minimumSize: const Size(48, 48),
+                      ),
+                      tooltip: _voice != null
+                          ? 'Enviar áudio'
+                          : _text.text.trim().isNotEmpty || _photo != null
+                          ? 'Enviar mensagem'
+                          : 'Gravar áudio',
+                      onPressed: _sending || _restoring || _recorderOpen
+                          ? null
+                          : _voice != null ||
+                                _text.text.trim().isNotEmpty ||
+                                _photo != null
+                          ? _send
+                          : _record,
+                      icon: _sending
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : AnimatedSwitcher(
+                              duration: Duration(
+                                milliseconds:
+                                    MediaQuery.disableAnimationsOf(context)
+                                    ? 0
+                                    : 160,
+                              ),
+                              child: Icon(
+                                _voice != null ||
+                                        _text.text.trim().isNotEmpty ||
+                                        _photo != null
+                                    ? Icons.send_rounded
+                                    : Icons.mic_rounded,
+                                key: ValueKey(
+                                  _voice != null ||
+                                      _text.text.trim().isNotEmpty ||
+                                      _photo != null,
+                                ),
+                                color: colors.orange.computeLuminance() > .179
+                                    ? Colors.black
+                                    : Colors.white,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

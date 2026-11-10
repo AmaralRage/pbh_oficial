@@ -51,6 +51,12 @@ class PbhPalette extends ThemeExtension<PbhPalette> {
       Color(0xFF8BAFFF),
     ),
     PbhPalette(
+      'graphite_classic',
+      'Grafite · Clássico',
+      Color(0xFF0B0B0B),
+      Color(0xFF9498A0),
+    ),
+    PbhPalette(
       'starlight_classic',
       'Azul estelar · Clássico',
       Color(0xFF0B0B0B),

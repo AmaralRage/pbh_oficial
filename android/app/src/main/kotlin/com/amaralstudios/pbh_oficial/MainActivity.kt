@@ -8,10 +8,14 @@ import android.content.Intent
 class MainActivity : FlutterActivity() {
     private var spotify: SpotifyRemoteBridge? = null
     private var photos: PhotoDownloadBridge? = null
+    private var waveform: ChatWaveformBridge? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         spotify = SpotifyRemoteBridge(this)
         photos = PhotoDownloadBridge(this)
+        waveform = ChatWaveformBridge(this)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pbh/chat_waveform")
+            .setMethodCallHandler { call, result -> waveform?.handle(call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pbh/photo_download")
             .setMethodCallHandler { call, result -> photos?.handle(call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pbh/spotify_remote")
@@ -19,6 +23,7 @@ class MainActivity : FlutterActivity() {
     }
     override fun onDestroy() {
         photos?.close()
+        waveform?.close()
         spotify?.close()
         super.onDestroy()
     }

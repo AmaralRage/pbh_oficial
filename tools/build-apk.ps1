@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path $PSScriptRoot -Parent
 Push-Location $projectDirectory
 try {
-    $versionMatch = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)')
+    $versionMatch = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)\+([0-9]+)')
     if (-not $versionMatch.Success) { throw 'Confira a versao no pubspec.yaml.' }
     $appVersion = $versionMatch.Groups[1].Value
     if (-not $BuildNumber) { $BuildNumber = [int]$versionMatch.Groups[2].Value }

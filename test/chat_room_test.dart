@@ -162,9 +162,10 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 100)),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Olá, irmão!'), findsOneWidget);
+      expect(find.text('Olá, irmão!'), findsNWidgets(2));
+      expect(find.text('Envio não confirmado'), findsOneWidget);
       expect(service.attempts, hasLength(1));
-      await tester.tap(find.byTooltip('Enviar mensagem'));
+      await tester.tap(find.text('Tentar novamente'));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 100)),
       );

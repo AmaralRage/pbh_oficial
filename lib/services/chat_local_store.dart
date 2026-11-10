@@ -45,6 +45,7 @@ class ChatLocalStore {
         photo: photo,
         replyId: data['reply'] as String?,
         voice: voice,
+        attempted: data['attempted'] == true,
       );
     } catch (_) {
       await storage.removeDraft(_key(user, thread, 'draft'));
@@ -74,6 +75,7 @@ class ChatLocalStore {
           'audio_format': draft.voice?.format,
           'audio_duration': draft.voice?.durationMs,
           'saved': DateTime.now().toUtc().toIso8601String(),
+          'attempted': draft.attempted,
         }),
       );
     });

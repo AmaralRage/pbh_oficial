@@ -15,6 +15,31 @@ import 'package:pbh_oficial/services/chat_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'inbox previews identify audio duration, photo captions and own messages',
+    () {
+      ChatThread item({int? audio, bool image = false, String text = ''}) =>
+          ChatThread(
+            id: 'thread',
+            peerId: 'peer',
+            name: 'Membro',
+            preview: text,
+            hasImage: image,
+            audioDurationMs: audio,
+            lastAt: DateTime(2026),
+            activityAt: DateTime(2026),
+            peerReadAt: DateTime(2026),
+          );
+      expect(item(audio: 35000).previewLabel(mine: false), 'Áudio · 0:35');
+      expect(item(audio: 65000).previewLabel(mine: true), 'Você: Áudio · 1:05');
+      expect(
+        item(image: true, text: 'Uma conquista').previewLabel(mine: false),
+        'Foto: Uma conquista',
+      );
+      expect(item(text: 'Olá').previewLabel(mine: true), 'Você: Olá');
+      expect(item().previewLabel(mine: false), 'Inicie uma conversa');
+    },
+  );
   const thread = 'cc070000-0000-4000-8000-000000000001';
   const id = 'cc070000-0000-4000-8000-000000000011';
   test(
@@ -41,7 +66,7 @@ void main() {
                 'user_metadata': {},
               },
             };
-          } else if (request.url.path.endsWith('/chat_inbox')) {
+          } else if (request.url.path.endsWith('/chat_inbox_v2')) {
             result = [
               {
                 'thread_id': thread,
@@ -212,9 +237,10 @@ void main() {
         await directory.delete(recursive: true);
       });
       final store = ChatLocalStore();
-      const draft = ChatDraft(id: id, text: 'Rascunho');
+      const draft = ChatDraft(id: id, text: 'Rascunho', attempted: true);
       await store.save('a', thread, draft);
       expect((await ChatLocalStore().load('a', thread))?.id, id);
+      expect((await ChatLocalStore().load('a', thread))?.attempted, isTrue);
       expect(await store.load('b', thread), isNull);
       expect(await store.load('a', 'other'), isNull);
       await store.saveWallpaper(

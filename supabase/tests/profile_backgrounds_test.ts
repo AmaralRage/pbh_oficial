@@ -29,6 +29,12 @@ Deno.test('profile backgrounds keep ownership and profile privacy', async () => 
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261030000400_profile_backgrounds.sql',import.meta.url)));
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261102000300_public_profile_current_identity.sql',import.meta.url)));
     await db.exec(await Deno.readTextFile(new URL('../migrations/20261102000500_independent_profile_highlights.sql',import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261103000500_classic_profile_themes.sql',import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261109000200_graphite_profile_theme.sql',import.meta.url)));
+    await db.exec(await Deno.readTextFile(new URL('../migrations/20261109000200_graphite_profile_theme.sql',import.meta.url)));
+    await db.query("update auth.users set raw_user_meta_data=jsonb_build_object('app_theme','graphite_classic') where id=$1",[owner]);
+    assert.equal((await db.query<any>('select public.community_member_profile($1) as profile',[owner])).rows[0].profile.style.profile_theme,'graphite_classic');
+    await db.query("update auth.users set raw_user_meta_data='{}'::jsonb where id=$1",[owner]);
     const asUser=async(id:string,role='authenticated')=>{
       await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec(`set role ${role}`);
     };

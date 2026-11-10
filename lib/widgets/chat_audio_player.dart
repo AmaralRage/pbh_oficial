@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
+import '../services/chat_waveform.dart';
+import 'chat_waveform.dart';
 
 class ChatAudioPlayback {
   static AudioPlayer? active;
@@ -33,6 +35,27 @@ class _ChatAudioPlayerState extends State<ChatAudioPlayer>
   bool _loading = false, _playing = false, _failed = false;
   int _position = 0;
   double _speed = 1;
+  List<double> _waveform = const [];
+  bool _waveformRequested = false;
+  Future<void> _readWaveform(Uint8List bytes) async {
+    if (_waveformRequested) return;
+    _waveformRequested = true;
+    final values = await extractChatWaveform(bytes, widget.durationMs);
+    if (mounted) setState(() => _waveform = values);
+  }
+
+  Future<void> _seek(double progress) async {
+    final player = _player;
+    if (player == null || _loading) return;
+    final position = (progress * widget.durationMs).round();
+    try {
+      await player.seek(Duration(milliseconds: position));
+      if (mounted) setState(() => _position = position);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
   Future<void> _changeSpeed() async {
     final next = _speed == 1
         ? 1.5
@@ -115,6 +138,7 @@ class _ChatAudioPlayerState extends State<ChatAudioPlayer>
             mimeType: widget.format == 'm4a' ? 'audio/mp4' : 'audio/webm',
           ),
         );
+      unawaited(_readWaveform(_bytes!));
     } catch (_) {
       if (mounted) setState(() => _failed = true);
     } finally {
@@ -150,6 +174,12 @@ class _ChatAudioPlayerState extends State<ChatAudioPlayer>
         Row(
           children: [
             IconButton(
+              style: IconButton.styleFrom(
+                minimumSize: const Size(48, 48),
+                backgroundColor: context.pbhColors.orange.withValues(
+                  alpha: .14,
+                ),
+              ),
               tooltip: _playing
                   ? 'Pausar áudio'
                   : _failed
@@ -168,23 +198,23 @@ class _ChatAudioPlayerState extends State<ChatAudioPlayer>
                     ),
             ),
             Expanded(
-              child: Slider(
-                value: _position.toDouble().clamp(
-                  0,
-                  widget.durationMs.toDouble(),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(
+                  end: _position / widget.durationMs.clamp(1, 120000),
                 ),
-                min: 0,
-                max: widget.durationMs.toDouble().clamp(1, 120000),
-                activeColor: context.pbhColors.orange,
-                onChanged: _player == null || _loading
-                    ? null
-                    : (value) {
-                        setState(() => _position = value.toInt());
-                      },
-                onChangeEnd: _player == null || _loading
-                    ? null
-                    : (value) =>
-                          _player!.seek(Duration(milliseconds: value.toInt())),
+                duration: Duration(
+                  milliseconds:
+                      MediaQuery.disableAnimationsOf(context) || !_playing
+                      ? 0
+                      : 180,
+                ),
+                builder: (context, progress, _) => ChatWaveform(
+                  samples: _waveform,
+                  progress: progress.clamp(0, 1),
+                  onSeek: _player == null || _loading
+                      ? null
+                      : (value) => unawaited(_seek(value)),
+                ),
               ),
             ),
             Text(
@@ -193,7 +223,7 @@ class _ChatAudioPlayerState extends State<ChatAudioPlayer>
             ),
             TextButton(
               style: TextButton.styleFrom(
-                minimumSize: const Size(40, 40),
+                minimumSize: const Size(48, 48),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
               ),
               onPressed: _loading ? null : _changeSpeed,

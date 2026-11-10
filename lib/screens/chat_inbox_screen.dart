@@ -175,17 +175,7 @@ class _ChatInboxState extends State<ChatInboxScreen>
           ),
         )
       : Scaffold(
-          appBar: AppBar(
-            title: const Text('Conversas'),
-            centerTitle: true,
-            actions: [
-              IconButton(
-                tooltip: 'Nova conversa',
-                onPressed: _new,
-                icon: Icon(Icons.edit_square, color: context.pbhColors.orange),
-              ),
-            ],
-          ),
+          appBar: AppBar(title: const Text('Conversas'), centerTitle: true),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: _new,
             icon: const Icon(Icons.edit_square),
@@ -213,17 +203,41 @@ class _ChatInboxState extends State<ChatInboxScreen>
                       filled: true,
                       fillColor: context.pbhColors.surface,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(28),
                         borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
                       ),
                     ),
                   ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    'Suas conversas são privadas',
-                    style: TextStyle(color: context.pbhColors.textSecondary),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 13,
+                        color: context.pbhColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Conversas privadas · Mensagens duram 7 dias',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: context.pbhColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (!_connected || _failed)
@@ -245,11 +259,7 @@ class _ChatInboxState extends State<ChatInboxScreen>
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             itemCount: _threads.length + 1,
-                            separatorBuilder: (_, __) => Divider(
-                              color: context.pbhColors.borderSubtle,
-                              height: 1,
-                              indent: 70,
-                            ),
+                            separatorBuilder: (_, __) => const SizedBox(height: 4),
                             itemBuilder: (_, i) {
                               if (i == _threads.length)
                                 return Padding(
@@ -286,36 +296,23 @@ class _ChatInboxState extends State<ChatInboxScreen>
                                                 : 'Carregar mais conversas',
                                           ),
                                         ),
-                                      Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: context.pbhColors.surface,
-                                          borderRadius: BorderRadius.circular(
-                                            18,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.history,
-                                              color: context.pbhColors.orange,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            const Expanded(
-                                              child: Text(chatExpiryNotice),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
                                     ],
                                   ),
                                 );
                               final thread = _threads[i],
                                   mine = thread.lastSender == _account;
                               return ListTile(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                tileColor: thread.unread > 0
+                                    ? context.pbhColors.orange.withValues(
+                                        alpha: .055,
+                                      )
+                                    : null,
                                 contentPadding: const EdgeInsets.symmetric(
                                   vertical: 12,
-                                  horizontal: 0,
+                                  horizontal: 8,
                                 ),
                                 leading: chatAvatar(
                                   thread.name,
@@ -326,31 +323,92 @@ class _ChatInboxState extends State<ChatInboxScreen>
                                   thread.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: thread.unread > 0
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: context.pbhColors.textPrimary,
                                   ),
                                 ),
                                 subtitle: Padding(
                                   padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    '${mine ? 'Você: ' : ''}${thread.preview.isNotEmpty
-                                        ? thread.preview
-                                        : thread.hasImage
-                                        ? 'Foto'
-                                        : 'Inicie uma conversa'}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Row(
+                                    children: [
+                                      if (thread.audioDurationMs != null ||
+                                          thread.hasImage)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 5,
+                                          ),
+                                          child: Icon(
+                                            thread.audioDurationMs != null
+                                                ? Icons.mic_rounded
+                                                : Icons.image_outlined,
+                                            size: 15,
+                                            color:
+                                                context.pbhColors.textSecondary,
+                                          ),
+                                        ),
+                                      Expanded(
+                                        child: Text(
+                                          thread.previewLabel(mine: mine),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            height: 1.3,
+                                            fontWeight: thread.unread > 0
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                            color: thread.unread > 0
+                                                ? context.pbhColors.textPrimary
+                                                : context
+                                                      .pbhColors
+                                                      .textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 trailing: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      _time(thread.lastAt),
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (thread.muted)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              right: 4,
+                                            ),
+                                            child: Icon(
+                                              Icons.notifications_off_outlined,
+                                              size: 13,
+                                              color: context
+                                                  .pbhColors
+                                                  .textSecondary,
+                                              semanticLabel:
+                                                  'Conversa silenciada',
+                                            ),
+                                          ),
+                                        Text(
+                                          _time(thread.lastAt),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: thread.unread > 0
+                                                ? context.pbhColors.orange
+                                                : context
+                                                      .pbhColors
+                                                      .textSecondary,
+                                            fontWeight: thread.unread > 0
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     if (thread.unread > 0)
                                       Padding(
@@ -468,6 +526,7 @@ class _ChatMemberSearchState extends State<_ChatMemberSearch> {
                 prefixIcon: Icon(Icons.search),
               ),
             ),
+            const SizedBox(height: 16),
             if (_loading) const LinearProgressIndicator(),
             Expanded(
               child: _rows.isEmpty
@@ -479,6 +538,7 @@ class _ChatMemberSearchState extends State<_ChatMemberSearch> {
                       ),
                     )
                   : ListView.builder(
+                      padding: const EdgeInsets.only(top: 4, bottom: 12),
                       itemCount: _rows.length + (_more ? 1 : 0),
                       itemBuilder: (_, i) {
                         if (i == _rows.length)
@@ -493,6 +553,10 @@ class _ChatMemberSearchState extends State<_ChatMemberSearch> {
                         final automaticHandle =
                             'm_${(r['user_id'] as String).replaceAll('-', '')}';
                         return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
                           leading: chatAvatar(
                             r['name'] as String? ?? 'Membro',
                             r['avatar_url'] as String?,

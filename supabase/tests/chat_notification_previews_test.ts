@@ -89,5 +89,14 @@ Deno.test('push previews stay private and client versions preserve older devices
   await as(b);assert.equal((await db.query('select * from public.chat_search_messages($1,$2)',[thread,'BLOCKED'])).rows.length,0);
   assert.equal((await db.query('select * from public.chat_reply_context($1,$2)',[thread,[photo]])).rows.length,0);
   await as('','anon');await assert.rejects(db.query('select public.chat_set_typing($1,true)',[thread]),/permission denied/);
+  await db.exec('reset role');
+  await db.exec(await Deno.readTextFile(new URL('../migrations/20261109000100_chat_inbox_details.sql',import.meta.url)));
+  await db.query("update public.chat_messages set body='',audio_path='fixture.webm',audio_format='webm',audio_duration_ms=35000,expires_at=now()+interval '1 day' where id=$1",[photo]);
+  await as(b);await db.query('select public.chat_set_muted($1,true)',[thread]);
+  const inbox=(await db.query<any>('select public.chat_inbox_v2(null,null,$1)',[thread])).rows[0].chat_inbox_v2;
+  assert.equal(inbox.muted,true);assert.equal(inbox.last_audio_duration_ms,35000);
+  await as(a);assert.equal((await db.query<any>('select public.chat_inbox_v2(null,null,$1)',[thread])).rows[0].chat_inbox_v2.muted,false);
+  await as(c);assert.equal((await db.query('select public.chat_inbox_v2(null,null,$1)',[thread])).rows.length,0);
+  await as('','anon');await assert.rejects(db.query('select public.chat_inbox_v2(null,null,$1)',[thread]),/permission denied/);
  } finally {await db.close();}
 });

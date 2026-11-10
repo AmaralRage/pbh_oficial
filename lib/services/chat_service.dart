@@ -68,7 +68,7 @@ class ChatService {
     final rows =
         await client
                 .rpc(
-                  'chat_inbox',
+                  'chat_inbox_v2',
                   params: {
                     'p_before': before?.activityAt.toUtc().toIso8601String(),
                     'p_before_id': before?.id,
@@ -349,6 +349,42 @@ class ChatService {
       _audioCache.remove(_audioCache.keys.first);
     }
     _audioCache[message.audioPath!] = bytes;
+    return bytes;
+  }
+
+  Future<Uint8List> photo(String thread, ChatMessage message) async {
+    final user = userId;
+    _check(user);
+    if (message.imagePath == null) throw StateError('Foto indisponível.');
+    Future<void> checkVisible() async {
+      final row = await client
+          .from('chat_messages')
+          .select('image_path')
+          .eq('id', message.id)
+          .eq('thread_id', thread)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 15));
+      _check(user);
+      if (row == null ||
+          row['image_path'] != message.imagePath ||
+          !message.expiresAt.isAfter(DateTime.now()))
+        throw StateError('Foto indisponível ou expirada.');
+    }
+
+    await checkVisible();
+    final bytes = await client.storage
+        .from('chat-photos')
+        .download(message.imagePath!)
+        .timeout(const Duration(seconds: 25));
+    _check(user);
+    if (bytes.length < 3 ||
+        bytes.length > 524288 ||
+        bytes[0] != 0xff ||
+        bytes[1] != 0xd8 ||
+        bytes[2] != 0xff)
+      throw StateError('Foto inválida.');
+    // Recheck after the request: an account change, expiry or block cancels export.
+    await checkVisible();
     return bytes;
   }
 

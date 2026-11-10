@@ -10,6 +10,8 @@ class ChatThread {
     this.handle,
     this.preview = '',
     this.hasImage = false,
+    this.muted = false,
+    this.audioDurationMs,
     required this.lastAt,
     required this.activityAt,
     this.lastSender,
@@ -19,6 +21,21 @@ class ChatThread {
   final String id, peerId, name, preview;
   final String? avatar, handle, lastSender;
   final bool hasImage;
+  final bool muted;
+  final int? audioDurationMs;
+  String previewLabel({required bool mine}) {
+    final duration = audioDurationMs;
+    final seconds = duration == null ? 0 : (duration / 1000).ceil();
+    final text = duration != null
+        ? 'Áudio · ${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}'
+        : hasImage
+        ? 'Foto${preview.trim().isEmpty ? '' : ': $preview'}'
+        : preview.trim().isEmpty
+        ? 'Inicie uma conversa'
+        : preview;
+    return '${mine ? 'Você: ' : ''}$text';
+  }
+
   final bool founder;
   final int unread;
   final DateTime lastAt, activityAt, peerReadAt;
@@ -31,6 +48,8 @@ class ChatThread {
     handle: m['handle'] as String?,
     preview: m['last_body'] as String? ?? '',
     hasImage: m['last_image'] == true,
+    muted: m['muted'] == true,
+    audioDurationMs: (m['last_audio_duration_ms'] as num?)?.toInt(),
     lastAt: DateTime.parse(m['last_at'] as String).toLocal(),
     activityAt: DateTime.parse(m['activity_at'] as String),
     lastSender: m['last_sender'] as String?,
@@ -81,11 +100,13 @@ class ChatDraft {
     this.photo,
     this.replyId,
     this.voice,
+    this.attempted = false,
   });
   final String id, text;
   final Uint8List? photo;
   final String? replyId;
   final ChatVoice? voice;
+  final bool attempted;
 }
 
 class ChatVoice {

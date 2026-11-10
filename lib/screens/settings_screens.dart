@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/config/app_version.dart';
 import '../services/auth_service.dart';
 import '../services/private_support_service.dart';
 import 'private_support_screen.dart';
@@ -233,7 +234,7 @@ class _NotificationSettingsScreenState
         ),
         const SizedBox(height: 12),
         Text(
-          'Versão ${const String.fromEnvironment('FLUTTER_BUILD_NAME', defaultValue: 'desenvolvimento')} · build ${const String.fromEnvironment('FLUTTER_BUILD_NUMBER', defaultValue: 'local')}',
+          'Versão ${AppVersion.label} · build ${AppVersion.build}',
           style: AppTextStyles.statLabel,
         ),
       ],

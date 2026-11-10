@@ -6,7 +6,21 @@ double contrast(Color a, Color b) {
   final x = a.computeLuminance(), y = b.computeLuminance();
   return x > y ? (x + .05) / (y + .05) : (y + .05) / (x + .05);
 }
+
 void main() {
+  test(
+    'graphite keeps founder surfaces with a neutral accent available to members',
+    () {
+      final graphite = PbhPalette.resolve('graphite_classic');
+      final founder = PbhPalette.resolve('founder', founder: true);
+      expect(graphite.id, 'graphite_classic');
+      expect(graphite.founderOnly, isFalse);
+      expect(graphite.background, founder.background);
+      expect(graphite.surface, founder.surface);
+      expect(graphite.surfaceElevated, founder.surfaceElevated);
+      expect((graphite.accent.r - graphite.accent.b).abs(), lessThan(.07));
+    },
+  );
   test('original palette keeps its existing colors', () {
     final p = PbhPalette.catalog.first;
     expect(p.accent, const Color(0xFFFF6B2C));
@@ -17,11 +31,26 @@ void main() {
   });
   for (final p in PbhPalette.catalog.skip(1)) {
     test('readable text and actions on ${p.id} surfaces', () {
-      final surfaces = [p.background, p.surface, p.surfaceElevated, p.surfacePressed,
-        Color.alphaBlend(p.orangeDim, p.surface), ...p.featuredGradient];
+      final surfaces = [
+        p.background,
+        p.surface,
+        p.surfaceElevated,
+        p.surfacePressed,
+        Color.alphaBlend(p.orangeDim, p.surface),
+        ...p.featuredGradient,
+      ];
       for (final surface in surfaces) {
-        for (final ink in [p.textPrimary, p.textSecondary, p.textTertiary, p.accent]) {
-          expect(contrast(ink, surface), greaterThanOrEqualTo(4.5), reason: '${p.id} text contrast');
+        for (final ink in [
+          p.textPrimary,
+          p.textSecondary,
+          p.textTertiary,
+          p.accent,
+        ]) {
+          expect(
+            contrast(ink, surface),
+            greaterThanOrEqualTo(4.5),
+            reason: '${p.id} text contrast',
+          );
         }
       }
       expect(contrast(p.onAccent, p.accent), greaterThanOrEqualTo(4.5));

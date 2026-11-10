@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import '../core/theme/app_colors.dart';
 
 class ChatReplySwipe extends StatefulWidget {
@@ -23,29 +24,37 @@ class _ChatReplySwipeState extends State<ChatReplySwipe> {
   }
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onLongPress: widget.onLongPress,
-    onHorizontalDragUpdate: widget.onReply == null
+  Widget build(BuildContext context) => Semantics(
+    customSemanticsActions: widget.onReply == null
         ? null
-        : (details) =>
-              setState(() => _drag = (_drag + details.delta.dx).clamp(0, 72)),
-    onHorizontalDragEnd: widget.onReply == null ? null : (_) => _end(),
-    onHorizontalDragCancel: () => setState(() => _drag = 0),
-    child: Stack(
-      alignment: Alignment.centerLeft,
-      children: [
-        if (_drag > 8)
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: Icon(
-              Icons.reply_rounded,
-              color: context.pbhColors.orange.withValues(
-                alpha: (_drag / 56).clamp(0, 1),
+        : {
+            const CustomSemanticsAction(label: 'Responder à mensagem'):
+                widget.onReply!,
+          },
+    child: GestureDetector(
+      onLongPress: widget.onLongPress,
+      onHorizontalDragUpdate: widget.onReply == null
+          ? null
+          : (details) =>
+                setState(() => _drag = (_drag + details.delta.dx).clamp(0, 72)),
+      onHorizontalDragEnd: widget.onReply == null ? null : (_) => _end(),
+      onHorizontalDragCancel: () => setState(() => _drag = 0),
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          if (_drag > 8)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Icon(
+                Icons.reply_rounded,
+                color: context.pbhColors.orange.withValues(
+                  alpha: (_drag / 56).clamp(0, 1),
+                ),
               ),
             ),
-          ),
-        Transform.translate(offset: Offset(_drag, 0), child: widget.child),
-      ],
+          Transform.translate(offset: Offset(_drag, 0), child: widget.child),
+        ],
+      ),
     ),
   );
 }
