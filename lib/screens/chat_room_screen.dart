@@ -18,6 +18,7 @@ import '../widgets/chat_reply_swipe.dart';
 import '../widgets/chat_message_search.dart';
 import '../widgets/chat_date_separator.dart';
 import '../widgets/chat_message_frame.dart';
+import '../widgets/chat_message_photo.dart';
 import 'chat_photo_preview_screen.dart';
 import '../widgets/chat_send_failure.dart';
 import 'chat_photo_viewer_screen.dart';
@@ -179,6 +180,8 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
   ChatVoice? _voice;
   bool _recorderOpen = false;
   double _wallpaperDim = .54;
+  double _fontSize = 14;
+  bool _pickingPhoto = false;
   ChatThread? _thread;
   RealtimeChannel? _channel;
   StreamSubscription<AuthState>? _auth;
@@ -295,8 +298,10 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
     try {
       final draft = await _store.load(_account!, widget.threadId);
       final wall = await _store.wallpaper(_account, widget.threadId);
+      final fontSize = await _store.fontSize(_account, widget.threadId);
       if (!mounted) return;
       setState(() {
+        _fontSize = fontSize;
         if (draft != null) {
           _id = draft.id;
           _text.text = draft.text;
@@ -317,6 +322,86 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       _notice('Não foi possível restaurar o rascunho neste aparelho.');
     } finally {
       if (mounted) setState(() => _restoring = false);
+    }
+  }
+
+  Future<void> _chooseFontSize() async {
+    var selected = _fontSize;
+    final size = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tamanho das letras',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Ajuste as mensagens desta conversa. Salvo apenas para você neste aparelho.',
+                ),
+                const SizedBox(height: 24),
+                ChatMessageFrame(
+                  mine: true,
+                  grouped: false,
+                  read: true,
+                  time: '12:30',
+                  fontSize: selected,
+                  text: 'Assim ficarão as mensagens da conversa.',
+                  child: const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('A', style: TextStyle(fontSize: 12)),
+                    Expanded(
+                      child: Slider(
+                        value: selected,
+                        min: 12,
+                        max: 20,
+                        divisions: 4,
+                        label: '${selected.round()}',
+                        semanticFormatterCallback: (value) =>
+                            'Tamanho ${value.round()}',
+                        onChanged: (value) => update(() => selected = value),
+                      ),
+                    ),
+                    const Text('A', style: TextStyle(fontSize: 20)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => update(() => selected = 14),
+                      child: const Text('Padrão'),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context, selected),
+                      child: const Text('Aplicar'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (size == null || !mounted) return;
+    try {
+      await _store.saveFontSize(_account!, widget.threadId, size);
+      if (mounted) setState(() => _fontSize = size);
+    } catch (_) {
+      _notice('Não foi possível salvar o tamanho das letras. Tente novamente.');
     }
   }
 
@@ -504,10 +589,13 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _pick({bool wallpaper = false}) async {
+    if (_pickingPhoto) return;
+    setState(() => _pickingPhoto = true);
     try {
       final file = await ImagePicker().pickImage(source: ImageSource.gallery);
       if (file == null) return;
       if (await file.length() > 15 * 1024 * 1024) throw ArgumentError();
+      await WidgetsBinding.instance.endOfFrame;
       final bytes = await prepareChatImage(await file.readAsBytes());
       if (!mounted) return;
       if (wallpaper) {
@@ -531,6 +619,8 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
       }
     } catch (_) {
       _notice('Escolha uma foto estática de até 15 MB.');
+    } finally {
+      if (mounted) setState(() => _pickingPhoto = false);
     }
   }
 
@@ -869,6 +959,10 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
               vertical: 10,
             ),
             onSelected: (value) async {
+              if (value == 'font') {
+                await _chooseFontSize();
+                return;
+              }
               if (value == 'search') {
                 await _searchConversation();
                 return;
@@ -944,6 +1038,13 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                 child: menuOption(
                   Icons.wallpaper_rounded,
                   'Escolher papel de parede',
+                ),
+              ),
+              PopupMenuItem(
+                value: 'font',
+                child: menuOption(
+                  Icons.format_size_rounded,
+                  'Tamanho das letras',
                 ),
               ),
               if (_wallpaper != null)
@@ -1026,7 +1127,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                               reverse: true,
                               controller: _scroll,
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                                horizontal: 8,
                                 vertical: 12,
                               ),
                               itemCount:
@@ -1151,6 +1252,13 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                                               ? null
                                               : () => _actions(m),
                                           child: ChatMessageFrame(
+                                            fontSize: _fontSize,
+                                            text:
+                                                m.replyTo == null &&
+                                                    m.imagePath == null &&
+                                                    m.audioPath == null
+                                                ? m.body
+                                                : null,
                                             mine: mine,
                                             grouped: joinsNewer,
                                             avatar: _thread?.avatar,
@@ -1229,33 +1337,13 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                                                           : GestureDetector(
                                                               onTap: () =>
                                                                   _openPhoto(m),
-                                                              child: ClipRRect(
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      12,
-                                                                    ),
-                                                                child: Image.network(
-                                                                  m.imageUrl!,
-                                                                  width: 240,
-                                                                  height: 240,
-                                                                  fit: BoxFit
-                                                                      .cover,
-                                                                  cacheWidth:
-                                                                      720,
-                                                                  errorBuilder:
-                                                                      (
-                                                                        _,
-                                                                        __,
-                                                                        ___,
-                                                                      ) => const SizedBox(
-                                                                        height:
-                                                                            100,
-                                                                        child: Center(
-                                                                          child: Icon(
-                                                                            Icons.broken_image_outlined,
-                                                                          ),
-                                                                        ),
-                                                                      ),
+                                                              child: ChatMessagePhoto(
+                                                                image: ResizeImage.resizeIfNeeded(
+                                                                  720,
+                                                                  null,
+                                                                  NetworkImage(
+                                                                    m.imageUrl!,
+                                                                  ),
                                                                 ),
                                                               ),
                                                             ),
@@ -1303,11 +1391,10 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                                                             ),
                                                         child: Text(
                                                           m.body,
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 15,
-                                                                height: 1.35,
-                                                              ),
+                                                          style: TextStyle(
+                                                            fontSize: _fontSize,
+                                                            height: 1.35,
+                                                          ),
                                                         ),
                                                       ),
                                                   ],
@@ -1322,6 +1409,27 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                                 );
                               },
                             ),
+                      if (_pickingPhoto)
+                        Positioned.fill(
+                          child: ColoredBox(
+                            color: Colors.black54,
+                            child: Center(
+                              child: Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const CircularProgressIndicator(),
+                                      const SizedBox(height: 16),
+                                      const Text('Preparando foto…'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       if (_awayFromBottom)
                         Positioned(
                           right: 16,
@@ -1406,25 +1514,17 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    IconButton(
-                      tooltip: _voice != null
-                          ? 'Descartar áudio'
-                          : 'Anexar foto',
-                      onPressed: _sending || _restoring || _recorderOpen
-                          ? null
-                          : _voice != null
-                          ? () {
-                              setState(() => _voice = null);
-                              _edited();
-                            }
-                          : () => _pick(),
-                      icon: Icon(
-                        _voice != null
-                            ? Icons.delete_outline
-                            : Icons.add_circle_outline_rounded,
-                        color: colors.orange,
+                    if (_voice != null)
+                      IconButton(
+                        tooltip: 'Descartar áudio',
+                        onPressed: _sending
+                            ? null
+                            : () {
+                                setState(() => _voice = null);
+                                _edited();
+                              },
+                        icon: Icon(Icons.delete_outline, color: colors.orange),
                       ),
-                    ),
                     Expanded(
                       child: _voice != null
                           ? ChatAudioPlayer(
@@ -1435,6 +1535,7 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                             )
                           : TextField(
                               controller: _text,
+                              style: TextStyle(fontSize: _fontSize),
                               focusNode: _composerFocus,
                               enabled:
                                   !_sending && !_restoring && !_recorderOpen,
@@ -1443,6 +1544,29 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                               maxLines: 5,
                               maxLength: 2000,
                               decoration: InputDecoration(
+                                prefixIcon: IconButton(
+                                  tooltip: _voice != null
+                                      ? 'Descartar áudio'
+                                      : 'Anexar foto',
+                                  onPressed:
+                                      _sending ||
+                                          _restoring ||
+                                          _recorderOpen ||
+                                          _pickingPhoto
+                                      ? null
+                                      : _voice != null
+                                      ? () {
+                                          setState(() => _voice = null);
+                                          _edited();
+                                        }
+                                      : () => _pick(),
+                                  icon: Icon(
+                                    _voice != null
+                                        ? Icons.delete_outline
+                                        : Icons.attach_file_rounded,
+                                    color: colors.orange,
+                                  ),
+                                ),
                                 hintText: 'Mensagem…',
                                 counterText: '',
                                 filled: true,
@@ -1476,7 +1600,11 @@ class _ChatRoomState extends State<ChatRoomScreen> with WidgetsBindingObserver {
                           : _text.text.trim().isNotEmpty || _photo != null
                           ? 'Enviar mensagem'
                           : 'Gravar áudio',
-                      onPressed: _sending || _restoring || _recorderOpen
+                      onPressed:
+                          _sending ||
+                              _restoring ||
+                              _recorderOpen ||
+                              _pickingPhoto
                           ? null
                           : _voice != null ||
                                 _text.text.trim().isNotEmpty ||

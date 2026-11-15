@@ -4,6 +4,22 @@ import '../models/chat_models.dart';
 import 'community_draft_storage.dart' as storage;
 
 class ChatLocalStore {
+  Future<double> fontSize(String user, String thread) async {
+    try {
+      final raw = await storage.readDraft(_key(user, thread, 'font-size'));
+      final value = double.tryParse(raw ?? '');
+      return value != null && value.isFinite ? value.clamp(12, 20) : 14;
+    } catch (_) {
+      return 14;
+    }
+  }
+
+  Future<void> saveFontSize(String user, String thread, double size) =>
+      storage.writeDraft(
+        _key(user, thread, 'font-size'),
+        size.clamp(12, 20).toString(),
+      );
+
   static Future<void> _pending = Future.value();
   String _key(String user, String thread, String kind) => base64UrlEncode(
     utf8.encode('private-chat:$kind:$user:$thread'),

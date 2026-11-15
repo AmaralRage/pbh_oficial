@@ -15,6 +15,8 @@ void main() {
       thread = 'cc070000-0000-4000-8000-000000000003',
       message = 'cc070000-0000-4000-8000-000000000004';
   const channel = MethodChannel('dexterous.com/flutter/local_notifications');
+  const conversations = MethodChannel('pbh/conversations');
+  final conversationCalls = <MethodCall>[];
   final calls = <MethodCall>[];
   Map<String, dynamic> data() => {
     'chat_id': thread,
@@ -36,6 +38,12 @@ void main() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
     calls.clear();
+    conversationCalls.clear();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(conversations, (call) async {
+          conversationCalls.add(call);
+          return true;
+        });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call);
@@ -50,6 +58,8 @@ void main() {
   });
   tearDown(() {
     debugDefaultTargetPlatformOverride = null;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(conversations, null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });
@@ -75,12 +85,30 @@ void main() {
       expect(person['icon'], [1, 2, 3]);
       expect(entry['text'], 'Olá, irmão!');
       expect(android['largeIcon'], [1, 2, 3]);
+      expect(android['shortcutId'], 'pbh.chat.$user.$thread');
+      final shortcut = conversationCalls.single.arguments as Map;
+      expect(shortcut['avatar'], [1, 2, 3]);
+      expect(shortcut['name'], 'Arthur Morgan');
+      expect(shortcut['payload'], args['payload']);
       expect(jsonDecode(args['payload'] as String), {
         'recipient_id': user,
         'destination_url': 'https://pbh-oficial.vercel.app/?chat=$thread',
       });
     },
   );
+  test('shortcut failure keeps the message notification working', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(conversations, (call) async {
+          throw PlatformException(code: 'unavailable');
+        });
+    final service = ChatPushNotifications(
+      readAccount: () async => user,
+      readAvatar: (_) async => null,
+    );
+    expect(await service.show(data()), isTrue);
+    final args = calls.singleWhere((c) => c.method == 'show').arguments as Map;
+    expect((args['platformSpecifics'] as Map)['shortcutId'], isNull);
+  });
   test('another account or an expired preview cannot be displayed', () async {
     var avatars = 0;
     final service = ChatPushNotifications(

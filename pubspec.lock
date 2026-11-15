@@ -869,6 +869,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  pbh_conversations:
+    dependency: "direct main"
+    description:
+      path: "packages/pbh_conversations"
+      relative: true
+    source: path
+    version: "0.0.1"
   petitparser:
     dependency: transitive
     description:

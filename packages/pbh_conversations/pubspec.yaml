@@ -1,0 +1,15 @@
+name: pbh_conversations
+description: Android conversation shortcuts for private chat notifications.
+version: 0.0.1
+publish_to: none
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.amaralstudios.pbh.conversations
+        pluginClass: ConversationPlugin

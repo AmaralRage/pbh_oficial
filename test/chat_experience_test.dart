@@ -22,6 +22,14 @@ final message = ChatMessage(
 );
 
 class _Store extends ChatLocalStore {
+  double selectedSize = 14;
+  @override
+  Future<double> fontSize(String user, String thread) async => selectedSize;
+  @override
+  Future<void> saveFontSize(String user, String thread, double size) async {
+    selectedSize = size;
+  }
+
   @override
   Future<ChatDraft?> load(String user, String thread) async => null;
   @override
@@ -180,6 +188,53 @@ class _HistoryService extends _Service {
 }
 
 void main() {
+  testWidgets('font picker previews, applies and restores the saved size', (
+    tester,
+  ) async {
+    final service = (await tester.runAsync(() async => _Service()))!;
+    final store = _Store();
+    Future<void> open() async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatRoomScreen(
+            threadId: 'thread',
+            service: service,
+            localStore: store,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await open();
+    await tester.tap(find.byTooltip('Personalizar conversa'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tamanho das letras'));
+    await tester.pumpAndSettle();
+    tester.widget<Slider>(find.byType(Slider)).onChanged!(20);
+    await tester.pump();
+    expect(store.selectedSize, 14);
+    await tester.tap(find.text('Aplicar'));
+    await tester.pumpAndSettle();
+    expect(store.selectedSize, 20);
+    expect(
+      tester
+          .widget<ChatMessageFrame>(find.byType(ChatMessageFrame).first)
+          .fontSize,
+      20,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await open();
+    expect(
+      tester
+          .widget<ChatMessageFrame>(find.byType(ChatMessageFrame).first)
+          .fontSize,
+      20,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.runAsync(() => service.client.dispose());
+  });
   testWidgets(
     'chat supports enlarged text and accessible reply action on a narrow screen',
     (tester) async {
@@ -329,6 +384,8 @@ void main() {
                     grouped: false,
                     time: '09:17',
                     read: false,
+                    text:
+                        'Uma mensagem recebida com texto maior para conferir a leitura.',
                     child: Text(
                       'Uma mensagem recebida com texto maior para conferir a leitura.',
                     ),
@@ -351,7 +408,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.byIcon(Icons.person_outline), findsOneWidget);
+      expect(find.byIcon(Icons.person_outline), findsNothing);
       expect(find.text('09:17'), findsOneWidget);
       expect(find.text('1:05'), findsOneWidget);
       expect(tester.takeException(), isNull);

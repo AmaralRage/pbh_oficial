@@ -1,9 +1,28 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
+import 'chat_image_preparation_stub.dart'
+    if (dart.library.js_interop) 'chat_image_preparation_web.dart'
+    as platform;
 
-Future<Uint8List> prepareChatImage(Uint8List bytes) =>
-    compute(compressChatImage, bytes);
+Future<Uint8List> prepareChatImage(Uint8List bytes) async {
+  if (kIsWeb) {
+    // compute() runs on the UI thread on web. Only inspect the header here;
+    // decoding, resizing and JPEG encoding are delegated to the browser.
+    if (bytes.isEmpty || bytes.length > 15 * 1024 * 1024) {
+      throw ArgumentError('Escolha uma foto de até 15 MB.');
+    }
+    final info = img.findDecoderForData(bytes)?.startDecode(bytes);
+    if (info == null ||
+        info.numFrames != 1 ||
+        info.width * info.height > 32000000) {
+      throw ArgumentError('Escolha uma foto estática de até 32 megapixels.');
+    }
+    return platform.prepareBrowserChatImage(bytes);
+  }
+  return compute(compressChatImage, bytes);
+}
+
 Uint8List compressChatImage(Uint8List bytes) {
   if (bytes.isEmpty || bytes.length > 15 * 1024 * 1024)
     throw ArgumentError('Escolha uma foto de até 15 MB.');

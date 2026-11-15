@@ -10,6 +10,8 @@ import 'package:pbh_oficial/services/chat_local_store.dart';
 
 class _MemoryStore extends ChatLocalStore {
   @override
+  Future<double> fontSize(String user, String thread) async => 14;
+  @override
   Future<ChatDraft?> load(String user, String thread) async => null;
   @override
   Future<void> save(String user, String thread, ChatDraft draft) async {}

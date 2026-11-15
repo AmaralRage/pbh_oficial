@@ -22,14 +22,13 @@ class ChatDateSeparator extends StatelessWidget {
   final String label;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 10, bottom: 18),
+    padding: const EdgeInsets.only(top: 10, bottom: 12),
     child: Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: context.pbhColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: context.pbhColors.borderSubtle),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           label,

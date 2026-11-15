@@ -36,6 +36,7 @@ class ChatPushNotifications {
   final Future<String?> Function() _readAccount;
   final Future<Uint8List?> Function(ChatPushPayload) _readAvatar;
   final _plugin = FlutterLocalNotificationsPlugin();
+  static const _conversations = MethodChannel('pbh/conversations');
   static const _idsKey = 'pbh.chat.notification_ids',
       _pausedKey = 'pbh.chat.paused_user';
   final _prefs = SharedPreferencesAsync();
@@ -103,6 +104,30 @@ class ChatPushNotifications {
       key: payload.senderId,
       icon: avatar == null ? null : ByteArrayAndroidIcon(avatar),
     );
+    final localPayload = jsonEncode({
+      'recipient_id': payload.recipientId,
+      'destination_url': data['destination_url'],
+    });
+    final shortcut = 'pbh.chat.${payload.recipientId}.${payload.threadId}';
+    var published = false;
+    try {
+      published =
+          await _conversations.invokeMethod<bool>('publish', {
+            'id': shortcut,
+            'name': payload.name,
+            'sender': payload.senderId,
+            'avatar': avatar,
+            'payload': localPayload,
+            'notificationId': payload.notificationId,
+          }) ==
+          true;
+    } catch (_) {
+      // Older Android versions can still display the normal message alert.
+    }
+    if (!await _allowed(payload.recipientId, thread: payload.threadId)) {
+      await clear();
+      return false;
+    }
     await _plugin.show(
       payload.notificationId,
       payload.name,
@@ -120,6 +145,7 @@ class ChatPushNotifications {
               .clamp(1, 604800000),
           icon: 'ic_stat_pbh_prominent',
           category: AndroidNotificationCategory.message,
+          shortcutId: published ? shortcut : null,
           visibility: NotificationVisibility.private,
           groupKey: 'pbh.chat.${payload.threadId}',
           onlyAlertOnce: false,
@@ -135,10 +161,7 @@ class ChatPushNotifications {
           enableVibration: !silent,
         ),
       ),
-      payload: jsonEncode({
-        'recipient_id': payload.recipientId,
-        'destination_url': data['destination_url'],
-      }),
+      payload: localPayload,
     );
     if (!await _allowed(payload.recipientId, thread: payload.threadId)) {
       await _plugin.cancel(payload.notificationId);
@@ -165,6 +188,9 @@ class ChatPushNotifications {
   }
 
   Future<void> clear() async {
+    try {
+      await _conversations.invokeMethod<bool>('clear');
+    } catch (_) {}
     try {
       for (final notification in await _plugin.getActiveNotifications()) {
         if (notification.id != null &&
