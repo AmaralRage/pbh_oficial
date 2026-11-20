@@ -332,7 +332,7 @@ void main() {
       expect(service.readCalls, readBefore);
       await tester.tap(find.byTooltip('Voltar para mensagens recentes'));
       await tester.pumpAndSettle();
-      expect(find.text('Acabou de chegar'), findsOneWidget);
+      expect(find.textContaining('Acabou de chegar'), findsOneWidget);
       expect(find.byTooltip('Voltar para mensagens recentes'), findsNothing);
       expect(service.readCalls, greaterThan(readBefore));
       expect(tester.takeException(), isNull);
@@ -525,7 +525,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'disciplina');
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
-      expect(find.text(message.body), findsOneWidget);
+      expect(find.textContaining(message.body), findsOneWidget);
       expect(find.byIcon(Icons.reply_rounded), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.runAsync(() => service.client.dispose());
@@ -551,10 +551,13 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.drag(find.text(message.body), const Offset(110, 0));
+      await tester.drag(
+        find.textContaining(message.body),
+        const Offset(110, 0),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Respondendo a uma mensagem'), findsOneWidget);
-      expect(find.text(message.body), findsNWidgets(2));
+      expect(find.textContaining(message.body), findsNWidgets(2));
       await tester.enterText(find.byType(TextField), 'Olá');
       await tester.pump();
       expect(service.typingStates.last, true);

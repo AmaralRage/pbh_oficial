@@ -24,7 +24,7 @@ class ChatMessageFrame extends StatelessWidget {
   final Widget child;
 
   Widget _metadata(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 2, right: 2),
+    padding: const EdgeInsets.only(left: 2),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -50,6 +50,36 @@ class ChatMessageFrame extends StatelessWidget {
       ],
     ),
   );
+
+  Widget _textBubble(BuildContext context) {
+    final timeStyle = DefaultTextStyle.of(context).style.copyWith(fontSize: 10);
+    final painter = TextPainter(
+      text: TextSpan(text: time, style: timeStyle),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final footerWidth = painter.width + (mine ? 18 : 0) + 10;
+    final footerHeight = painter.height > 14 ? painter.height : 14.0;
+    painter.dispose();
+    return Stack(
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: text),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.bottom,
+                child: SizedBox(width: footerWidth, height: footerHeight),
+              ),
+            ],
+          ),
+          textAlign: TextAlign.start,
+        ),
+        Positioned(right: 0, bottom: 0, child: _metadata(context)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.pbhColors;
@@ -100,13 +130,7 @@ class ChatMessageFrame extends StatelessWidget {
                         height: 1.3,
                       ),
                       child: text != null
-                          ? Wrap(
-                              alignment: WrapAlignment.end,
-                              crossAxisAlignment: WrapCrossAlignment.end,
-                              spacing: 8,
-                              runSpacing: 2,
-                              children: [Text(text!), _metadata(context)],
-                            )
+                          ? _textBubble(context)
                           : Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               mainAxisSize: MainAxisSize.min,
